@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VSM Sync Player - Final Fix</title>
+    <title>VSM Scouting - High Precision</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
-        body { font-family: "Helvetica Neue", Arial, sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
+        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
         @media (max-width: 768px) {
             body { flex-direction: column; overflow-y: auto; }
             #video-side { width: 100%; position: sticky; top: 0; z-index: 100; }
@@ -14,14 +14,13 @@
         }
         #video-side { flex: 2; background: #000; display: flex; align-items: center; justify-content: center; }
         #player-box { width: 100%; aspect-ratio: 16 / 9; background: #222; }
-        #control-side { flex: 1; padding: 20px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
-        .status-bar { padding: 10px; background: var(--dark); color: #00ff00; font-family: monospace; font-size: 0.8rem; margin-bottom: 15px; border-radius: 6px; }
+        #control-side { flex: 1; padding: 20px; overflow-y: auto; background: white; border-left: 1px solid #ddd; }
+        .status-bar { padding: 10px; background: var(--dark); color: #00ff00; font-family: monospace; font-size: 0.8rem; margin-bottom: 10px; border-radius: 6px; }
         .card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        h3 { margin: 0 0 10px 0; font-size: 0.9rem; border-left: 4px solid var(--primary); padding-left: 10px; }
-        select, input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; }
+        select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; }
         .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; display: flex; align-items: center; }
         .instance-btn.active { background: #eef6ff; border-color: var(--primary); }
-        .score-display { font-family: "Arial Black", sans-serif; font-size: 1.2rem; min-width: 70px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 5px; }
+        .score-display { font-family: "Arial Black", sans-serif; font-size: 1.3rem; min-width: 75px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 5px; }
         .player-name { font-weight: bold; display: block; font-size: 1.1rem; }
         .team-info { color: #666; font-size: 0.75rem; }
         .color-S { border-left-color: #007bff; } .color-R { border-left-color: #ffc107; }
@@ -37,11 +36,10 @@
 <div id="control-side">
     <div id="status-msg" class="status-bar">READY</div>
     <div class="card">
-        <h3>1. 試合データ選択</h3>
+        <h3>1. 試合を選択</h3>
         <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">-- 読込中 --</option></select>
     </div>
-    <div class="card" id="filterArea" style="display:none;">
-        <h3>2. 絞り込み</h3>
+    <div id="filterArea" style="display:none;" class="card">
         <select id="teamFilter"></select>
         <select id="playerFilter"></select>
         <select id="skillFilter"></select>
@@ -60,7 +58,7 @@
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', {
             height: '100%', width: '100%',
-            playerVars: { 'playsinline': 1 },
+            playerVars: { 'playsinline': 1, 'rel': 0, 'enablejsapi': 1 },
             events: { 'onReady': fetchMatchList }
         });
     }
@@ -79,29 +77,19 @@
 
     function onMatchChange(vsmFile) {
         if (!vsmFile) return;
-        updateStatus("読込中...");
         player.loadVideoById(matchMap[vsmFile]);
-        fetch(vsmFile).then(res => res.json()).then(processVSM).catch(e => {
-            console.error(e);
-            updateStatus("解析失敗");
-        });
+        fetch(vsmFile).then(res => res.json()).then(processVSM);
     }
 
     function processVSM(vsmData) {
         allData = []; playerMaster = {};
-        
-        // チーム情報の安全な取得
-        const homeTeam = vsmData.scout.homeTeam || { name: "Home" };
-        const awayTeam = vsmData.scout.awayTeam || { name: "Away" };
-        const homeName = homeTeam.name;
-        const awayName = awayTeam.name;
+        const homeT = vsmData.scout.homeTeam;
+        const awayT = vsmData.scout.awayTeam;
 
-        // 選手マスタの構築
-        [homeTeam, awayTeam].forEach(team => {
+        [homeT, awayT].forEach(team => {
             if (team && team.players) {
                 team.players.forEach(p => {
-                    const displayName = p.lastName || p.firstName || p.number;
-                    playerMaster[`${team.name}_${p.number}`] = displayName;
+                    playerMaster[`${team.name}_${p.number}`] = p.lastName || p.firstName || p.number;
                 });
             }
         });
@@ -110,39 +98,28 @@
             (set.events || []).forEach(event => {
                 const hScore = event.score?.home ?? 0;
                 const aScore = event.score?.away ?? 0;
-                const exchange = event.exchange || {};
-                const plays = exchange.plays || [];
-                const exchangeTime = exchange.time || 0;
+                const plays = event.exchange?.plays || [];
 
                 plays.forEach(play => {
-                    // 背番号"00"や無効なデータを除外
                     if (!play.player || play.player === "00") return;
-                    
-                    // チーム判定 (*=Home, a=Away)
-                    const currentTeamName = (play.team === "*") ? homeName : awayName;
-                    const pName = playerMaster[`${currentTeamName}_${play.player}`] || `#${play.player}`;
-                    
-                    // 時間計算 (originalTime優先、なければexchangeベースで算出)
-                    let videoTime = 0;
-                    if (play.originalTime) {
-                        videoTime = play.originalTime / 1000;
-                    } else {
-                        videoTime = (exchangeTime + (play.time || 0)) / 1000;
-                    }
+                    const tName = (play.team === "*") ? homeT.name : awayT.name;
+                    const pName = playerMaster[`${tName}_${play.player}`] || `#${play.player}`;
 
-                    allData.push({ 
-                        time: videoTime, 
-                        score: `${hScore}-${aScore}`, 
-                        pName: pName, 
-                        code: play.skill || "??", 
-                        tName: currentTeamName 
-                    });
+                    // XML版と同様の絶対時間（originalTime）をミリ秒から秒に変換
+                    // VSM構造上、これが最も正確な同期ポイントになります
+                    if (play.originalTime) {
+                        allData.push({
+                            time: play.originalTime / 1000,
+                            score: `${hScore}-${aScore}`,
+                            pName, code: play.skill || "??", tName
+                        });
+                    }
                 });
             });
         });
-
         document.getElementById('filterArea').style.display = 'block';
         initFilters();
+        render();
         updateStatus("LOADED: " + allData.length + " clips");
     }
 
@@ -150,52 +127,23 @@
         const ts = document.getElementById('teamFilter');
         ts.innerHTML = '<option value="">すべてのチーム</option>';
         [...new Set(allData.map(d => d.tName))].sort().forEach(t => ts.add(new Option(t, t)));
-        
-        const ss = document.getElementById('skillFilter');
-        ss.innerHTML = '<option value="">すべてのスキル</option>';
-        [...new Set(allData.map(d => d.code))].sort().forEach(s => ss.add(new Option(s, s)));
-
-        ts.onchange = () => { updatePlayerFilter(); render(); };
-        ss.onchange = render;
-        updatePlayerFilter();
-        render();
-    }
-
-    function updatePlayerFilter() {
-        const tf = document.getElementById('teamFilter').value;
-        const data = tf ? allData.filter(d => d.tName === tf) : allData;
-        const ps = document.getElementById('playerFilter');
-        ps.innerHTML = '<option value="">すべての選手</option>';
-        [...new Set(data.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
-        ps.onchange = render;
+        ts.onchange = render;
     }
 
     function render() {
         const tf = document.getElementById('teamFilter').value;
-        const pf = document.getElementById('playerFilter').value;
-        const sf = document.getElementById('skillFilter').value;
         const list = document.getElementById('instanceList');
         list.innerHTML = '';
-        
-        filteredData = allData.filter(d => 
-            (!tf || d.tName === tf) && 
-            (!pf || d.pName === pf) && 
-            (!sf || d.code === sf)
-        );
+        filteredData = allData.filter(d => !tf || d.tName === tf);
         
         filteredData.forEach((d, i) => {
             const btn = document.createElement('div');
             btn.className = `instance-btn color-${d.code}`;
-            btn.innerHTML = `
-                <div class="score-display">${d.score}</div>
-                <div>
-                    <span class="player-name">${d.pName}</span>
-                    <span class="team-info">${d.tName} | ${d.code}</span>
-                </div>
-            `;
+            btn.innerHTML = `<div class="score-display">${d.score}</div><div><span class="player-name">${d.pName}</span><span class="team-info">${d.tName} | ${d.code}</span></div>`;
             btn.onclick = () => {
                 currentIndex = i;
-                player.seekTo(d.time - 1.5, true);
+                // XML版と同じく、再生したい瞬間の3秒前からシーク
+                player.seekTo(d.time - 3, true);
                 player.playVideo();
                 document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
