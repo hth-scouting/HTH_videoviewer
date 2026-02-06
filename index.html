@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VSM Player - Fixed</title>
+    <title>VSM Sync Player - Final Fix</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
         body { font-family: "Helvetica Neue", Arial, sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
@@ -21,8 +21,8 @@
         select, input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; }
         .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; display: flex; align-items: center; }
         .instance-btn.active { background: #eef6ff; border-color: var(--primary); }
-        .score-display { font-family: "Arial Black", sans-serif; font-size: 1.2rem; min-width: 70px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; }
-        .player-name { font-weight: bold; display: block; }
+        .score-display { font-family: "Arial Black", sans-serif; font-size: 1.2rem; min-width: 70px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 5px; }
+        .player-name { font-weight: bold; display: block; font-size: 1.1rem; }
         .team-info { color: #666; font-size: 0.75rem; }
         .color-S { border-left-color: #007bff; } .color-R { border-left-color: #ffc107; }
         .color-A { border-left-color: #dc3545; } .color-B { border-left-color: #28a745; }
@@ -39,7 +39,6 @@
     <div class="card">
         <h3>1. 試合データ選択</h3>
         <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">-- 読込中 --</option></select>
-        <input type="file" id="manualVSM" accept=".vsm">
     </div>
     <div class="card" id="filterArea" style="display:none;">
         <h3>2. 絞り込み</h3>
@@ -51,7 +50,7 @@
 </div>
 
 <script>
-    let player, allData = [], filteredData = [], currentIndex = -1, checkInterval;
+    let player, allData = [], filteredData = [], currentIndex = -1;
     let matchMap = {}, playerMaster = {};
 
     const tag = document.createElement('script');
@@ -80,28 +79,29 @@
 
     function onMatchChange(vsmFile) {
         if (!vsmFile) return;
+        updateStatus("読込中...");
         player.loadVideoById(matchMap[vsmFile]);
-        fetch(vsmFile).then(res => res.json()).then(processVSM).catch(e => updateStatus("解析失敗"));
+        fetch(vsmFile).then(res => res.json()).then(processVSM).catch(e => {
+            console.error(e);
+            updateStatus("解析失敗");
+        });
     }
-
-    document.getElementById('manualVSM').onchange = (e) => {
-        const reader = new FileReader();
-        reader.onload = (evt) => processVSM(JSON.parse(evt.target.result));
-        reader.readAsText(e.target.files[0]);
-    };
 
     function processVSM(vsmData) {
         allData = []; playerMaster = {};
-        // エラー箇所の修正: チーム名を安全に取得
+        
+        // チーム情報の安全な取得
         const homeTeam = vsmData.scout.homeTeam || { name: "Home" };
         const awayTeam = vsmData.scout.awayTeam || { name: "Away" };
         const homeName = homeTeam.name;
         const awayName = awayTeam.name;
 
+        // 選手マスタの構築
         [homeTeam, awayTeam].forEach(team => {
-            if (team.players) {
+            if (team && team.players) {
                 team.players.forEach(p => {
-                    playerMaster[`${team.name}_${p.number}`] = p.lastName || p.firstName || p.number;
+                    const displayName = p.lastName || p.firstName || p.number;
+                    playerMaster[`${team.name}_${p.number}`] = displayName;
                 });
             }
         });
@@ -110,44 +110,89 @@
             (set.events || []).forEach(event => {
                 const hScore = event.score?.home ?? 0;
                 const aScore = event.score?.away ?? 0;
-                const plays = event.exchange?.plays || [];
-                const baseTime = event.exchange?.time || 0;
+                const exchange = event.exchange || {};
+                const plays = exchange.plays || [];
+                const exchangeTime = exchange.time || 0;
 
                 plays.forEach(play => {
+                    // 背番号"00"や無効なデータを除外
                     if (!play.player || play.player === "00") return;
-                    const tName = play.team === "*" ? homeName : awayName;
-                    const pName = playerMaster[`${tName}_${play.player}`] || `#${play.player}`;
                     
-                    // 時間計算の修正
-                    let videoTime = play.originalTime ? (play.originalTime / 1000) : ((baseTime + (play.time || 0)) / 1000);
+                    // チーム判定 (*=Home, a=Away)
+                    const currentTeamName = (play.team === "*") ? homeName : awayName;
+                    const pName = playerMaster[`${currentTeamName}_${play.player}`] || `#${play.player}`;
+                    
+                    // 時間計算 (originalTime優先、なければexchangeベースで算出)
+                    let videoTime = 0;
+                    if (play.originalTime) {
+                        videoTime = play.originalTime / 1000;
+                    } else {
+                        videoTime = (exchangeTime + (play.time || 0)) / 1000;
+                    }
 
-                    allData.push({ time: videoTime, score: `${hScore}-${aScore}`, pName, code: play.skill || "??", tName });
+                    allData.push({ 
+                        time: videoTime, 
+                        score: `${hScore}-${aScore}`, 
+                        pName: pName, 
+                        code: play.skill || "??", 
+                        tName: currentTeamName 
+                    });
                 });
             });
         });
+
         document.getElementById('filterArea').style.display = 'block';
         initFilters();
-        updateStatus("LOADED");
+        updateStatus("LOADED: " + allData.length + " clips");
     }
 
     function initFilters() {
         const ts = document.getElementById('teamFilter');
         ts.innerHTML = '<option value="">すべてのチーム</option>';
-        [...new Set(allData.map(d => d.tName))].forEach(t => ts.add(new Option(t, t)));
-        ts.onchange = render;
+        [...new Set(allData.map(d => d.tName))].sort().forEach(t => ts.add(new Option(t, t)));
+        
+        const ss = document.getElementById('skillFilter');
+        ss.innerHTML = '<option value="">すべてのスキル</option>';
+        [...new Set(allData.map(d => d.code))].sort().forEach(s => ss.add(new Option(s, s)));
+
+        ts.onchange = () => { updatePlayerFilter(); render(); };
+        ss.onchange = render;
+        updatePlayerFilter();
         render();
+    }
+
+    function updatePlayerFilter() {
+        const tf = document.getElementById('teamFilter').value;
+        const data = tf ? allData.filter(d => d.tName === tf) : allData;
+        const ps = document.getElementById('playerFilter');
+        ps.innerHTML = '<option value="">すべての選手</option>';
+        [...new Set(data.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
+        ps.onchange = render;
     }
 
     function render() {
         const tf = document.getElementById('teamFilter').value;
+        const pf = document.getElementById('playerFilter').value;
+        const sf = document.getElementById('skillFilter').value;
         const list = document.getElementById('instanceList');
         list.innerHTML = '';
-        filteredData = allData.filter(d => !tf || d.tName === tf);
+        
+        filteredData = allData.filter(d => 
+            (!tf || d.tName === tf) && 
+            (!pf || d.pName === pf) && 
+            (!sf || d.code === sf)
+        );
         
         filteredData.forEach((d, i) => {
             const btn = document.createElement('div');
             btn.className = `instance-btn color-${d.code}`;
-            btn.innerHTML = `<div class="score-display">${d.score}</div><div><span class="player-name">${d.pName}</span><span class="team-info">${d.tName} | ${d.code}</span></div>`;
+            btn.innerHTML = `
+                <div class="score-display">${d.score}</div>
+                <div>
+                    <span class="player-name">${d.pName}</span>
+                    <span class="team-info">${d.tName} | ${d.code}</span>
+                </div>
+            `;
             btn.onclick = () => {
                 currentIndex = i;
                 player.seekTo(d.time - 1.5, true);
