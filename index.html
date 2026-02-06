@@ -3,27 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VB Analysis - Full Auto</title>
+    <title>VB Analysis - Score Focus</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
-        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
+        body { font-family: "Meiryo", sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
+        
         @media (max-width: 768px) {
             body { flex-direction: column; overflow-y: auto; }
             #video-side { width: 100%; position: sticky; top: 0; z-index: 100; }
             #control-side { width: 100%; flex: none; overflow: visible; padding: 15px; }
         }
+        
         #video-side { flex: 2; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         #player-box { width: 100%; aspect-ratio: 16 / 9; background: #222; }
         #control-side { flex: 1; padding: 25px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
+        
         .status-bar { padding: 10px; background: var(--dark); color: #00ff00; font-family: monospace; font-size: 0.8rem; margin-bottom: 15px; border-radius: 6px; }
         .card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        h3 { margin: 0 0 10px 0; font-size: 0.9rem; border-left: 4px solid var(--primary); padding-left: 10px; }
+        
         select { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; }
-        .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; }
+        
+        .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; display: flex; align-items: center; }
         .instance-btn.active { background: #eef6ff; border-color: var(--primary); }
+        
+        /* スコア表示を大きく強調 */
+        .score-display { 
+            font-family: "Arial Black", sans-serif; 
+            font-size: 1.4rem; 
+            color: var(--dark); 
+            min-width: 85px; 
+            text-align: center;
+            background: #f0f0f0;
+            border-radius: 4px;
+            margin-right: 15px;
+            padding: 2px 5px;
+        }
+        
+        .info-content { flex-grow: 1; }
+        .player-name { font-weight: bold; font-size: 1.1rem; display: block; }
+        .skill-code { color: #666; font-size: 0.85rem; }
+        
         .color-serve { border-left-color: #007bff; }
         .color-attack { border-left-color: #dc3545; }
         .color-block { border-left-color: #28a745; }
         .color-receive { border-left-color: #ffc107; }
+
+        .fs-btn { position: fixed; bottom: 20px; right: 20px; z-index: 999; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; }
+        body.fullscreen-mode #control-side { display: none; }
+        body.fullscreen-mode #video-side { height: 100vh; width: 100vw; }
     </style>
 </head>
 <body>
@@ -33,12 +63,12 @@
 </div>
 
 <div id="control-side">
-    <div id="status-msg" class="status-bar">試合リストを読み込んでいます...</div>
+    <div id="status-msg" class="status-bar">試合を選択してください</div>
     
     <div class="card">
         <h3>1. 試合を選択</h3>
-        <select id="matchSelect" onchange="onMatchChange(this.value)">
-            <option value="">-- 試合を選択 --</option>
+        <select id="matchSelect" onchange="loadGameXML(this.value)">
+            <option value="">-- 読み込み中 --</option>
         </select>
     </div>
 
@@ -55,12 +85,14 @@
     <div id="instanceList"></div>
 </div>
 
+<button class="fs-btn" onclick="document.body.classList.toggle('fullscreen-mode')">全</button>
+
 <script>
+    const PLAYLIST_ID = 'PLEFay6yjw4RVg36xqudosi_s4cV-u7S99';
     let player, allData = [], filteredData = [], currentIndex = -1, checkInterval;
-    let matchMap = {}; // XMLファイル名と動画IDの対応表
+    let matchMap = {};
     const EXCLUDE_KEYWORDS = ["substitution", "timeout", "end of set"];
 
-    // YouTube API Load
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
@@ -68,54 +100,37 @@
     window.onYouTubeIframeAPIReady = function() {
         player = new YT.Player('player', {
             height: '100%', width: '100%',
-            playerVars: { 'playsinline': 1, 'rel': 0, 'enablejsapi': 1 },
-            events: { 'onReady': () => { 
-                updateStatus("READY: 試合を選択してください");
-                fetchMatchList(); 
-            } }
+            playerVars: { 'listType': 'playlist', 'list': PLAYLIST_ID, 'playsinline': 1 },
+            events: { 'onReady': () => { fetchMatchList(); } }
         });
     }
 
-    // 試合リストの読み込み
     function fetchMatchList() {
         fetch('list.txt')
             .then(res => res.text())
             .then(data => {
-                const lines = data.split('\n').filter(line => line.trim() !== "" && line.includes(','));
+                const lines = data.split('\n').filter(l => l.trim() !== "" && l.includes(','));
                 const select = document.getElementById('matchSelect');
                 select.innerHTML = '<option value="">-- 試合を選択 --</option>';
-                
                 lines.forEach(line => {
-                    const [xmlFile, videoId] = line.split(',').map(s => s.trim());
-                    matchMap[xmlFile] = videoId;
-                    select.add(new Option(xmlFile.replace('.xml', ''), xmlFile));
+                    const [xml, vid] = line.split(',').map(s => s.trim());
+                    matchMap[xml] = vid;
+                    select.add(new Option(xml.replace('.xml', ''), xml));
                 });
+                updateStatus("READY: 試合を選択してください");
             })
-            .catch(() => updateStatus("Error: list.txt の形式が正しくありません"));
+            .catch(() => updateStatus("Error: list.txt が見つかりません"));
     }
 
-    // 選択変更時の処理
-    function onMatchChange(xmlFile) {
+    function loadGameXML(xmlFile) {
         if (!xmlFile) return;
-        const videoId = matchMap[xmlFile];
-        
-        // 動画の切り替え
-        if (videoId) {
-            player.loadVideoById(videoId);
-        }
-
-        // XMLの読み込み
-        fetch(xmlFile)
-            .then(res => res.text())
-            .then(xml => {
-                parseVolleyballXML(xml);
-                document.getElementById('filterArea').style.display = 'block';
-                updateStatus("LOADED: " + xmlFile);
-            })
-            .catch(() => alert("XML読込エラー: " + xmlFile));
+        if (matchMap[xmlFile]) player.loadVideoById(matchMap[xmlFile]);
+        fetch(xmlFile).then(res => res.text()).then(xml => {
+            parseVolleyballXML(xml);
+            document.getElementById('filterArea').style.display = 'block';
+            updateStatus("LOADED: " + xmlFile);
+        });
     }
-
-    function updateStatus(msg) { document.getElementById('status-msg').innerText = msg; }
 
     function parseVolleyballXML(xmlString) {
         const parser = new DOMParser();
@@ -127,19 +142,22 @@
             const code = inst.getElementsByTagName("code")[0]?.textContent || "";
             if (EXCLUDE_KEYWORDS.some(key => code.toLowerCase().includes(key))) return;
 
-            let pName = "", tName = "";
+            let pName = "", tName = "", homeScore = "0", awayScore = "0";
+
             Array.from(inst.getElementsByTagName("label")).forEach(l => {
                 const g = l.getElementsByTagName("group")[0]?.textContent || "";
                 const t = l.getElementsByTagName("text")[0]?.textContent || "";
                 if (g.toLowerCase().includes("player")) pName = t.trim();
                 if (g.toLowerCase().includes("team name")) tName = t.trim();
+                if (g.toLowerCase().includes("home score")) homeScore = t.trim();
+                if (g.toLowerCase().includes("away score")) awayScore = t.trim();
             });
 
             if (pName) {
                 allData.push({
                     start: parseFloat(inst.getElementsByTagName("start")[0]?.textContent || "0"),
                     end: parseFloat(inst.getElementsByTagName("end")[0]?.textContent || "0"),
-                    code, pName, tName: tName || "不明"
+                    code, pName, tName, score: `${homeScore}-${awayScore}`
                 });
             }
         });
@@ -157,12 +175,10 @@
     function updateSubFilters() {
         const selectedTeam = document.getElementById('teamFilter').value;
         const data = selectedTeam ? allData.filter(d => d.tName === selectedTeam) : allData;
-        
         const ps = document.getElementById('playerFilter');
         ps.innerHTML = '<option value="">すべての選手</option>';
         [...new Set(data.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
         ps.onchange = render;
-
         const ss = document.getElementById('skillFilter');
         ss.innerHTML = '<option value="">すべてのスキル</option>';
         [...new Set(data.map(d => d.code))].sort().forEach(s => ss.add(new Option(s, s)));
@@ -173,12 +189,19 @@
         const tf = document.getElementById('teamFilter').value, pf = document.getElementById('playerFilter').value, sf = document.getElementById('skillFilter').value;
         const list = document.getElementById('instanceList'); list.innerHTML = '';
         filteredData = allData.filter(d => (tf==="" || d.tName === tf) && (pf==="" || d.pName === pf) && (sf==="" || d.code === sf));
+        
         filteredData.forEach((d, i) => {
             const btn = document.createElement('div');
             let color = d.code.includes("Serve") ? "color-serve" : d.code.includes("Attack") ? "color-attack" : d.code.includes("Block") ? "color-block" : d.code.includes("Receive") ? "color-receive" : "";
             btn.className = `instance-btn ${color}`; btn.id = 'inst-' + i;
-            const time = Math.floor(d.start/60) + ":" + Math.floor(d.start%60).toString().padStart(2,'0');
-            btn.innerHTML = `<b>${time} ${d.pName}</b><br><small>${d.code}</small>`;
+            
+            btn.innerHTML = `
+                <div class="score-display">${d.score}</div>
+                <div class="info-content">
+                    <span class="player-name">${d.pName}</span>
+                    <span class="skill-code">${d.code}</span>
+                </div>
+            `;
             btn.onclick = () => playInst(i);
             list.appendChild(btn);
         });
@@ -199,6 +222,8 @@
             }
         }, 500);
     }
+
+    function updateStatus(msg) { document.getElementById('status-msg').innerText = msg; }
 </script>
 </body>
 </html>
