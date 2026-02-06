@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VSM Scouting Pro - Fix</title>
+    <title>VolleyStation VSM Player Pro</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
-        body { font-family: "Meiryo", sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
+        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
         @media (max-width: 768px) {
             body { flex-direction: column; overflow-y: auto; }
             #video-side { width: 100%; position: sticky; top: 0; z-index: 100; }
@@ -27,6 +27,7 @@
         .team-skill-info { color: #666; font-size: 0.8rem; display: block; margin-top: 2px; }
         .color-S { border-left-color: #007bff; } .color-R { border-left-color: #ffc107; }
         .color-A { border-left-color: #dc3545; } .color-B { border-left-color: #28a745; }
+        .fs-btn { position: fixed; bottom: 20px; right: 20px; z-index: 999; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -36,14 +37,14 @@
 </div>
 
 <div id="control-side">
-    <div id="status-msg" class="status-bar">初期化中...</div>
+    <div id="status-msg" class="status-bar">システム起動中...</div>
     
     <div class="card">
-        <h3>1. 試合を選択</h3>
+        <h3>1. 試合データ選択</h3>
         <select id="matchSelect" onchange="onMatchChange(this.value)">
             <option value="">-- リスト読込中 --</option>
         </select>
-        <p style="font-size:0.7rem; color:#888;">または手動でVSMを選択:</p>
+        <p style="font-size:0.7rem; color:#888;">手動でVSMを読込:</p>
         <input type="file" id="manualVSM" accept=".vsm">
     </div>
 
@@ -59,6 +60,8 @@
 
     <div id="instanceList"></div>
 </div>
+
+<button class="fs-btn" onclick="document.body.classList.toggle('fullscreen-mode')">全画面</button>
 
 <script>
     let player, allData = [], filteredData = [], currentIndex = -1, checkInterval;
@@ -77,7 +80,6 @@
     }
 
     function fetchMatchList() {
-        updateStatus("リストを取得中...");
         fetch('list.txt')
             .then(res => res.text())
             .then(data => {
@@ -91,7 +93,7 @@
                 });
                 updateStatus("READY: 試合を選択してください");
             })
-            .catch(() => updateStatus("list.txt が見つかりません"));
+            .catch(() => updateStatus("list.txt の読み込みに失敗しました"));
     }
 
     function onMatchChange(vsmFile) {
@@ -100,61 +102,75 @@
         if (matchMap[vsmFile]) player.loadVideoById(matchMap[vsmFile]);
         
         fetch(vsmFile)
-            .then(res => res.text()) // 拡張子を無視するため一度テキストで受ける
-            .then(text => {
-                const data = JSON.parse(text); // 強制的にJSONとして解析
-                processVSMData(data);
+            .then(res => res.json())
+            .then(data => {
+                processVSM(data);
                 updateStatus("LOADED: " + vsmFile);
             })
             .catch(err => {
                 console.error(err);
-                updateStatus("エラー: ファイル解析に失敗しました");
+                updateStatus("ファイル解析に失敗しました。手動読込を試してください。");
             });
     }
 
-    // 手動読込の処理
     document.getElementById('manualVSM').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (evt) => {
-            const data = JSON.parse(evt.target.result);
-            processVSMData(data);
-            document.getElementById('filterArea').style.display = 'block';
-            updateStatus("LOADED: " + file.name + " (手動)");
+            try {
+                const data = JSON.parse(evt.target.result);
+                processVSM(data);
+                updateStatus("LOADED: " + file.name);
+            } catch(e) {
+                updateStatus("JSONパースエラー");
+            }
         };
         reader.readAsText(file);
     });
 
-    function processVSMData(vsmData) {
+    function processVSM(vsmData) {
         allData = [];
         playerMaster = {};
-        const homeName = vsmData.scout.homeTeam.name;
-        const awayName = vsmData.scout.awayTeam.name;
-
-        [vsmData.scout.homeTeam, vsmData.scout.awayTeam].forEach(team => {
+        
+        // 選手マスタ作成
+        const homeTeam = vsmData.scout.homeTeam;
+        const awayTeam = vsmData.scout.awayTeam;
+        [homeTeam, awayTeam].forEach(team => {
             if (team && team.players) {
                 team.players.forEach(p => {
-                    playerMaster[`${team.name}_${p.number}`] = p.lastName || p.firstName || p.number;
+                    const name = p.lastName || p.firstName || p.number;
+                    playerMaster[`${team.name}_${p.number}`] = name;
                 });
             }
         });
 
+        // 階層を深く辿る
         vsmData.scout.sets.forEach(set => {
             (set.events || []).forEach(event => {
                 const hScore = event.score?.home ?? 0;
                 const aScore = event.score?.away ?? 0;
-                const baseTime = event.exchange?.time || 0;
-                const plays = event.exchange?.plays || [];
+                
+                // exchange 階層
+                const exchange = event.exchange || {};
+                const plays = exchange.plays || [];
 
                 plays.forEach(play => {
                     if (!play.player || play.player === "00") return;
-                    const tName = play.team === "*" ? homeName : awayName;
+                    
+                    const tName = play.team === "*" ? homeTeam.name : awayName;
                     const pName = playerMaster[`${tName}_${play.player}`] || `#${play.player}`;
-                    const exactTime = (baseTime + (play.time || 0)) / 1000;
+                    
+                    // 時間の計算: originalTime (ビデオ絶対時間) がある場合はそれを優先
+                    let videoTime = 0;
+                    if (play.originalTime) {
+                        videoTime = play.originalTime / 1000;
+                    } else if (exchange.time) {
+                        videoTime = (exchange.time + (play.time || 0)) / 1000;
+                    }
 
                     allData.push({
-                        time: exactTime,
+                        time: videoTime,
                         score: `${hScore}-${aScore}`,
                         pName: pName,
                         code: play.skill || "??",
@@ -163,6 +179,7 @@
                 });
             });
         });
+
         document.getElementById('filterArea').style.display = 'block';
         initFilters();
     }
@@ -172,16 +189,19 @@
         ts.innerHTML = '<option value="">すべてのチーム</option>';
         [...new Set(allData.map(d => d.tName))].sort().forEach(t => ts.add(new Option(t, t)));
         ts.onchange = () => { updateSubFilters(); render(); };
-        updateSubFilters(); render();
+        updateSubFilters();
+        render();
     }
 
     function updateSubFilters() {
         const selectedTeam = document.getElementById('teamFilter').value;
         const data = selectedTeam ? allData.filter(d => d.tName === selectedTeam) : allData;
+        
         const ps = document.getElementById('playerFilter');
         ps.innerHTML = '<option value="">すべての選手</option>';
         [...new Set(data.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
         ps.onchange = render;
+
         const ss = document.getElementById('skillFilter');
         ss.innerHTML = '<option value="">すべてのスキル</option>';
         [...new Set(data.map(d => d.code))].sort().forEach(s => ss.add(new Option(s, s)));
@@ -189,13 +209,29 @@
     }
 
     function render() {
-        const tf = document.getElementById('teamFilter').value, pf = document.getElementById('playerFilter').value, sf = document.getElementById('skillFilter').value;
-        const list = document.getElementById('instanceList'); list.innerHTML = '';
-        filteredData = allData.filter(d => (tf==="" || d.tName === tf) && (pf==="" || d.pName === pf) && (sf==="" || d.code === sf));
+        const tf = document.getElementById('teamFilter').value;
+        const pf = document.getElementById('playerFilter').value;
+        const sf = document.getElementById('skillFilter').value;
+        const list = document.getElementById('instanceList');
+        list.innerHTML = '';
+
+        filteredData = allData.filter(d => 
+            (tf==="" || d.tName === tf) && 
+            (pf==="" || d.pName === pf) && 
+            (sf==="" || d.code === sf)
+        );
+
         filteredData.forEach((d, i) => {
             const btn = document.createElement('div');
-            btn.className = `instance-btn color-${d.code}`; btn.id = 'inst-' + i;
-            btn.innerHTML = `<div class="score-display">${d.score}</div><div class="info-content"><span class="player-name">${d.pName}</span><span class="team-skill-info">${d.tName} | ${d.code}</span></div>`;
+            btn.className = `instance-btn color-${d.code}`;
+            btn.id = 'inst-' + i;
+            btn.innerHTML = `
+                <div class="score-display">${d.score}</div>
+                <div class="info-content">
+                    <span class="player-name">${d.pName}</span>
+                    <span class="team-skill-info">${d.tName} | ${d.code}</span>
+                </div>
+            `;
             btn.onclick = () => playInst(i);
             list.appendChild(btn);
         });
@@ -203,19 +239,25 @@
 
     function playInst(i) {
         if (i < 0 || i >= filteredData.length) return;
-        currentIndex = i; const d = filteredData[i];
+        currentIndex = i;
+        const d = filteredData[i];
+        
         document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('inst-' + i)?.classList.add('active');
+        
+        // VSMはoriginalTimeが非常に正確なので、ジャンプ時間を微調整
         player.seekTo(Math.max(0, d.time - 1.5), true);
         player.playVideo();
+
         if (checkInterval) clearInterval(checkInterval);
         checkInterval = setInterval(() => {
-            if (player.getCurrentTime() >= d.time + 5) {
+            if (player.getCurrentTime() >= d.time + 4) {
                 if (document.getElementById('autoPlay').checked) playInst(currentIndex + 1);
                 else { player.pauseVideo(); clearInterval(checkInterval); }
             }
         }, 500);
     }
+
     function updateStatus(msg) { document.getElementById('status-msg').innerText = msg; }
 </script>
 </body>
