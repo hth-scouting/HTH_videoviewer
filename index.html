@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH DVW Player</title>
+    <title>HTH DVW Player - Filter Fixed</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
         body { font-family: -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
@@ -22,6 +22,7 @@
         .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; display: flex; align-items: center; }
         .instance-btn.active { background: #eef6ff; border-color: var(--primary); outline: 2px solid var(--primary); }
         .score-display { font-family: "Arial Black", sans-serif; font-size: 1.4rem; color: #333; min-width: 85px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 4px; }
+        .info-content { flex-grow: 1; }
         .player-name { font-weight: bold; font-size: 1.1rem; display: block; }
         .sub-info { color: #666; font-size: 0.8rem; }
         .color-S { border-left-color: #007bff; } .color-R { border-left-color: #ffc107; }
@@ -38,13 +39,13 @@
 <div id="control-side">
     <div id="status-msg" class="status-bar">READY</div>
     <div class="card">
-        <h3>1. 試合を選択 (.dvw)</h3>
+        <h3>1. 試合を選択</h3>
         <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">-- 読込中 --</option></select>
     </div>
     <div class="card" id="filterArea" style="display:none;">
         <h3>2. 絞り込み</h3>
-        <select id="teamFilter"></select>
-        <select id="playerFilter"></select>
+        <select id="teamFilter"><option value="">すべてのチーム</option></select>
+        <select id="playerFilter"><option value="">すべての選手</option></select>
         <select id="skillFilter">
             <option value="">すべてのスキル</option>
             <option value="S">Serve (S)</option>
@@ -60,7 +61,7 @@
 
 <script>
     let player, allData = [], matchMap = {}, playerMaster = {};
-    let homeTeamName = "Home", awayTeamName = "Away";
+    let homeCode = "*", awayCode = "a"; // デフォルトコード
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -101,54 +102,53 @@
         allData = []; playerMaster = {};
         const lines = text.split('\n');
         let currentSection = "";
-        let scoutStartIndex = -1;
 
-        lines.forEach((line, index) => {
+        // 第1パス: 選手名とチームコードの取得
+        lines.forEach(line => {
             const trimLine = line.trim();
             if (trimLine.startsWith('[') && trimLine.endsWith(']')) {
                 currentSection = trimLine;
                 return;
             }
 
-            if (currentSection === "[3TEAMS]") {
-                const parts = trimLine.split(';');
-                if (parts.length > 1) {
-                    if (!homeTeamName || homeTeamName === "Home") homeTeamName = parts[1];
-                    else awayTeamName = parts[1];
-                }
-            }
-
             if (currentSection === "[3PLAYERS-H]" || currentSection === "[3PLAYERS-V]") {
-                const parts = trimLine.split(';');
-                if (parts.length > 10) {
-                    const teamName = (currentSection === "[3PLAYERS-H]") ? homeTeamName : awayTeamName;
-                    const jersey = parts[1];
-                    const name = parts[10] || parts[9] || jersey;
-                    playerMaster[`${teamName}_${jersey}`] = name;
+                const p = trimLine.split(';');
+                if (p.length > 10) {
+                    const side = (currentSection === "[3PLAYERS-H]") ? "*" : "a";
+                    const jersey = p[1];
+                    const name = p[10] || p[9] || jersey;
+                    playerMaster[`${side}_${parseInt(jersey)}`] = name;
                 }
             }
+        });
 
-            if (currentSection === "[3SCOUT]") {
-                const cols = trimLine.split(';');
-                if (cols.length < 13) return;
+        // 第2パス: プレーデータの抽出
+        let isScout = false;
+        lines.forEach(line => {
+            if (line.trim() === "[3SCOUT]") { isScout = true; return; }
+            if (!isScout || line.startsWith('[')) { isScout = false; return; }
 
-                const code = cols[0];
-                const teamChar = code.charAt(0);
-                if (teamChar !== '*' && teamChar !== 'a') return;
+            const cols = line.split(';');
+            if (cols.length < 13) return;
 
-                const skill = code.charAt(3);
-                const jersey = code.substring(1, 3);
-                const tName = (teamChar === '*') ? homeTeamName : awayTeamName;
-                const pName = playerMaster[`${tName}_${parseInt(jersey)}`] || `#${jersey}`;
-                const time = parseFloat(cols[12]); // DVWのビデオ時間(秒)
+            const code = cols[0];
+            const side = code.charAt(0); // '*' or 'a'
+            if (side !== '*' && side !== 'a') return;
 
-                if (!isNaN(time) && "SRABDEF".includes(skill)) {
-                    allData.push({
-                        time, pName, tName, code: skill,
-                        score: `${cols[9]}-${cols[10]}`,
-                        fullCode: code
-                    });
-                }
+            const jersey = parseInt(code.substring(1, 3));
+            const skill = code.charAt(3);
+            const time = parseFloat(cols[12]);
+
+            if (!isNaN(time) && "SRAB".includes(skill)) {
+                allData.push({
+                    time,
+                    side,
+                    pName: playerMaster[`${side}_${jersey}`] || `#${jersey}`,
+                    tName: (side === '*') ? "Home" : "Away",
+                    code: skill,
+                    score: `${cols[9]}-${cols[10]}`,
+                    fullCode: code
+                });
             }
         });
 
@@ -159,7 +159,8 @@
     function initFilters() {
         const tf = document.getElementById('teamFilter');
         tf.innerHTML = '<option value="">すべてのチーム</option>';
-        [homeTeamName, awayTeamName].forEach(t => tf.add(new Option(t, t)));
+        tf.add(new Option("Home (*)", "*"));
+        tf.add(new Option("Away (a)", "a"));
         tf.onchange = () => { updatePlayerFilter(); render(); };
         
         const sf = document.getElementById('skillFilter');
@@ -169,7 +170,7 @@
 
     function updatePlayerFilter() {
         const tf = document.getElementById('teamFilter').value;
-        const data = tf ? allData.filter(d => d.tName === tf) : allData;
+        const data = tf ? allData.filter(d => d.side === tf) : allData;
         const ps = document.getElementById('playerFilter');
         ps.innerHTML = '<option value="">すべての選手</option>';
         [...new Set(data.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
@@ -184,7 +185,7 @@
         list.innerHTML = '';
         
         const filtered = allData.filter(d => 
-            (!tf || d.tName === tf) && (!pf || d.pName === pf) && (!sf || d.code === sf)
+            (!tf || d.side === tf) && (!pf || d.pName === pf) && (!sf || d.code === sf)
         );
         
         filtered.forEach((d, i) => {
@@ -198,7 +199,7 @@
                 </div>
             `;
             btn.onclick = () => {
-                player.seekTo(d.time - 3, true); // 3秒前から再生
+                player.seekTo(d.time - 3, true);
                 player.playVideo();
                 document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
