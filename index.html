@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH DVW Player - Filter Fixed</title>
+    <title>HTH DVW Player - Professional</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
         body { font-family: -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
@@ -19,12 +19,14 @@
         .card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
         h3 { margin: 0 0 10px 0; font-size: 0.9rem; border-left: 4px solid var(--primary); padding-left: 10px; }
         select { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; background: #fff; }
+        
         .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; display: flex; align-items: center; }
         .instance-btn.active { background: #eef6ff; border-color: var(--primary); outline: 2px solid var(--primary); }
         .score-display { font-family: "Arial Black", sans-serif; font-size: 1.4rem; color: #333; min-width: 85px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 4px; }
         .info-content { flex-grow: 1; }
         .player-name { font-weight: bold; font-size: 1.1rem; display: block; }
         .sub-info { color: #666; font-size: 0.8rem; }
+
         .color-S { border-left-color: #007bff; } .color-R { border-left-color: #ffc107; }
         .color-A { border-left-color: #dc3545; } .color-B { border-left-color: #28a745; }
         .fs-btn { position: fixed; bottom: 20px; right: 20px; z-index: 999; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; }
@@ -61,7 +63,7 @@
 
 <script>
     let player, allData = [], matchMap = {}, playerMaster = {};
-    let homeCode = "*", awayCode = "a"; // デフォルトコード
+    let homeTeamFull = "Home", awayTeamFull = "Away";
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -89,7 +91,7 @@
 
     function onMatchChange(dvwFile) {
         if (!dvwFile) return;
-        updateStatus("DVW解析中...");
+        updateStatus("解析中...");
         player.loadVideoById(matchMap[dvwFile]);
         fetch(dvwFile).then(res => res.text()).then(text => {
             parseDVW(text);
@@ -103,50 +105,52 @@
         const lines = text.split('\n');
         let currentSection = "";
 
-        // 第1パス: 選手名とチームコードの取得
+        // チーム名と選手名の読み込み
         lines.forEach(line => {
-            const trimLine = line.trim();
-            if (trimLine.startsWith('[') && trimLine.endsWith(']')) {
-                currentSection = trimLine;
-                return;
-            }
+            const l = line.trim();
+            if (l.startsWith('[') && l.endsWith(']')) { currentSection = l; return; }
 
+            if (currentSection === "[3TEAMS]") {
+                const p = l.split(';');
+                if (p.length > 1) {
+                    if (l.startsWith(p[0])) { // 最初のチームがHome
+                        if (!homeTeamFull || homeTeamFull === "Home") homeTeamFull = p[1];
+                        else awayTeamFull = p[1];
+                    }
+                }
+            }
             if (currentSection === "[3PLAYERS-H]" || currentSection === "[3PLAYERS-V]") {
-                const p = trimLine.split(';');
+                const p = l.split(';');
                 if (p.length > 10) {
                     const side = (currentSection === "[3PLAYERS-H]") ? "*" : "a";
-                    const jersey = p[1];
-                    const name = p[10] || p[9] || jersey;
-                    playerMaster[`${side}_${parseInt(jersey)}`] = name;
+                    playerMaster[`${side}_${parseInt(p[1])}`] = p[10] || p[9] || p[1];
                 }
             }
         });
 
-        // 第2パス: プレーデータの抽出
+        // スカウトデータの読み込み
         let isScout = false;
         lines.forEach(line => {
             if (line.trim() === "[3SCOUT]") { isScout = true; return; }
             if (!isScout || line.startsWith('[')) { isScout = false; return; }
 
-            const cols = line.split(';');
-            if (cols.length < 13) return;
+            const c = line.split(';');
+            if (c.length < 13) return;
 
-            const code = cols[0];
-            const side = code.charAt(0); // '*' or 'a'
+            const code = c[0];
+            const side = code.charAt(0);
             if (side !== '*' && side !== 'a') return;
 
-            const jersey = parseInt(code.substring(1, 3));
             const skill = code.charAt(3);
-            const time = parseFloat(cols[12]);
+            const jersey = parseInt(code.substring(1, 3));
+            const time = parseFloat(c[12]);
 
             if (!isNaN(time) && "SRAB".includes(skill)) {
                 allData.push({
-                    time,
-                    side,
+                    time, side, skill,
                     pName: playerMaster[`${side}_${jersey}`] || `#${jersey}`,
-                    tName: (side === '*') ? "Home" : "Away",
-                    code: skill,
-                    score: `${cols[9]}-${cols[10]}`,
+                    tName: (side === '*') ? homeTeamFull : awayTeamFull,
+                    score: `${c[9]}-${c[10]}`,
                     fullCode: code
                 });
             }
@@ -159,22 +163,24 @@
     function initFilters() {
         const tf = document.getElementById('teamFilter');
         tf.innerHTML = '<option value="">すべてのチーム</option>';
-        tf.add(new Option("Home (*)", "*"));
-        tf.add(new Option("Away (a)", "a"));
-        tf.onchange = () => { updatePlayerFilter(); render(); };
+        tf.add(new Option(homeTeamFull, homeTeamFull));
+        tf.add(new Option(awayTeamFull, awayTeamFull));
         
-        const sf = document.getElementById('skillFilter');
-        sf.onchange = render;
-        updatePlayerFilter();
-    }
-
-    function updatePlayerFilter() {
-        const tf = document.getElementById('teamFilter').value;
-        const data = tf ? allData.filter(d => d.side === tf) : allData;
         const ps = document.getElementById('playerFilter');
-        ps.innerHTML = '<option value="">すべての選手</option>';
-        [...new Set(data.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
+        const sf = document.getElementById('skillFilter');
+
+        tf.onchange = () => {
+            const team = tf.value;
+            ps.innerHTML = '<option value="">すべての選手</option>';
+            const players = team ? allData.filter(d => d.tName === team) : allData;
+            [...new Set(players.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
+            render();
+        };
         ps.onchange = render;
+        sf.onchange = render;
+        
+        // 初回のみ全選手を表示
+        [...new Set(allData.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
     }
 
     function render() {
@@ -184,13 +190,16 @@
         const list = document.getElementById('instanceList');
         list.innerHTML = '';
         
-        const filtered = allData.filter(d => 
-            (!tf || d.side === tf) && (!pf || d.pName === pf) && (!sf || d.code === sf)
+        filteredData = allData.filter(d => 
+            (!tf || d.tName === tf) && 
+            (!pf || d.pName === pf) && 
+            (!sf || d.skill === sf)
         );
         
-        filtered.forEach((d, i) => {
+        filteredData.forEach((d, i) => {
             const btn = document.createElement('div');
-            btn.className = `instance-btn color-${d.code}`;
+            btn.className = `instance-btn color-${d.skill}`;
+            btn.id = 'inst-' + i;
             btn.innerHTML = `
                 <div class="score-display">${d.score}</div>
                 <div class="info-content">
@@ -207,7 +216,6 @@
             list.appendChild(btn);
         });
     }
-
     function updateStatus(msg) { document.getElementById('status-msg').innerText = msg; }
 </script>
 </body>
