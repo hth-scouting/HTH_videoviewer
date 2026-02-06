@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VSM Scouting Player</title>
+    <title>VSM Sync Player - Team & Time Fixed</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
         body { font-family: "Meiryo", sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
@@ -24,16 +24,11 @@
         .score-display { font-family: "Arial Black", sans-serif; font-size: 1.4rem; color: var(--dark); min-width: 85px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 2px 5px; }
         .info-content { flex-grow: 1; }
         .player-name { font-weight: bold; font-size: 1.1rem; display: block; }
-        .skill-code { color: #666; font-size: 0.85rem; }
+        .team-skill-info { color: #666; font-size: 0.8rem; display: block; margin-top: 2px; }
         
         /* スキル別色分け */
         .color-S { border-left-color: #007bff; } .color-R { border-left-color: #ffc107; }
         .color-A { border-left-color: #dc3545; } .color-B { border-left-color: #28a745; }
-        .color-D { border-left-color: #17a2b8; } .color-E { border-left-color: #6c757d; }
-
-        .fs-btn { position: fixed; bottom: 20px; right: 20px; z-index: 999; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; }
-        body.fullscreen-mode #control-side { display: none; }
-        body.fullscreen-mode #video-side { height: 100vh; width: 100vw; }
     </style>
 </head>
 <body>
@@ -43,13 +38,15 @@
 </div>
 
 <div id="control-side">
-    <div id="status-msg" class="status-bar">試合リストを読み込んでいます...</div>
+    <div id="status-msg" class="status-bar">試合を選択してください</div>
+    
     <div class="card">
-        <h3>1. 試合を選択 (.vsm)</h3>
+        <h3>1. 試合を選択</h3>
         <select id="matchSelect" onchange="onMatchChange(this.value)">
             <option value="">-- 読み込み中 --</option>
         </select>
     </div>
+
     <div class="card" id="filterArea" style="display:none;">
         <h3>2. 絞り込みフィルター</h3>
         <select id="teamFilter"></select>
@@ -59,10 +56,9 @@
             <input type="checkbox" id="autoPlay" style="width:auto; margin-right:10px;"> 連続再生モード
         </label>
     </div>
+
     <div id="instanceList"></div>
 </div>
-
-<button class="fs-btn" onclick="document.body.classList.toggle('fullscreen-mode')">全</button>
 
 <script>
     let player, allData = [], filteredData = [], currentIndex = -1, checkInterval;
@@ -72,10 +68,10 @@
     tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
 
-    window.onYouTubeIframeAPIReady = function() {
+    function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', {
             height: '100%', width: '100%',
-            playerVars: { 'playsinline': 1, 'rel': 0, 'enablejsapi': 1 },
+            playerVars: { 'playsinline': 1, 'enablejsapi': 1 },
             events: { 'onReady': () => { fetchMatchList(); } }
         });
     }
@@ -101,19 +97,17 @@
             parseVSM(data);
             document.getElementById('filterArea').style.display = 'block';
             updateStatus("LOADED: " + vsmFile);
-        }).catch(err => {
-            console.error(err);
-            updateStatus("ERROR: ファイルが読み込めません");
         });
     }
 
     function parseVSM(vsmData) {
         allData = [];
         playerMaster = {};
-        
-        // 選手マスターの作成 (チームを跨いで背番号と名前を紐付け)
-        const teams = [vsmData.scout.homeTeam, vsmData.scout.awayTeam];
-        teams.forEach(team => {
+        const homeName = vsmData.scout.homeTeam.name;
+        const awayName = vsmData.scout.awayTeam.name;
+
+        // 選手マスター作成
+        [vsmData.scout.homeTeam, vsmData.scout.awayTeam].forEach(team => {
             if (team && team.players) {
                 team.players.forEach(p => {
                     playerMaster[`${team.name}_${p.number}`] = p.lastName || p.firstName || p.number;
@@ -121,26 +115,30 @@
             }
         });
 
-        const sets = vsmData.scout.sets || [];
-        sets.forEach(set => {
+        vsmData.scout.sets.forEach(set => {
             (set.events || []).forEach(event => {
                 const hScore = event.score?.home ?? 0;
                 const aScore = event.score?.away ?? 0;
+                
+                // exchangeのtimeがビデオ上の基準点、playのtimeがそこからのズレ
+                const baseTime = event.exchange?.time || 0;
                 const plays = event.exchange?.plays || [];
 
                 plays.forEach(play => {
                     if (!play.player || play.player === "00") return;
 
-                    const teamKey = play.team === "*" ? vsmData.scout.homeTeam.name : vsmData.scout.awayTeam.name;
-                    const pName = playerMaster[`${teamKey}_${play.player}`] || `#${play.player}`;
+                    const tName = play.team === "*" ? homeName : awayName;
+                    const pName = playerMaster[`${tName}_${play.player}`] || `#${play.player}`;
+
+                    // 同期精度の向上: 基準時間 + プレーの相対時間
+                    const exactTime = (baseTime + (play.time || 0)) / 1000;
 
                     allData.push({
-                        start: play.time / 1000,
-                        end: (play.time / 1000) + 7,
+                        time: exactTime,
                         score: `${hScore}-${aScore}`,
                         pName: pName,
                         code: play.skill || "??",
-                        tName: teamKey
+                        tName: tName
                     });
                 });
             });
@@ -173,10 +171,17 @@
         const tf = document.getElementById('teamFilter').value, pf = document.getElementById('playerFilter').value, sf = document.getElementById('skillFilter').value;
         const list = document.getElementById('instanceList'); list.innerHTML = '';
         filteredData = allData.filter(d => (tf==="" || d.tName === tf) && (pf==="" || d.pName === pf) && (sf==="" || d.code === sf));
+        
         filteredData.forEach((d, i) => {
             const btn = document.createElement('div');
             btn.className = `instance-btn color-${d.code}`; btn.id = 'inst-' + i;
-            btn.innerHTML = `<div class="score-display">${d.score}</div><div class="info-content"><span class="player-name">${d.pName}</span><span class="skill-code">Skill: ${d.code}</span></div>`;
+            btn.innerHTML = `
+                <div class="score-display">${d.score}</div>
+                <div class="info-content">
+                    <span class="player-name">${d.pName}</span>
+                    <span class="team-skill-info">${d.tName} | Skill: ${d.code}</span>
+                </div>
+            `;
             btn.onclick = () => playInst(i);
             list.appendChild(btn);
         });
@@ -187,11 +192,14 @@
         currentIndex = i; const d = filteredData[i];
         document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('inst-' + i)?.classList.add('active');
-        player.seekTo(Math.max(0, d.start - 2), true);
+        
+        // 1.5秒前から再生
+        player.seekTo(Math.max(0, d.time - 1.5), true);
         player.playVideo();
+
         if (checkInterval) clearInterval(checkInterval);
         checkInterval = setInterval(() => {
-            if (player.getCurrentTime() >= d.end) {
+            if (player.getCurrentTime() >= d.time + 5) {
                 if (document.getElementById('autoPlay').checked) playInst(currentIndex + 1);
                 else { player.pauseVideo(); clearInterval(checkInterval); }
             }
