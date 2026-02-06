@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VSM High-Precision Sync</title>
+    <title>VSM Sync Pro - Fix</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
         body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
@@ -34,21 +34,19 @@
 </div>
 
 <div id="control-side">
-    <div id="status-msg" class="status-bar">READY</div>
+    <div id="status-msg" class="status-bar">初期化中...</div>
     <div class="card">
         <h3 style="margin-top:0; font-size:0.9rem;">試合を選択</h3>
-        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">-- 読込中 --</option></select>
+        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">-- リスト読込中 --</option></select>
     </div>
     <div id="filterArea" style="display:none;" class="card">
         <select id="teamFilter"></select>
-        <select id="playerFilter"></select>
     </div>
     <div id="instanceList"></div>
 </div>
 
 <script>
-    let player, allData = [], filteredData = [], matchMap = {}, playerMaster = {};
-    let videoSyncOffset = 0; // VSM内の同期設定値を格納
+    let player, allData = [], matchMap = {}, playerMaster = {};
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -71,28 +69,46 @@
                 matchMap[vsm] = vid;
                 select.add(new Option(vsm.replace('.vsm',''), vsm));
             });
-        });
+            updateStatus("READY: 試合を選択してください");
+        }).catch(e => updateStatus("list.txtが見つかりません"));
     }
 
     function onMatchChange(vsmFile) {
         if (!vsmFile) return;
+        updateStatus("読込中: " + vsmFile);
         player.loadVideoById(matchMap[vsmFile]);
-        fetch(vsmFile).then(res => res.json()).then(processVSM);
+
+        // 【修正】.json()ではなく.text()で受けてからパースする
+        fetch(vsmFile)
+            .then(res => {
+                if (!res.ok) throw new Error("Network response was not ok");
+                return res.text();
+            })
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    processVSM(data);
+                    updateStatus("LOADED: " + vsmFile);
+                } catch (e) {
+                    console.error("JSON Parse Error:", e);
+                    updateStatus("解析失敗: VSMファイルの中身が正しくありません");
+                }
+            })
+            .catch(err => {
+                console.error("Fetch Error:", err);
+                updateStatus("エラー: ファイルの取得に失敗しました");
+            });
     }
 
     function processVSM(vsmData) {
         allData = []; playerMaster = {};
-        
-        // 1. ビデオ同期ポイントを取得 (これが重要！)
-        // VSMでは scout.videoSync にミリ秒単位で格納されています
-        videoSyncOffset = (vsmData.scout && vsmData.scout.videoSync) ? vsmData.scout.videoSync : 0;
-        console.log("Video Sync Offset found:", videoSyncOffset);
+        const sync = vsmData.scout?.videoSync || 0;
+        const homeT = vsmData.scout?.homeTeam || { name: "Home" };
+        const awayT = vsmData.scout?.awayTeam || { name: "Away" };
 
-        const homeT = vsmData.scout.homeTeam;
-        const awayT = vsmData.scout.awayTeam;
-
+        // 選手登録
         [homeT, awayT].forEach(team => {
-            if (team && team.players) {
+            if (team.players) {
                 team.players.forEach(p => {
                     playerMaster[`${team.name}_${p.number}`] = p.lastName || p.firstName || p.number;
                 });
@@ -103,29 +119,30 @@
             (set.events || []).forEach(event => {
                 const hScore = event.score?.home ?? 0;
                 const aScore = event.score?.away ?? 0;
-                const plays = event.exchange?.plays || [];
+                const exchange = event.exchange || {};
+                const baseTime = exchange.time || 0;
 
-                plays.forEach(play => {
+                (exchange.plays || []).forEach(play => {
                     if (!play.player || play.player === "00") return;
                     const tName = (play.team === "*") ? homeT.name : awayT.name;
                     const pName = playerMaster[`${tName}_${play.player}`] || `#${play.player}`;
 
-                    // 2. originalTime から videoSync を引くことで、YouTube上の実時間に変換
-                    if (play.originalTime !== undefined) {
-                        const actualVideoTime = (play.originalTime - videoSyncOffset) / 1000;
-                        allData.push({
-                            time: actualVideoTime,
-                            score: `${hScore}-${aScore}`,
-                            pName, code: play.skill || "??", tName
-                        });
+                    // originalTimeを優先使用
+                    let vTime = 0;
+                    if (play.originalTime) {
+                        vTime = (play.originalTime - sync) / 1000;
+                    } else {
+                        vTime = (baseTime + (play.time || 0) - sync) / 1000;
                     }
+
+                    allData.push({ time: vTime, score: `${hScore}-${aScore}`, pName, code: play.skill || "??", tName });
                 });
             });
         });
+
         document.getElementById('filterArea').style.display = 'block';
         initFilters();
         render();
-        updateStatus("LOADED: 同期補正適用済み");
     }
 
     function initFilters() {
@@ -139,14 +156,13 @@
         const tf = document.getElementById('teamFilter').value;
         const list = document.getElementById('instanceList');
         list.innerHTML = '';
-        filteredData = allData.filter(d => !tf || d.tName === tf);
+        const filtered = allData.filter(d => !tf || d.tName === tf);
         
-        filteredData.forEach((d, i) => {
+        filtered.forEach((d, i) => {
             const btn = document.createElement('div');
             btn.className = `instance-btn color-${d.code}`;
             btn.innerHTML = `<div class="score-display">${d.score}</div><div><span class="player-name">${d.pName}</span><span class="team-info">${d.tName} | ${d.code}</span></div>`;
             btn.onclick = () => {
-                // コンタクトの2秒前から再生
                 player.seekTo(d.time - 2, true);
                 player.playVideo();
                 document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
