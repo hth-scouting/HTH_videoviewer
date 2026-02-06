@@ -3,59 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH Scouting Player - Final Edition</title>
+    <title>HTH DVW Player</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
-        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
-        
-        /* スマホ・PC共通レイアウト */
+        body { font-family: -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
         @media (max-width: 768px) {
             body { flex-direction: column; overflow-y: auto; }
             #video-side { width: 100%; position: sticky; top: 0; z-index: 100; }
             #control-side { width: 100%; flex: none; overflow: visible; padding: 15px; }
         }
-        
         #video-side { flex: 2; background: #000; display: flex; align-items: center; justify-content: center; }
         #player-box { width: 100%; aspect-ratio: 16 / 9; background: #222; }
         #control-side { flex: 1; padding: 20px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
-        
-        .status-bar { padding: 10px; background: var(--dark); color: #00ff00; font-family: monospace; font-size: 0.8rem; margin-bottom: 10px; border-radius: 6px; }
+        .status-bar { padding: 10px; background: var(--dark); color: #00ff00; font-family: monospace; font-size: 0.8rem; margin-bottom: 15px; border-radius: 6px; }
         .card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
         h3 { margin: 0 0 10px 0; font-size: 0.9rem; border-left: 4px solid var(--primary); padding-left: 10px; }
-        
-        select { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; appearance: none; background-color: #fff; }
-        
-        .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; display: flex; align-items: center; transition: background 0.2s; }
-        .instance-btn.active { background: #eef6ff; border-color: var(--primary); }
-        
-        /* スコア表示（大きめ） */
-        .score-display { 
-            font-family: "Arial Black", sans-serif; 
-            font-size: 1.4rem; 
-            color: #333; 
-            min-width: 90px; 
-            text-align: center; 
-            background: #f0f0f0; 
-            border-radius: 4px; 
-            margin-right: 15px; 
-            padding: 5px;
-        }
-        
-        .info-content { flex-grow: 1; }
-        .player-name { font-weight: bold; font-size: 1.1rem; display: block; color: #000; }
-        .sub-info { color: #666; font-size: 0.8rem; display: block; margin-top: 2px; }
-        
-        /* スキル別カラーコード */
-        .color-S { border-left-color: #007bff; } /* Serve */
-        .color-R { border-left-color: #ffc107; } /* Reception */
-        .color-A { border-left-color: #dc3545; } /* Attack */
-        .color-B { border-left-color: #28a745; } /* Block */
-        .color-D { border-left-color: #17a2b8; } /* Dig */
-        .color-E { border-left-color: #6c757d; } /* Set */
-
+        select { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; background: #fff; }
+        .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; display: flex; align-items: center; }
+        .instance-btn.active { background: #eef6ff; border-color: var(--primary); outline: 2px solid var(--primary); }
+        .score-display { font-family: "Arial Black", sans-serif; font-size: 1.4rem; color: #333; min-width: 85px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 4px; }
+        .player-name { font-weight: bold; font-size: 1.1rem; display: block; }
+        .sub-info { color: #666; font-size: 0.8rem; }
+        .color-S { border-left-color: #007bff; } .color-R { border-left-color: #ffc107; }
+        .color-A { border-left-color: #dc3545; } .color-B { border-left-color: #28a745; }
         .fs-btn { position: fixed; bottom: 20px; right: 20px; z-index: 999; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; }
-        body.fullscreen-mode #control-side { display: none; }
-        body.fullscreen-mode #video-side { height: 100vh; width: 100vw; }
     </style>
 </head>
 <body>
@@ -66,44 +37,36 @@
 
 <div id="control-side">
     <div id="status-msg" class="status-bar">READY</div>
-    
     <div class="card">
-        <h3>1. 試合を選択</h3>
-        <select id="matchSelect" onchange="onMatchChange(this.value)">
-            <option value="">-- リスト読込中 --</option>
-        </select>
+        <h3>1. 試合を選択 (.dvw)</h3>
+        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">-- 読込中 --</option></select>
     </div>
-
     <div class="card" id="filterArea" style="display:none;">
         <h3>2. 絞り込み</h3>
-        <select id="teamFilter"><option value="">すべてのチーム</option></select>
-        <select id="playerFilter"><option value="">すべての選手</option></select>
+        <select id="teamFilter"></select>
+        <select id="playerFilter"></select>
         <select id="skillFilter">
             <option value="">すべてのスキル</option>
             <option value="S">Serve (S)</option>
             <option value="R">Reception (R)</option>
             <option value="A">Attack (A)</option>
             <option value="B">Block (B)</option>
-            <option value="D">Dig (D)</option>
-            <option value="E">Set (E)</option>
         </select>
     </div>
-
     <div id="instanceList"></div>
 </div>
 
 <button class="fs-btn" onclick="document.body.classList.toggle('fullscreen-mode')">全</button>
 
 <script>
-    let player, allData = [], filteredData = [], currentIndex = -1;
-    let matchMap = {};
+    let player, allData = [], matchMap = {}, playerMaster = {};
+    let homeTeamName = "Home", awayTeamName = "Away";
 
-    // 1. YouTube APIの準備
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
 
-    window.onYouTubeIframeAPIReady = function() {
+    function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', {
             height: '100%', width: '100%',
             playerVars: { 'playsinline': 1, 'rel': 0, 'enablejsapi': 1 },
@@ -111,63 +74,81 @@
         });
     }
 
-    // 2. list.txt から試合一覧を取得
     function fetchMatchList() {
         fetch('list.txt').then(res => res.text()).then(data => {
             const select = document.getElementById('matchSelect');
             select.innerHTML = '<option value="">-- 試合を選択 --</option>';
             data.split('\n').filter(l => l.includes(',')).forEach(line => {
-                const [xml, vid] = line.split(',').map(s => s.trim());
-                matchMap[xml] = vid;
-                select.add(new Option(xml.replace('.xml',''), xml));
+                const [dvw, vid] = line.split(',').map(s => s.trim());
+                matchMap[dvw] = vid;
+                select.add(new Option(dvw.replace('.dvw',''), dvw));
             });
-        }).catch(() => updateStatus("Error: list.txt が見つかりません"));
-    }
-
-    // 3. 試合選択時の処理
-    function onMatchChange(xmlFile) {
-        if (!xmlFile) return;
-        updateStatus("解析中...");
-        player.loadVideoById(matchMap[xmlFile]);
-        fetch(xmlFile).then(res => res.text()).then(xml => {
-            parseXML(xml);
-            document.getElementById('filterArea').style.display = 'block';
-            updateStatus("LOADED: " + xmlFile);
         });
     }
 
-    // 4. XML解析（スコア・選手名・チーム名の抽出強化）
-    function parseXML(xmlString) {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlString, "text/xml");
-        const instances = Array.from(xmlDoc.getElementsByTagName("instance"));
-        allData = [];
+    function onMatchChange(dvwFile) {
+        if (!dvwFile) return;
+        updateStatus("DVW解析中...");
+        player.loadVideoById(matchMap[dvwFile]);
+        fetch(dvwFile).then(res => res.text()).then(text => {
+            parseDVW(text);
+            document.getElementById('filterArea').style.display = 'block';
+            updateStatus("LOADED: " + dvwFile);
+        });
+    }
 
-        instances.forEach(inst => {
-            const start = parseFloat(inst.getElementsByTagName("start")[0]?.textContent || "0");
-            const code = inst.getElementsByTagName("code")[0]?.textContent || "";
-            
-            let pName = "不明選手", tName = "不明チーム", hScore = "0", aScore = "0";
+    function parseDVW(text) {
+        allData = []; playerMaster = {};
+        const lines = text.split('\n');
+        let currentSection = "";
+        let scoutStartIndex = -1;
 
-            // ラベル要素から情報を全スキャン
-            Array.from(inst.getElementsByTagName("label")).forEach(l => {
-                const group = (l.getElementsByTagName("group")[0]?.textContent || "").toLowerCase();
-                const text = l.getElementsByTagName("text")[0]?.textContent || "";
+        lines.forEach((line, index) => {
+            const trimLine = line.trim();
+            if (trimLine.startsWith('[') && trimLine.endsWith(']')) {
+                currentSection = trimLine;
+                return;
+            }
 
-                if (group.includes("player")) pName = text;
-                if (group.includes("team")) tName = text;
-                if (group.includes("home score") || group.includes("score home")) hScore = text;
-                if (group.includes("away score") || group.includes("score away")) aScore = text;
-            });
+            if (currentSection === "[3TEAMS]") {
+                const parts = trimLine.split(';');
+                if (parts.length > 1) {
+                    if (!homeTeamName || homeTeamName === "Home") homeTeamName = parts[1];
+                    else awayTeamName = parts[1];
+                }
+            }
 
-            if (pName !== "不明選手" || code !== "") {
-                allData.push({ 
-                    start, 
-                    code, 
-                    pName, 
-                    tName, 
-                    score: `${hScore}-${aScore}` 
-                });
+            if (currentSection === "[3PLAYERS-H]" || currentSection === "[3PLAYERS-V]") {
+                const parts = trimLine.split(';');
+                if (parts.length > 10) {
+                    const teamName = (currentSection === "[3PLAYERS-H]") ? homeTeamName : awayTeamName;
+                    const jersey = parts[1];
+                    const name = parts[10] || parts[9] || jersey;
+                    playerMaster[`${teamName}_${jersey}`] = name;
+                }
+            }
+
+            if (currentSection === "[3SCOUT]") {
+                const cols = trimLine.split(';');
+                if (cols.length < 13) return;
+
+                const code = cols[0];
+                const teamChar = code.charAt(0);
+                if (teamChar !== '*' && teamChar !== 'a') return;
+
+                const skill = code.charAt(3);
+                const jersey = code.substring(1, 3);
+                const tName = (teamChar === '*') ? homeTeamName : awayTeamName;
+                const pName = playerMaster[`${tName}_${parseInt(jersey)}`] || `#${jersey}`;
+                const time = parseFloat(cols[12]); // DVWのビデオ時間(秒)
+
+                if (!isNaN(time) && "SRABDEF".includes(skill)) {
+                    allData.push({
+                        time, pName, tName, code: skill,
+                        score: `${cols[9]}-${cols[10]}`,
+                        fullCode: code
+                    });
+                }
             }
         });
 
@@ -175,26 +156,26 @@
         render();
     }
 
-    // 5. フィルターの初期化
     function initFilters() {
         const tf = document.getElementById('teamFilter');
         tf.innerHTML = '<option value="">すべてのチーム</option>';
-        [...new Set(allData.map(d => d.tName))].sort().forEach(t => tf.add(new Option(t, t)));
-
-        const ps = document.getElementById('playerFilter');
-        ps.onchange = render;
-        tf.onchange = () => {
-            const selectedTeam = tf.value;
-            ps.innerHTML = '<option value="">すべての選手</option>';
-            const players = selectedTeam ? allData.filter(d => d.tName === selectedTeam) : allData;
-            [...new Set(players.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
-            render();
-        };
-
-        document.getElementById('skillFilter').onchange = render;
+        [homeTeamName, awayTeamName].forEach(t => tf.add(new Option(t, t)));
+        tf.onchange = () => { updatePlayerFilter(); render(); };
+        
+        const sf = document.getElementById('skillFilter');
+        sf.onchange = render;
+        updatePlayerFilter();
     }
 
-    // 6. リスト表示
+    function updatePlayerFilter() {
+        const tf = document.getElementById('teamFilter').value;
+        const data = tf ? allData.filter(d => d.tName === tf) : allData;
+        const ps = document.getElementById('playerFilter');
+        ps.innerHTML = '<option value="">すべての選手</option>';
+        [...new Set(data.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
+        ps.onchange = render;
+    }
+
     function render() {
         const tf = document.getElementById('teamFilter').value;
         const pf = document.getElementById('playerFilter').value;
@@ -202,27 +183,22 @@
         const list = document.getElementById('instanceList');
         list.innerHTML = '';
         
-        filteredData = allData.filter(d => 
-            (!tf || d.tName === tf) && 
-            (!pf || d.pName === pf) && 
-            (!sf || d.code.startsWith(sf))
+        const filtered = allData.filter(d => 
+            (!tf || d.tName === tf) && (!pf || d.pName === pf) && (!sf || d.code === sf)
         );
         
-        filteredData.forEach((d, i) => {
+        filtered.forEach((d, i) => {
             const btn = document.createElement('div');
-            const skillType = d.code.charAt(0); // S, R, A, Bなど
-            btn.className = `instance-btn color-${skillType}`;
+            btn.className = `instance-btn color-${d.code}`;
             btn.innerHTML = `
                 <div class="score-display">${d.score}</div>
                 <div class="info-content">
                     <span class="player-name">${d.pName}</span>
-                    <span class="sub-info">${d.tName} | ${d.code}</span>
+                    <span class="sub-info">${d.tName} | ${d.fullCode}</span>
                 </div>
             `;
             btn.onclick = () => {
-                currentIndex = i;
-                // XMLの時間基準に合わせて3秒前から再生
-                player.seekTo(d.start - 3, true);
+                player.seekTo(d.time - 3, true); // 3秒前から再生
                 player.playVideo();
                 document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
