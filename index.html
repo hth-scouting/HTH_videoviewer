@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VSM Scouting - High Precision</title>
+    <title>VSM High-Precision Sync</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
         body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
@@ -17,7 +17,7 @@
         #control-side { flex: 1; padding: 20px; overflow-y: auto; background: white; border-left: 1px solid #ddd; }
         .status-bar { padding: 10px; background: var(--dark); color: #00ff00; font-family: monospace; font-size: 0.8rem; margin-bottom: 10px; border-radius: 6px; }
         .card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; }
+        select { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; }
         .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; display: flex; align-items: center; }
         .instance-btn.active { background: #eef6ff; border-color: var(--primary); }
         .score-display { font-family: "Arial Black", sans-serif; font-size: 1.3rem; min-width: 75px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 5px; }
@@ -36,20 +36,19 @@
 <div id="control-side">
     <div id="status-msg" class="status-bar">READY</div>
     <div class="card">
-        <h3>1. 試合を選択</h3>
+        <h3 style="margin-top:0; font-size:0.9rem;">試合を選択</h3>
         <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">-- 読込中 --</option></select>
     </div>
     <div id="filterArea" style="display:none;" class="card">
         <select id="teamFilter"></select>
         <select id="playerFilter"></select>
-        <select id="skillFilter"></select>
     </div>
     <div id="instanceList"></div>
 </div>
 
 <script>
-    let player, allData = [], filteredData = [], currentIndex = -1;
-    let matchMap = {}, playerMaster = {};
+    let player, allData = [], filteredData = [], matchMap = {}, playerMaster = {};
+    let videoSyncOffset = 0; // VSM内の同期設定値を格納
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -83,6 +82,12 @@
 
     function processVSM(vsmData) {
         allData = []; playerMaster = {};
+        
+        // 1. ビデオ同期ポイントを取得 (これが重要！)
+        // VSMでは scout.videoSync にミリ秒単位で格納されています
+        videoSyncOffset = (vsmData.scout && vsmData.scout.videoSync) ? vsmData.scout.videoSync : 0;
+        console.log("Video Sync Offset found:", videoSyncOffset);
+
         const homeT = vsmData.scout.homeTeam;
         const awayT = vsmData.scout.awayTeam;
 
@@ -105,11 +110,11 @@
                     const tName = (play.team === "*") ? homeT.name : awayT.name;
                     const pName = playerMaster[`${tName}_${play.player}`] || `#${play.player}`;
 
-                    // XML版と同様の絶対時間（originalTime）をミリ秒から秒に変換
-                    // VSM構造上、これが最も正確な同期ポイントになります
-                    if (play.originalTime) {
+                    // 2. originalTime から videoSync を引くことで、YouTube上の実時間に変換
+                    if (play.originalTime !== undefined) {
+                        const actualVideoTime = (play.originalTime - videoSyncOffset) / 1000;
                         allData.push({
-                            time: play.originalTime / 1000,
+                            time: actualVideoTime,
                             score: `${hScore}-${aScore}`,
                             pName, code: play.skill || "??", tName
                         });
@@ -120,7 +125,7 @@
         document.getElementById('filterArea').style.display = 'block';
         initFilters();
         render();
-        updateStatus("LOADED: " + allData.length + " clips");
+        updateStatus("LOADED: 同期補正適用済み");
     }
 
     function initFilters() {
@@ -141,9 +146,8 @@
             btn.className = `instance-btn color-${d.code}`;
             btn.innerHTML = `<div class="score-display">${d.score}</div><div><span class="player-name">${d.pName}</span><span class="team-info">${d.tName} | ${d.code}</span></div>`;
             btn.onclick = () => {
-                currentIndex = i;
-                // XML版と同じく、再生したい瞬間の3秒前からシーク
-                player.seekTo(d.time - 3, true);
+                // コンタクトの2秒前から再生
+                player.seekTo(d.time - 2, true);
                 player.playVideo();
                 document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
