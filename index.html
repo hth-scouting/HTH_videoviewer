@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VSM Sync Player - Team & Time Fixed</title>
+    <title>VSM Scouting Pro - Fix</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
         body { font-family: "Meiryo", sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
@@ -18,15 +18,13 @@
         .status-bar { padding: 10px; background: var(--dark); color: #00ff00; font-family: monospace; font-size: 0.8rem; margin-bottom: 15px; border-radius: 6px; }
         .card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
         h3 { margin: 0 0 10px 0; font-size: 0.9rem; border-left: 4px solid var(--primary); padding-left: 10px; }
-        select { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; }
+        select, input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; }
         .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; display: flex; align-items: center; }
         .instance-btn.active { background: #eef6ff; border-color: var(--primary); }
         .score-display { font-family: "Arial Black", sans-serif; font-size: 1.4rem; color: var(--dark); min-width: 85px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 2px 5px; }
         .info-content { flex-grow: 1; }
         .player-name { font-weight: bold; font-size: 1.1rem; display: block; }
         .team-skill-info { color: #666; font-size: 0.8rem; display: block; margin-top: 2px; }
-        
-        /* スキル別色分け */
         .color-S { border-left-color: #007bff; } .color-R { border-left-color: #ffc107; }
         .color-A { border-left-color: #dc3545; } .color-B { border-left-color: #28a745; }
     </style>
@@ -38,21 +36,23 @@
 </div>
 
 <div id="control-side">
-    <div id="status-msg" class="status-bar">試合を選択してください</div>
+    <div id="status-msg" class="status-bar">初期化中...</div>
     
     <div class="card">
         <h3>1. 試合を選択</h3>
         <select id="matchSelect" onchange="onMatchChange(this.value)">
-            <option value="">-- 読み込み中 --</option>
+            <option value="">-- リスト読込中 --</option>
         </select>
+        <p style="font-size:0.7rem; color:#888;">または手動でVSMを選択:</p>
+        <input type="file" id="manualVSM" accept=".vsm">
     </div>
 
     <div class="card" id="filterArea" style="display:none;">
-        <h3>2. 絞り込みフィルター</h3>
+        <h3>2. 絞り込み</h3>
         <select id="teamFilter"></select>
         <select id="playerFilter"></select>
         <select id="skillFilter"></select>
-        <label style="display:flex; align-items:center; font-size:0.9rem; margin-top:10px; cursor:pointer;">
+        <label style="display:flex; align-items:center; font-size:0.9rem; cursor:pointer;">
             <input type="checkbox" id="autoPlay" style="width:auto; margin-right:10px;"> 連続再生モード
         </label>
     </div>
@@ -77,36 +77,61 @@
     }
 
     function fetchMatchList() {
-        fetch('list.txt').then(res => res.text()).then(data => {
-            const lines = data.split('\n').filter(l => l.trim() !== "" && l.includes(','));
-            const select = document.getElementById('matchSelect');
-            select.innerHTML = '<option value="">-- 試合を選択 --</option>';
-            lines.forEach(line => {
-                const [vsm, vid] = line.split(',').map(s => s.trim());
-                matchMap[vsm] = vid;
-                select.add(new Option(vsm.replace('.vsm', ''), vsm));
-            });
-            updateStatus("READY: 試合を選択してください");
-        });
+        updateStatus("リストを取得中...");
+        fetch('list.txt')
+            .then(res => res.text())
+            .then(data => {
+                const lines = data.split('\n').filter(l => l.trim() !== "" && l.includes(','));
+                const select = document.getElementById('matchSelect');
+                select.innerHTML = '<option value="">-- 試合を選択 --</option>';
+                lines.forEach(line => {
+                    const [vsm, vid] = line.split(',').map(s => s.trim());
+                    matchMap[vsm] = vid;
+                    select.add(new Option(vsm.replace('.vsm', ''), vsm));
+                });
+                updateStatus("READY: 試合を選択してください");
+            })
+            .catch(() => updateStatus("list.txt が見つかりません"));
     }
 
     function onMatchChange(vsmFile) {
         if (!vsmFile) return;
-        player.loadVideoById(matchMap[vsmFile]);
-        fetch(vsmFile).then(res => res.json()).then(data => {
-            parseVSM(data);
-            document.getElementById('filterArea').style.display = 'block';
-            updateStatus("LOADED: " + vsmFile);
-        });
+        updateStatus("読込中: " + vsmFile);
+        if (matchMap[vsmFile]) player.loadVideoById(matchMap[vsmFile]);
+        
+        fetch(vsmFile)
+            .then(res => res.text()) // 拡張子を無視するため一度テキストで受ける
+            .then(text => {
+                const data = JSON.parse(text); // 強制的にJSONとして解析
+                processVSMData(data);
+                updateStatus("LOADED: " + vsmFile);
+            })
+            .catch(err => {
+                console.error(err);
+                updateStatus("エラー: ファイル解析に失敗しました");
+            });
     }
 
-    function parseVSM(vsmData) {
+    // 手動読込の処理
+    document.getElementById('manualVSM').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const data = JSON.parse(evt.target.result);
+            processVSMData(data);
+            document.getElementById('filterArea').style.display = 'block';
+            updateStatus("LOADED: " + file.name + " (手動)");
+        };
+        reader.readAsText(file);
+    });
+
+    function processVSMData(vsmData) {
         allData = [];
         playerMaster = {};
         const homeName = vsmData.scout.homeTeam.name;
         const awayName = vsmData.scout.awayTeam.name;
 
-        // 選手マスター作成
         [vsmData.scout.homeTeam, vsmData.scout.awayTeam].forEach(team => {
             if (team && team.players) {
                 team.players.forEach(p => {
@@ -119,18 +144,13 @@
             (set.events || []).forEach(event => {
                 const hScore = event.score?.home ?? 0;
                 const aScore = event.score?.away ?? 0;
-                
-                // exchangeのtimeがビデオ上の基準点、playのtimeがそこからのズレ
                 const baseTime = event.exchange?.time || 0;
                 const plays = event.exchange?.plays || [];
 
                 plays.forEach(play => {
                     if (!play.player || play.player === "00") return;
-
                     const tName = play.team === "*" ? homeName : awayName;
                     const pName = playerMaster[`${tName}_${play.player}`] || `#${play.player}`;
-
-                    // 同期精度の向上: 基準時間 + プレーの相対時間
                     const exactTime = (baseTime + (play.time || 0)) / 1000;
 
                     allData.push({
@@ -143,6 +163,7 @@
                 });
             });
         });
+        document.getElementById('filterArea').style.display = 'block';
         initFilters();
     }
 
@@ -171,17 +192,10 @@
         const tf = document.getElementById('teamFilter').value, pf = document.getElementById('playerFilter').value, sf = document.getElementById('skillFilter').value;
         const list = document.getElementById('instanceList'); list.innerHTML = '';
         filteredData = allData.filter(d => (tf==="" || d.tName === tf) && (pf==="" || d.pName === pf) && (sf==="" || d.code === sf));
-        
         filteredData.forEach((d, i) => {
             const btn = document.createElement('div');
             btn.className = `instance-btn color-${d.code}`; btn.id = 'inst-' + i;
-            btn.innerHTML = `
-                <div class="score-display">${d.score}</div>
-                <div class="info-content">
-                    <span class="player-name">${d.pName}</span>
-                    <span class="team-skill-info">${d.tName} | Skill: ${d.code}</span>
-                </div>
-            `;
+            btn.innerHTML = `<div class="score-display">${d.score}</div><div class="info-content"><span class="player-name">${d.pName}</span><span class="team-skill-info">${d.tName} | ${d.code}</span></div>`;
             btn.onclick = () => playInst(i);
             list.appendChild(btn);
         });
@@ -192,11 +206,8 @@
         currentIndex = i; const d = filteredData[i];
         document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('inst-' + i)?.classList.add('active');
-        
-        // 1.5秒前から再生
         player.seekTo(Math.max(0, d.time - 1.5), true);
         player.playVideo();
-
         if (checkInterval) clearInterval(checkInterval);
         checkInterval = setInterval(() => {
             if (player.getCurrentTime() >= d.time + 5) {
