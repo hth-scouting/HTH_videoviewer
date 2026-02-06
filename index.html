@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VSM Sync Pro - Fix</title>
+    <title>HTH Scouting Player</title>
     <style>
         :root { --primary: #007bff; --bg: #f8f9fa; --dark: #343a40; }
-        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; display: flex; height: 100vh; margin: 0; background: var(--bg); overflow: hidden; }
         @media (max-width: 768px) {
             body { flex-direction: column; overflow-y: auto; }
             #video-side { width: 100%; position: sticky; top: 0; z-index: 100; }
@@ -14,17 +14,20 @@
         }
         #video-side { flex: 2; background: #000; display: flex; align-items: center; justify-content: center; }
         #player-box { width: 100%; aspect-ratio: 16 / 9; background: #222; }
-        #control-side { flex: 1; padding: 20px; overflow-y: auto; background: white; border-left: 1px solid #ddd; }
-        .status-bar { padding: 10px; background: var(--dark); color: #00ff00; font-family: monospace; font-size: 0.8rem; margin-bottom: 10px; border-radius: 6px; }
+        #control-side { flex: 1; padding: 20px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
+        .status-bar { padding: 10px; background: var(--dark); color: #00ff00; font-family: monospace; font-size: 0.8rem; margin-bottom: 15px; border-radius: 6px; }
         .card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        select { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; }
+        h3 { margin: 0 0 10px 0; font-size: 0.9rem; border-left: 4px solid var(--primary); padding-left: 10px; }
+        select { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; }
         .instance-btn { text-align: left; padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-bottom: 8px; border-left: 8px solid #ccc; display: flex; align-items: center; }
         .instance-btn.active { background: #eef6ff; border-color: var(--primary); }
-        .score-display { font-family: "Arial Black", sans-serif; font-size: 1.3rem; min-width: 75px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 5px; }
-        .player-name { font-weight: bold; display: block; font-size: 1.1rem; }
-        .team-info { color: #666; font-size: 0.75rem; }
+        .score-display { font-family: "Arial Black", sans-serif; font-size: 1.4rem; color: var(--dark); min-width: 85px; text-align: center; background: #f0f0f0; border-radius: 4px; margin-right: 15px; padding: 2px 5px; }
+        .info-content { flex-grow: 1; }
+        .player-name { font-weight: bold; font-size: 1.1rem; display: block; }
+        .team-skill-info { color: #666; font-size: 0.8rem; display: block; margin-top: 2px; }
         .color-S { border-left-color: #007bff; } .color-R { border-left-color: #ffc107; }
         .color-A { border-left-color: #dc3545; } .color-B { border-left-color: #28a745; }
+        .fs-btn { position: fixed; bottom: 20px; right: 20px; z-index: 999; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -34,19 +37,26 @@
 </div>
 
 <div id="control-side">
-    <div id="status-msg" class="status-bar">初期化中...</div>
+    <div id="status-msg" class="status-bar">READY</div>
     <div class="card">
-        <h3 style="margin-top:0; font-size:0.9rem;">試合を選択</h3>
-        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">-- リスト読込中 --</option></select>
+        <h3>1. 試合を選択</h3>
+        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">-- 読込中 --</option></select>
     </div>
-    <div id="filterArea" style="display:none;" class="card">
+    <div class="card" id="filterArea" style="display:none;">
+        <h3>2. 絞り込み</h3>
         <select id="teamFilter"></select>
+        <select id="playerFilter"></select>
+        <select id="skillFilter"></select>
     </div>
     <div id="instanceList"></div>
 </div>
 
+<button class="fs-btn" onclick="document.body.classList.toggle('fullscreen-mode')">全</button>
+
 <script>
-    let player, allData = [], matchMap = {}, playerMaster = {};
+    let player, allData = [], filteredData = [], currentIndex = -1, checkInterval;
+    let matchMap = {};
+    const EXCLUDE_KEYWORDS = ["substitution", "timeout", "end of set"];
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -55,7 +65,7 @@
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', {
             height: '100%', width: '100%',
-            playerVars: { 'playsinline': 1, 'rel': 0, 'enablejsapi': 1 },
+            playerVars: { 'playsinline': 1, 'enablejsapi': 1 },
             events: { 'onReady': fetchMatchList }
         });
     }
@@ -65,105 +75,94 @@
             const select = document.getElementById('matchSelect');
             select.innerHTML = '<option value="">-- 試合を選択 --</option>';
             data.split('\n').filter(l => l.includes(',')).forEach(line => {
-                const [vsm, vid] = line.split(',').map(s => s.trim());
-                matchMap[vsm] = vid;
-                select.add(new Option(vsm.replace('.vsm',''), vsm));
+                const [xml, vid] = line.split(',').map(s => s.trim());
+                matchMap[xml] = vid;
+                select.add(new Option(xml.replace('.xml',''), xml));
             });
-            updateStatus("READY: 試合を選択してください");
-        }).catch(e => updateStatus("list.txtが見つかりません"));
+        });
     }
 
-    function onMatchChange(vsmFile) {
-        if (!vsmFile) return;
-        updateStatus("読込中: " + vsmFile);
-        player.loadVideoById(matchMap[vsmFile]);
-
-        // 【修正】.json()ではなく.text()で受けてからパースする
-        fetch(vsmFile)
-            .then(res => {
-                if (!res.ok) throw new Error("Network response was not ok");
-                return res.text();
-            })
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    processVSM(data);
-                    updateStatus("LOADED: " + vsmFile);
-                } catch (e) {
-                    console.error("JSON Parse Error:", e);
-                    updateStatus("解析失敗: VSMファイルの中身が正しくありません");
-                }
-            })
-            .catch(err => {
-                console.error("Fetch Error:", err);
-                updateStatus("エラー: ファイルの取得に失敗しました");
-            });
+    function onMatchChange(xmlFile) {
+        if (!xmlFile) return;
+        updateStatus("読込中...");
+        player.loadVideoById(matchMap[xmlFile]);
+        fetch(xmlFile).then(res => res.text()).then(xml => {
+            parseVolleyballXML(xml);
+            document.getElementById('filterArea').style.display = 'block';
+            updateStatus("LOADED: " + xmlFile);
+        });
     }
 
-    function processVSM(vsmData) {
-        allData = []; playerMaster = {};
-        const sync = vsmData.scout?.videoSync || 0;
-        const homeT = vsmData.scout?.homeTeam || { name: "Home" };
-        const awayT = vsmData.scout?.awayTeam || { name: "Away" };
+    function parseVolleyballXML(xmlString) {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+        const instances = Array.from(xmlDoc.getElementsByTagName("instance"));
+        allData = [];
 
-        // 選手登録
-        [homeT, awayT].forEach(team => {
-            if (team.players) {
-                team.players.forEach(p => {
-                    playerMaster[`${team.name}_${p.number}`] = p.lastName || p.firstName || p.number;
+        instances.forEach(inst => {
+            const code = inst.getElementsByTagName("code")[0]?.textContent || "";
+            if (EXCLUDE_KEYWORDS.some(key => code.toLowerCase().includes(key))) return;
+
+            let pName = "", tName = "", hScore = "0", aScore = "0";
+            Array.from(inst.getElementsByTagName("label")).forEach(l => {
+                const g = l.getElementsByTagName("group")[0]?.textContent.toLowerCase() || "";
+                const t = l.getElementsByTagName("text")[0]?.textContent || "";
+                if (g.includes("player")) pName = t.trim();
+                if (g.includes("team name")) tName = t.trim();
+                if (g.includes("home score")) hScore = t.trim();
+                if (g.includes("away score")) aScore = t.trim();
+            });
+
+            if (pName) {
+                allData.push({
+                    start: parseFloat(inst.getElementsByTagName("start")[0]?.textContent || "0"),
+                    end: parseFloat(inst.getElementsByTagName("end")[0]?.textContent || "0"),
+                    code, pName, tName, score: `${hScore}-${aScore}`
                 });
             }
         });
-
-        vsmData.scout.sets.forEach(set => {
-            (set.events || []).forEach(event => {
-                const hScore = event.score?.home ?? 0;
-                const aScore = event.score?.away ?? 0;
-                const exchange = event.exchange || {};
-                const baseTime = exchange.time || 0;
-
-                (exchange.plays || []).forEach(play => {
-                    if (!play.player || play.player === "00") return;
-                    const tName = (play.team === "*") ? homeT.name : awayT.name;
-                    const pName = playerMaster[`${tName}_${play.player}`] || `#${play.player}`;
-
-                    // originalTimeを優先使用
-                    let vTime = 0;
-                    if (play.originalTime) {
-                        vTime = (play.originalTime - sync) / 1000;
-                    } else {
-                        vTime = (baseTime + (play.time || 0) - sync) / 1000;
-                    }
-
-                    allData.push({ time: vTime, score: `${hScore}-${aScore}`, pName, code: play.skill || "??", tName });
-                });
-            });
-        });
-
-        document.getElementById('filterArea').style.display = 'block';
         initFilters();
-        render();
     }
 
     function initFilters() {
         const ts = document.getElementById('teamFilter');
         ts.innerHTML = '<option value="">すべてのチーム</option>';
         [...new Set(allData.map(d => d.tName))].sort().forEach(t => ts.add(new Option(t, t)));
-        ts.onchange = render;
+        ts.onchange = () => { updateSubFilters(); render(); };
+        updateSubFilters(); render();
+    }
+
+    function updateSubFilters() {
+        const selectedTeam = document.getElementById('teamFilter').value;
+        const data = selectedTeam ? allData.filter(d => d.tName === selectedTeam) : allData;
+        const ps = document.getElementById('playerFilter');
+        ps.innerHTML = '<option value="">すべての選手</option>';
+        [...new Set(data.map(d => d.pName))].sort().forEach(p => ps.add(new Option(p, p)));
+        const ss = document.getElementById('skillFilter');
+        ss.innerHTML = '<option value="">すべてのスキル</option>';
+        [...new Set(data.map(d => d.code))].sort().forEach(s => ss.add(new Option(s, s)));
+        ps.onchange = render; ss.onchange = render;
     }
 
     function render() {
-        const tf = document.getElementById('teamFilter').value;
-        const list = document.getElementById('instanceList');
-        list.innerHTML = '';
-        const filtered = allData.filter(d => !tf || d.tName === tf);
-        
-        filtered.forEach((d, i) => {
+        const tf = document.getElementById('teamFilter').value, pf = document.getElementById('playerFilter').value, sf = document.getElementById('skillFilter').value;
+        const list = document.getElementById('instanceList'); list.innerHTML = '';
+        filteredData = allData.filter(d => (tf==="" || d.tName === tf) && (pf==="" || d.pName === pf) && (sf==="" || d.code === sf));
+        filteredData.forEach((d, i) => {
             const btn = document.createElement('div');
-            btn.className = `instance-btn color-${d.code}`;
-            btn.innerHTML = `<div class="score-display">${d.score}</div><div><span class="player-name">${d.pName}</span><span class="team-info">${d.tName} | ${d.code}</span></div>`;
+            // スキルの頭文字(S,R,A,B)で色分け
+            const skillType = d.code.charAt(0);
+            btn.className = `instance-btn color-${skillType}`; btn.id = 'inst-' + i;
+            btn.innerHTML = `
+                <div class="score-display">${d.score}</div>
+                <div class="info-content">
+                    <span class="player-name">${d.pName}</span>
+                    <span class="team-skill-info">${d.tName} | ${d.code}</span>
+                </div>
+            `;
             btn.onclick = () => {
-                player.seekTo(d.time - 2, true);
+                currentIndex = i;
+                player.seekTo(d.start - 3, true);
                 player.playVideo();
                 document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
@@ -171,7 +170,6 @@
             list.appendChild(btn);
         });
     }
-
     function updateStatus(msg) { document.getElementById('status-msg').innerText = msg; }
 </script>
 </body>
