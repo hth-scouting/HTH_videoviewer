@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH Pro Scouting - Multi-Device Optimized</title>
+    <title>HTH Pro Scouting - Safari Fixed</title>
     <style>
         :root { 
             --primary: #007bff;
@@ -13,8 +13,8 @@
         }
         body { font-family: 'Inter', -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: #f0f2f5; overflow: hidden; }
         
-        /* Layout: Video Area */
-        #video-side { flex: 3.5; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
+        /* PC Layout */
+        #video-side { flex: 3.5; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         #control-side { flex: 1; padding: 15px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
 
         /* PC Scoreboard: 150% Size */
@@ -32,13 +32,18 @@
 
         @media (max-width: 768px) {
             body { flex-direction: column; }
-            #video-side { width: 100%; height: auto; flex: none; z-index: 100; aspect-ratio: 16 / 9; }
+            /* Safari Fix: aspect-ratioに頼らずpaddingで高さを確保 */
+            #video-side { 
+                width: 100%; 
+                height: 0; 
+                padding-top: 56.25%; /* 16:9 ratio (9 / 16 = 0.5625) */
+                position: relative; 
+                flex: none; 
+            }
             #control-side { width: 100%; flex: 1; overflow-y: auto; border-left: none; padding-bottom: 80px; }
             
-            /* Mobile Scoreboard: 50% of original (Small & Compact) */
-            #score-overlay { 
-                top: 8px !important; left: 8px !important; width: 95px !important; border-radius: 4px !important; 
-            }
+            /* Mobile Scoreboard: 50% Size */
+            #score-overlay { top: 8px !important; left: 8px !important; width: 95px !important; border-radius: 4px !important; }
             .score-row { height: 21px !important; }
             .sticky-bar { width: 4px !important; }
             .ov-team-box { padding-left: 5px !important; font-size: 0.5rem !important; }
@@ -46,11 +51,13 @@
             .ov-points-box { width: 25px !important; font-size: 0.8rem !important; }
         }
 
+        /* Video Box: Container inside padding hack or flex */
+        #player-box { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; }
+
         .home .sticky-bar { background: var(--home-accent); }
         .away .sticky-bar { background: var(--away-accent); }
-        #player-box { width: 100%; height: 100%; position: relative; cursor: pointer; }
 
-        /* UI/UX Elements */
+        /* UI Styling */
         .mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
         .mode-tab { flex: 1; padding: 10px 5px; border: none; background: #e4e6eb; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 0.75rem; color: #555; }
         .mode-tab.active { background: var(--primary); color: white; }
@@ -59,9 +66,8 @@
         select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; margin-bottom: 8px; }
 
         .set-divider { background: #555; color: white; padding: 6px; font-size: 0.75rem; font-weight: 900; border-radius: 4px; margin: 15px 0 8px 0; text-align: center; }
-        .instance-btn { padding: 10px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; border-left: 10px solid #ccc; background: #fff; transition: background 0.2s; }
+        .instance-btn { padding: 10px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; border-left: 10px solid #ccc; background: #fff; }
         .instance-btn.active { background: #f0f7ff !important; outline: 2px solid var(--primary); }
-        
         .win-home { border-left-color: var(--home-accent) !important; }
         .win-away { border-left-color: var(--away-accent) !important; }
         .score-box { font-family: "Arial Black"; font-size: 1rem; min-width: 55px; text-align: center; margin-right: 12px; background: #f0f0f0; border-radius: 4px; }
@@ -219,6 +225,7 @@
         const pf = document.getElementById('playerFilter').value;
         let base = (currentMode === 'rally') ? rallies : allPlays;
         currentList = base.filter(d => (!teamFilter || d.side === teamFilter) && (currentMode !== 'player' || !pf || d.pName === pf));
+
         let lastSet = -1;
         currentList.forEach((d, i) => {
             if (d.setNum !== lastSet) {
