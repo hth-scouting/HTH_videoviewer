@@ -3,32 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH Pro Scouting - Analytics</title>
+    <title>HTH Pro Scouting - Individual Mode Fix</title>
     <style>
         :root { 
             --primary: #007bff; --home-accent: #f06292; --away-accent: #64b5f6; --score-bg: rgba(255, 255, 255, 0.95);
         }
-        /* Root container fix for Safari */
         body, html { height: 100%; margin: 0; padding: 0; overflow: hidden; }
         body { font-family: 'Inter', -apple-system, sans-serif; display: flex; background: #f0f2f5; }
 
-        /* Video Area: High compatibility for Safari */
-        #video-side { 
-            flex: 3.5; background: #000; position: relative; 
-            display: flex; align-items: center; justify-content: center;
-        }
+        /* Safari Compatible Video Area */
+        #video-side { flex: 3.5; background: #000; position: relative; }
 
         @media (max-width: 768px) {
             body { flex-direction: column; }
-            #video-side { 
-                width: 100%; height: 32vh; flex: none; position: relative;
-                display: block; /* Disable flex on mobile for Safari stability */
-            }
+            #video-side { width: 100%; height: 32vh; flex: none; position: relative; display: block; }
             #control-side { width: 100%; flex: 1; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
-            /* Mobile Scoreboard (50%) */
             #score-overlay { top: 8px !important; left: 8px !important; width: 95px !important; }
             .score-row { height: 21px !important; }
-            .sticky-bar { width: 4px !important; }
             .ov-team-box { padding-left: 5px !important; font-size: 0.5rem !important; }
             .ov-sets-box { width: 18px !important; font-size: 0.5rem !important; }
             .ov-points-box { width: 25px !important; font-size: 0.8rem !important; }
@@ -37,7 +28,7 @@
         #player-box { width: 100%; height: 100%; position: relative; }
         #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 
-        /* PC Scoreboard (150%) */
+        /* PC Scoreboard */
         #score-overlay {
             position: absolute; top: 30px; left: 30px; display: none; flex-direction: column;
             background: var(--score-bg); border-radius: 9px; overflow: hidden;
@@ -93,14 +84,22 @@
     <div class="filter-card" id="filterArea">
         <span class="filter-label">1. Match</span>
         <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">Select File...</option></select>
-        <span class="filter-label">2. Server Team</span>
-        <select id="teamFilter" onchange="render()" disabled><option value="">Both Teams (Default)</option></select>
+        
+        <div id="common-team-filter">
+            <span class="filter-label">2. Select Team</span>
+            <select id="teamFilter" onchange="onTeamChange()">
+                <option value="">Select Team</option>
+            </select>
+        </div>
         
         <div id="player-filters" style="display:none;">
-            <span class="filter-label">3. Player</span>
-            <select id="playerFilter" onchange="render()"></select>
-            <span class="filter-label">4. Skill</span>
+            <span class="filter-label">3. Select Player</span>
+            <select id="playerFilter" onchange="render()">
+                <option value="">Choose a Player</option>
+            </select>
+            <span class="filter-label">4. Select Skill</span>
             <select id="skillFilter" onchange="render()">
+                <option value="">All Skills</option>
                 <option value="S">Serve (S)</option>
                 <option value="A">Attack (A)</option>
                 <option value="R">Reception (R)</option>
@@ -183,14 +182,26 @@
                 }
             }
         });
-        const tf = document.getElementById('teamFilter'); tf.disabled = false;
-        tf.innerHTML = '<option value="">Both Teams (Default)</option>';
-        tf.add(new Option(home3C + " Serves", "*")); tf.add(new Option(away3C + " Serves", "a"));
-        const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">Select Player</option>';
-        const allP = []; const seen = new Set();
-        allPlays.forEach(p => { if (!seen.has(p.pName)) { allP.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } });
-        allP.sort((a,b) => a.num - b.num).forEach(p => ps.add(new Option(`#${p.num} ${p.name}`, p.name)));
+        const tf = document.getElementById('teamFilter');
+        tf.innerHTML = '<option value="">Select Team</option>';
+        tf.add(new Option(home3C, "*")); 
+        tf.add(new Option(away3C, "a"));
+        
         document.getElementById('score-overlay').style.display = 'flex'; render();
+    }
+
+    function onTeamChange() {
+        const team = document.getElementById('teamFilter').value;
+        const ps = document.getElementById('playerFilter');
+        ps.innerHTML = '<option value="">Choose a Player</option>';
+        if (team) {
+            const teamPlayers = []; const seen = new Set();
+            allPlays.filter(p => p.side === team).forEach(p => { 
+                if (!seen.has(p.pName)) { teamPlayers.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } 
+            });
+            teamPlayers.sort((a,b) => a.num - b.num).forEach(p => ps.add(new Option(`#${p.num} ${p.name}`, p.name)));
+        }
+        render();
     }
 
     function setMode(m) {
@@ -198,18 +209,29 @@
         document.getElementById('btn-' + m).classList.add('active');
         document.getElementById('filterArea').style.display = (m === 'stats') ? 'none' : 'block';
         document.getElementById('player-filters').style.display = (m === 'player') ? 'block' : 'none';
+        
+        // モード変更時にフィルターを一部リセット
+        document.getElementById('teamFilter').value = "";
+        document.getElementById('playerFilter').innerHTML = '<option value="">Choose a Player</option>';
         render();
     }
 
     function render() {
         const list = document.getElementById('instanceList'); list.innerHTML = '';
         if (currentMode === 'stats') { renderDualTables(); return; }
+        
         const teamF = document.getElementById('teamFilter').value;
         const playerF = document.getElementById('playerFilter').value;
         const skillF = document.getElementById('skillFilter').value;
         
         let base = (currentMode === 'rally') ? rallies : allPlays;
-        let currentList = base.filter(d => (!teamF || d.side === teamF) && (currentMode !== 'player' || (!playerF || d.pName === playerF) && (!skillF || d.skill === skillF)));
+        
+        // Ralliesモードならチーム選択は「誰のサーブか」の絞り込み、Individualなら「誰のプレーか」
+        let currentList = base.filter(d => {
+            if (currentMode === 'rally') return !teamF || d.side === teamF;
+            if (currentMode === 'player') return d.side === teamF && (!playerF || d.pName === playerF) && (!skillF || d.skill === skillF);
+            return true;
+        });
 
         let lastSet = -1;
         currentList.forEach((d, i) => {
@@ -259,12 +281,7 @@
     function startTracking() {
         clearInterval(checkInterval);
         checkInterval = setInterval(() => {
-            const btn = document.querySelector('.instance-btn.active');
-            if (btn) {
-                const id = parseInt(btn.id.split('-')[1]);
-                // We need a way to reference the filtered list here, 
-                // but for now, we'll keep it simple for stability.
-            }
+            // 自動追従ロジック（オプション）
         }, 500);
     }
     function toggleOverlay() { document.getElementById('score-overlay').classList.toggle('hidden'); }
