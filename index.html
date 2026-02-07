@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH Pro Scouting - Advanced Sync</title>
+    <title>HTH Pro Scouting - Responsive</title>
     <style>
         :root { 
             --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #111; 
-            --hth-green: #008d41; --tgb-navy: #1a237e; --score-bg: rgba(0, 0, 0, 0.7);
+            --hth-green: #008d41; --tgb-navy: #1a237e; --score-bg: rgba(0, 0, 0, 0.75);
         }
         body { font-family: 'Inter', -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: #f0f2f5; overflow: hidden; }
         
@@ -15,54 +15,58 @@
             body { flex-direction: column; overflow-y: auto; }
             #video-side { width: 100%; position: sticky; top: 0; z-index: 100; height: 30vh; }
             #control-side { width: 100%; flex: none; padding-bottom: 100px; }
+            /* スマホではさらにスコアボードをコンパクトに */
+            #score-overlay { top: 10px !important; left: 10px !important; width: 35vw !important; max-width: 150px; }
         }
 
         #video-side { flex: 2; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
-        #player-box { width: 100%; aspect-ratio: 16 / 9; position: relative; }
+        #player-box { width: 100%; aspect-ratio: 16 / 9; position: relative; cursor: pointer; }
         
-        /* 【75%サイズ スタイリッシュ・スコアボード】 */
+        /* 【可変デザイン・スコアボード】 */
         #score-overlay {
-            position: absolute; top: 15px; left: 15px;
+            position: absolute; top: 2vw; left: 2vw;
             display: none; flex-direction: column;
-            background: var(--score-bg); backdrop-filter: blur(10px);
-            border-radius: 3px; overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            background: var(--score-bg); backdrop-filter: blur(8px);
+            border-radius: 4px; overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             font-family: 'Oswald', sans-serif; z-index: 10;
-            min-width: 135px; /* 180 * 0.75 */
-            border: 1px solid rgba(255,255,255,0.1);
+            width: 12vw; min-width: 110px; max-width: 180px; /* 横幅を可変に */
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: opacity 0.3s;
         }
-        .score-row { display: flex; align-items: stretch; height: 30px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .ov-team-box { width: 45px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.8rem; }
-        .home .ov-team-box { background: linear-gradient(90deg, var(--hth-green) 0%, rgba(0,141,65,0.5) 100%); }
-        .away .ov-team-box { background: linear-gradient(90deg, var(--tgb-navy) 0%, rgba(26,35,126,0.5) 100%); }
-        .ov-sets-box { width: 26px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); color: #ffd700; font-size: 0.85rem; font-weight: 700; }
-        .ov-points-box { flex: 1; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); color: #fff; font-size: 1.15rem; font-weight: 800; min-width: 40px; }
+        #score-overlay.hidden { opacity: 0; pointer-events: none; }
 
+        .score-row { display: flex; align-items: stretch; height: 4.5vh; min-height: 25px; max-height: 35px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .ov-team-box { width: 30%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.8rem; }
+        .home .ov-team-box { background: linear-gradient(90deg, var(--hth-green) 0%, rgba(0,141,65,0.4) 100%); }
+        .away .ov-team-box { background: linear-gradient(90deg, var(--tgb-navy) 0%, rgba(26,35,126,0.4) 100%); }
+        .ov-sets-box { width: 20%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); color: #ffd700; font-size: 0.8rem; font-weight: 700; }
+        .ov-points-box { flex: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.2rem; font-weight: 800; }
+
+        /* リスト・操作エリア */
         #control-side { flex: 1.2; padding: 15px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
         .mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
         .mode-tab { flex: 1; padding: 10px 5px; border: none; background: #e4e6eb; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 0.8rem; }
         .mode-tab.active { background: var(--primary); color: white; }
-
         .filter-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-        select { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
+        select { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.95rem; }
 
         .instance-btn { padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; border-left: 8px solid #ccc; background: #fff; }
         .instance-btn.win { border-left-color: var(--success); }
         .instance-btn.loss { border-left-color: var(--danger); }
         .instance-btn.active { background: #f0f7ff; outline: 2px solid var(--primary); }
 
-        .score-box { font-family: "Arial Black"; font-size: 1.2rem; min-width: 75px; text-align: center; margin-right: 12px; background: #f0f0f0; border-radius: 4px; padding: 4px; }
-        .player-name { font-weight: 700; font-size: 1rem; color: #000; }
-        
+        .score-box { font-family: "Arial Black"; font-size: 1.1rem; min-width: 65px; text-align: center; margin-right: 12px; background: #f0f0f0; border-radius: 4px; padding: 4px; }
+        .player-name { font-weight: 700; font-size: 0.95rem; color: #000; }
         .mobile-controls { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: #111; display: none; align-items: center; justify-content: space-around; z-index: 200; }
-        .m-btn { color: white; background: none; border: 1px solid #333; border-radius: 5px; padding: 8px 15px; font-size: 0.85rem; }
+        .m-btn { color: white; background: none; border: 1px solid #333; border-radius: 5px; padding: 8px 15px; font-size: 0.8rem; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <div id="video-side">
-    <div id="player-box">
+    <div id="player-box" onclick="toggleOverlay()">
         <div id="player"></div>
         <div id="score-overlay">
             <div class="score-row home">
@@ -90,7 +94,7 @@
         <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">試合を選択</option></select>
         <select id="playerFilter"></select>
         <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem; margin-top:5px; color:#666;">
-            <input type="checkbox" id="autoNext" checked> <label for="autoNext">自動スキップ（モード別最適化済）</label>
+            <input type="checkbox" id="autoNext" checked> <label for="autoNext">自動スキップ（モード連動）</label>
         </div>
         <div id="skill-options" style="display:none;">
             <select id="skillFilter"><option value="">すべてのスキル</option><option value="S">Serve</option><option value="R">Reception</option><option value="A">Attack</option><option value="B">Block</option></select>
@@ -136,6 +140,11 @@
         });
     }
 
+    function toggleOverlay() {
+        const ov = document.getElementById('score-overlay');
+        ov.classList.toggle('hidden');
+    }
+
     function onMatchChange(dvw) {
         if (!dvw) return;
         player.loadVideoById(matchMap[dvw]);
@@ -146,13 +155,9 @@
         allPlays = []; rallies = []; playerMaster = {};
         const lines = text.split('\n');
         let currentSection = "", runningScore = "00-00", teamCount = 0;
-        let hSets = 0, aSets = 0;
+        let hSets = 0, aSets = 0, tempRally = null;
 
-        // 全行スキャンしてラリーとプレーを抽出
-        let scoutStarted = false;
-        let tempRally = null;
-
-        lines.forEach((line, idx) => {
+        lines.forEach((line) => {
             const l = line.trim();
             if (l.startsWith('[')) { currentSection = l; return; }
             if (currentSection === "[3TEAMS]" && l.includes(';')) {
@@ -163,50 +168,30 @@
             if ((currentSection === "[3PLAYERS-H]" || currentSection === "[3PLAYERS-V]") && l.includes(';')) {
                 const p = l.split(';');
                 const side = currentSection.includes('-H') ? '*' : 'a';
-                const fullName = (p[9] && p[10]) ? `${p[9]} ${p[10]}` : (p[10] || p[9] || p[1]);
-                playerMaster[`${side}_${parseInt(p[1])}`] = { name: fullName, num: parseInt(p[1]) };
+                playerMaster[`${side}_${parseInt(p[1])}`] = { name: (p[9] && p[10]) ? `${p[9]} ${p[10]}` : (p[10] || p[9] || p[1]), num: parseInt(p[1]) };
             }
             if (currentSection === "[3SCOUT]" && l.includes(';')) {
                 const c = l.split(';');
                 const code = c[0];
-
-                // セットカウントの更新
                 if (code.startsWith('**') && code.includes('set')) {
                     const lastScore = runningScore.split('-').map(Number);
                     if (lastScore[0] > lastScore[1]) hSets++; else if (lastScore[1] > lastScore[0]) aSets++;
-                    runningScore = "00-00"; // 次のセットへ
-                    return;
+                    runningScore = "00-00"; return;
                 }
-
-                // スコア更新
                 if (code.startsWith('*p') || code.startsWith('ap')) {
                     const m = code.match(/\d{2}:\d{2}/);
                     if (m) runningScore = m[0].replace(':', '-');
-                    if (tempRally) tempRally.endTime = parseFloat(c[12]); // ラリーの終了時間を確定
-                    return;
+                    if (tempRally) tempRally.endTime = parseFloat(c[12]); return;
                 }
-
                 if ("SRABDEF".includes(code.charAt(3))) {
                     const side = code.charAt(0), num = parseInt(code.substring(1,3)), skill = code.charAt(3);
                     const pInfo = playerMaster[`${side}_${num}`] || { name: `Unknown`, num: num };
                     const time = parseFloat(c[12]);
-                    
-                    // 個別プレー設定（ユーザー指定の時間）
-                    let offsetStart = 3, offsetEnd = 3;
-                    if (skill === 'S') { offsetStart = 1; offsetEnd = 5; }
-                    else if (skill === 'A') { offsetStart = 3; offsetEnd = 7; }
-
-                    const playObj = { 
-                        time, startTime: time - offsetStart, endTime: time + offsetEnd,
-                        score: runningScore, hSets, aSets, side, skill, effect: code.charAt(4), 
-                        pName: pInfo.name, pNum: pInfo.num, rot: c[8], code 
-                    };
+                    let oS = 3, oE = 3;
+                    if (skill === 'S') { oS = 1; oE = 5; } else if (skill === 'A') { oS = 3; oE = 7; }
+                    const playObj = { time, startTime: time - oS, endTime: time + oE, score: runningScore, hSets, aSets, side, skill, effect: code.charAt(4), pName: pInfo.name, pNum: pInfo.num, rot: c[8], code };
                     allPlays.push(playObj);
-                    
-                    if (skill === 'S') {
-                        tempRally = playObj;
-                        rallies.push(playObj);
-                    }
+                    if (skill === 'S') { tempRally = playObj; rallies.push(playObj); }
                 }
             }
         });
@@ -214,19 +199,12 @@
         document.getElementById('score-overlay').style.display = 'flex';
     }
 
-    function onPlayerStateChange(e) { 
-        if (e.data == 1 && document.getElementById('autoNext').checked) startTracking(); 
-        else clearInterval(checkInterval); 
-    }
-
+    function onPlayerStateChange(e) { if (e.data == 1 && document.getElementById('autoNext').checked) startTracking(); else clearInterval(checkInterval); }
     function startTracking() {
         clearInterval(checkInterval);
         checkInterval = setInterval(() => {
-            const now = player.getCurrentTime();
-            const data = (currentMode === 'rally') ? currentFilteredData : currentFilteredData;
-            if (currentIndex >= 0 && data[currentIndex] && now > data[currentIndex].endTime) {
-                nextRally();
-            }
+            const data = currentFilteredData;
+            if (currentIndex >= 0 && data[currentIndex] && player.getCurrentTime() > data[currentIndex].endTime) nextRally();
         }, 500);
     }
 
@@ -242,8 +220,7 @@
         const unique = []; const seen = new Set();
         allPlays.forEach(p => { if (!seen.has(p.pName)) { unique.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } });
         unique.sort((a,b) => a.num - b.num).forEach(p => ps.add(new Option(`#${p.num} ${p.name}`, p.name)));
-        ps.onchange = render; document.getElementById('skillFilter').onchange = render; 
-        document.getElementById('effectFilter').onchange = render;
+        ps.onchange = render; document.getElementById('skillFilter').onchange = render; document.getElementById('effectFilter').onchange = render;
         document.getElementById('sideFilter').onchange = render; document.getElementById('rotFilter').onchange = render;
     }
 
@@ -262,7 +239,7 @@
         currentFilteredData.forEach((d, i) => {
             const btn = document.createElement('div');
             btn.className = `instance-btn ${d.effect === '#' ? 'win' : (d.effect === '=' ? 'loss' : '')}`; btn.id = 'idx-' + i;
-            btn.innerHTML = `<div class="score-box">${d.score}</div><div style="flex:1"><div class="player-name">#${d.pNum} ${d.pName}</div><div style="font-size:0.75rem; color:#666;">Set${d.hSets + d.aSets + 1} | P${d.rot} | ${d.skill}${d.effect}</div></div>`;
+            btn.innerHTML = `<div class="score-box">${d.score}</div><div style="flex:1"><div class="player-name">#${d.pNum} ${d.pName}</div><div style="font-size:0.7rem; color:#666;">Set${d.hSets + d.aSets + 1} | P${d.rot} | ${d.skill}${d.effect}</div></div>`;
             btn.onclick = () => playIndex(i); list.appendChild(btn);
         });
     }
@@ -270,7 +247,6 @@
     function playIndex(i) {
         currentIndex = i; const d = currentFilteredData[i];
         player.seekTo(d.startTime, true); player.playVideo();
-        // スコアボード更新（その時点のセット数と得点）
         document.getElementById('ov-h-sets').innerText = d.hSets;
         document.getElementById('ov-a-sets').innerText = d.aSets;
         const s = d.score.split('-'); 
