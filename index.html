@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH Pro Scouting - Final Analytics</title>
+    <title>HTH Pro Scouting - Analytics Fixed</title>
     <style>
         :root { 
             --primary: #007bff; --success: #28a745; --danger: #dc3545; --hth-green: #008d41; --tgb-navy: #1a237e; --score-bg: rgba(0, 0, 0, 0.85);
         }
         body { font-family: 'Inter', -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: #f0f2f5; overflow: hidden; }
         
-        /* PCレイアウト：左(動画)を広く */
+        /* PCレイアウト：動画(左)を広く、操作(右)をスリムに */
         #video-side { flex: 3.5; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
         #control-side { flex: 1; padding: 15px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
 
@@ -18,7 +18,7 @@
             body { flex-direction: column; overflow-y: auto; }
             #video-side { width: 100%; position: sticky; top: 0; z-index: 100; height: 32vh; flex: none; }
             #control-side { width: 100%; flex: none; padding-bottom: 100px; }
-            #score-overlay { top: 5px !important; left: 5px !important; width: 110px !important; transform: scale(0.7); transform-origin: top left; }
+            #score-overlay { top: 5px !important; left: 5px !important; width: 110px !important; transform: scale(0.75); transform-origin: top left; }
         }
 
         #player-box { width: 100%; aspect-ratio: 16 / 9; position: relative; cursor: pointer; }
@@ -44,15 +44,14 @@
         select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; margin-bottom: 8px; }
 
         .set-divider { background: #555; color: white; padding: 5px; font-size: 0.75rem; font-weight: 900; border-radius: 4px; margin: 15px 0 8px 0; text-align: center; }
-        .instance-btn { padding: 10px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; border-left: 8px solid #ccc; background: #fff; }
+        .instance-btn { padding: 10px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; border-left: 6px solid #ccc; background: #fff; }
         .instance-btn.active { background: #f0f7ff; outline: 2px solid var(--primary); }
         .score-box { font-family: "Arial Black"; font-size: 1rem; min-width: 55px; text-align: center; margin-right: 10px; background: #f0f0f0; border-radius: 4px; }
 
-        /* 集計表スタイル */
         .stats-section-title { font-size: 0.85rem; font-weight: bold; padding: 8px; background: #f0f0f0; margin-top: 15px; border-radius: 4px; border-left: 5px solid #333; }
         .stats-container { overflow-x: auto; margin-bottom: 25px; }
-        .stats-table { width: 100%; border-collapse: collapse; font-size: 0.68rem; white-space: nowrap; }
-        .stats-table th, .stats-table td { border: 1px solid #ddd; padding: 6px 4px; text-align: center; }
+        .stats-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; white-space: nowrap; }
+        .stats-table th, .stats-table td { border: 1px solid #ddd; padding: 6px 3px; text-align: center; }
         .stats-table th { background: #f8f9fa; color: #555; }
         .p-cell { text-align: left !important; font-weight: bold; background: #fff; position: sticky; left: 0; border-right: 2px solid #ddd !important; }
         .click-num { color: var(--primary); font-weight: 800; cursor: pointer; text-decoration: underline; display: block; }
@@ -82,11 +81,11 @@
         <span class="filter-label">1. Match</span>
         <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">Select Match...</option></select>
         
-        <span class="filter-label">2. Server Team</span>
-        <select id="teamFilter" onchange="render()" disabled><option value="">All Teams (Default)</option></select>
+        <span class="filter-label">2. Server Team (Optional)</span>
+        <select id="teamFilter" onchange="render()"><option value="">All Rallies (Both Teams)</option></select>
         
         <div id="player-filters" style="display:none;">
-            <span class="filter-label">3. Player</span>
+            <span class="filter-label">3. Player Filter</span>
             <select id="playerFilter" onchange="render()"></select>
         </div>
         <div style="display:flex; align-items:center; gap:8px; font-size:0.7rem; color:#666; margin-top:5px;">
@@ -147,32 +146,45 @@
                     if (m) runningScore = m[0].replace(':', '-');
                     if (tempRally) tempRally.endTime = parseFloat(c[12]); return;
                 }
+                
+                // 集計ロジック：固定位置ではなくパターンで判定
                 if ("SRAB".includes(code.charAt(3))) {
                     const side = code.charAt(0), num = parseInt(code.substring(1,3)), skill = code.charAt(3);
-                    const eff = code.charAt(5); // 標準DVW 2.0: 6文字目が効果(Index 5)
                     const time = parseFloat(c[12]);
+                    
+                    // 効果記号を探す (5文字目以降に出現する #, =, +, /, ! など)
+                    let effect = code.substring(4).match(/[#=+\-\/!]/);
+                    effect = effect ? effect[0] : "";
+                    
                     let oS = 2.5, oE = 4;
                     if (skill === 'S') { oS = 1.2; oE = 5.5; }
                     else if (skill === 'A') { oS = 3; oE = 7.5; }
-                    const playObj = { time, startTime: time - oS, endTime: time + oE, score: runningScore, setNum: hSets+aSets+1, hSets, aSets, side, skill, effect: eff, pName: playerMaster[`${side}_${num}`]?.name || `#${num}`, pNum: num, rot: c[8], fullCode: code };
+                    
+                    const playObj = { 
+                        time, startTime: time - oS, endTime: time + oE, score: runningScore, 
+                        setNum: hSets+aSets+1, hSets, aSets, side, skill, effect, 
+                        pName: playerMaster[`${side}_${num}`]?.name || `#${num}`, pNum: num, rot: c[8], fullCode: code 
+                    };
                     allPlays.push(playObj);
                     if (skill === 'S') { tempRally = playObj; rallies.push(playObj); }
                 }
             }
         });
         
-        const tf = document.getElementById('teamFilter'); tf.disabled = false;
+        const tf = document.getElementById('teamFilter'); 
+        tf.disabled = false;
         tf.innerHTML = '<option value="">All Rallies (Both Teams)</option>';
         tf.add(new Option(home3C + " Serves", "*"));
         tf.add(new Option(away3C + " Serves", "a"));
         
-        const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">All Players</option>';
+        const ps = document.getElementById('playerFilter'); 
+        ps.innerHTML = '<option value="">All Players</option>';
         const allP = []; const seen = new Set();
         allPlays.forEach(p => { if (!seen.has(p.pName)) { allP.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } });
         allP.sort((a,b) => a.num - b.num).forEach(p => ps.add(new Option(`#${p.num} ${p.name}`, p.name)));
         
         document.getElementById('score-overlay').style.display = 'flex';
-        render();
+        render(); // デフォルトでインプレイリストを表示
     }
 
     function setMode(m) {
@@ -188,13 +200,13 @@
         const list = document.getElementById('instanceList'); list.innerHTML = '';
         if (currentMode === 'stats') { renderDualTables(); return; }
 
-        const team = document.getElementById('teamFilter').value;
+        const teamFilter = document.getElementById('teamFilter').value;
         const pf = document.getElementById('playerFilter').value;
         let base = (currentMode === 'rally') ? rallies : allPlays;
 
         currentList = base.filter(d => {
             let m = true;
-            if (team) m = (d.side === team);
+            if (teamFilter) m = (d.side === teamFilter);
             if (currentMode === 'player' && pf) m = m && (d.pName === pf);
             return m;
         });
@@ -213,8 +225,8 @@
 
     function renderDualTables() {
         const list = document.getElementById('instanceList');
-        list.innerHTML = `<div class="stats-section-title">${home3C} Statistics</div><div id="table-h" class="stats-container"></div><div class="stats-section-title">${away3C} Statistics</div><div id="table-a" class="stats-container"></div>`;
-        buildTable("*", "table-h"); buildTable("a", "table-a");
+        list.innerHTML = `<div class="stats-section-title">${home3C} Statistics</div><div id="t-h" class="stats-container"></div><div class="stats-section-title">${away3C} Statistics</div><div id="t-a" class="stats-container"></div>`;
+        buildTable("*", "t-h"); buildTable("a", "t-a");
     }
 
     function buildTable(side, targetId) {
@@ -227,9 +239,13 @@
         ps.forEach(p => {
             const pl = allPlays.filter(play => play.pName === p.name);
             const s = pl.filter(d => d.skill === 'S'), r = pl.filter(d => d.skill === 'R'), a = pl.filter(d => d.skill === 'A');
-            const sAce = s.filter(d => d.effect === '#').length, sMiss = s.filter(d => d.effect === '=').length; 
+            
+            // 修正：効果記号判定の強化
+            const sAce = s.filter(d => d.effect === '#').length;
+            const sMiss = s.filter(d => d.effect === '=' && (d.fullCode.includes('SM=') || d.fullCode.includes('SQ='))).length; 
             const rErr = r.filter(d => d.effect === '=').length, rPerf = r.filter(d => d.effect === '#').length, rPos = r.filter(d => d.effect === '+').length;
             const aKill = a.filter(d => d.effect === '#').length, aLoss = a.filter(d => d.effect === '=' || d.effect === '/').length;
+
             html += `<tr><td class="p-cell">#${p.num} ${p.name.split(' ')[0]}</td><td>${s.length}</td><td>${sAce}</td><td>${sMiss}</td><td>${r.length}</td><td>${rErr}</td><td>${r.length?Math.round((rPerf+rPos)/r.length*100):0}%</td><td>${r.length?Math.round(rPerf/r.length*100):0}%</td><td>${a.length}</td><td>${aKill}</td><td>${aLoss}</td><td>${a.length?Math.round(aKill/a.length*100):0}%</td></tr>`;
         });
         document.getElementById(targetId).innerHTML = html + `</table>`;
@@ -241,6 +257,7 @@
         const s = d.score.split('-'); document.getElementById('ov-h-score').innerText = parseInt(s[0]); document.getElementById('ov-a-score').innerText = parseInt(s[1]);
         document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('idx-' + i)?.classList.add('active');
+        document.getElementById('idx-' + i)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function onPlayerStateChange(e) { if (e.data == 1 && document.getElementById('autoNext').checked) startTracking(); else clearInterval(checkInterval); }
