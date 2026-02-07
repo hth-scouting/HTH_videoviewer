@@ -5,7 +5,7 @@ GENERATOR-IDP:
 GENERATOR-PRG: 
 GENERATOR-REL: 
 GENERATOR-VER: 
-GENERATOR-NAM: VolleyMetrics Portal
+GENERATOR-NAM: 
 LASTCHANGE-DAY: 08/14/2024 12.08.26
 LASTCHANGE-IDP: 
 LASTCHANGE-PRG: 
@@ -19,10 +19,10 @@ LASTCHANGE-NAM:
 FRA;France National Team (Men's);3;;;;
 POL;Poland National Team (Men's);0;;;;
 [3MORE]
-;;;;;VolleyMetrics;
+;;;;;;
 ;;;
 [3COMMENTS]
-File downloaded by JTThunders on 2024-08-14 at 00.08.26. The data and information in this file is the property of VolleyMetrics™ and licensed to JT THUNDERS for use with Data Project™ software as per the terms and conditions found at http://volleymetrics.com/terms-and-conditions;;;;
+;;;;
 [3SET]
 True;8-6;16-11;21-16;25-19;25;
 True;6-8;15-16;21-19;25-20;25;
