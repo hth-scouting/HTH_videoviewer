@@ -3,57 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH Pro Scouting - Analytics</title>
+    <title>HTH Pro Scouting - Strategy Mode</title>
     <style>
         :root { 
-            --primary: #007bff; --success: #28a745; --danger: #dc3545; --hth-green: #008d41; --tgb-navy: #1a237e; --score-bg: rgba(0, 0, 0, 0.85);
+            --primary: #007bff;
+            --home-color: #fce4ec; /* Pastel Pink */
+            --home-accent: #f06292;
+            --away-color: #e3f2fd; /* Pastel Blue */
+            --away-accent: #64b5f6;
+            --score-bg: rgba(255, 255, 255, 0.95);
         }
-        body { 
-            font-family: 'Inter', -apple-system, sans-serif; 
-            display: flex; 
-            height: 100vh; 
-            margin: 0; 
-            background: #f0f2f5; 
-            overflow: hidden; 
-        }
+        body { font-family: 'Inter', -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: #f0f2f5; overflow: hidden; }
         
+        /* PC Layout */
         #video-side { flex: 3.5; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
         #control-side { flex: 1; padding: 15px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
 
         @media (max-width: 768px) {
             body { flex-direction: column; }
-            #video-side { width: 100%; height: 32vh; flex: none; z-index: 100; }
+            /* スマホ：動画全体を表示するために高さをauto、比率を維持 */
+            #video-side { width: 100%; height: auto; flex: none; z-index: 100; aspect-ratio: 16 / 9; }
             #control-side { width: 100%; flex: 1; overflow-y: auto; border-left: none; padding-bottom: 80px; }
-            #score-overlay { top: 5px !important; left: 5px !important; width: 110px !important; transform: scale(0.8); transform-origin: top left; }
+            #score-overlay { top: 10px !important; left: 10px !important; width: 140px !important; }
         }
 
-        #player-box { width: 100%; aspect-ratio: 16 / 9; position: relative; cursor: pointer; }
+        #player-box { width: 100%; height: 100%; position: relative; cursor: pointer; }
+        
+        /* Scoreboard: Sticky Label Style */
         #score-overlay {
             position: absolute; top: 25px; left: 25px; display: none; flex-direction: column;
-            background: var(--score-bg); backdrop-filter: blur(8px); border-radius: 4px; overflow: hidden;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.6); font-family: 'Oswald', sans-serif; z-index: 10;
-            width: 180px; border: 1px solid rgba(255,255,255,0.2);
+            background: var(--score-bg); border-radius: 6px; overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25); font-family: 'Oswald', sans-serif; z-index: 10;
+            width: 190px; border: 1px solid #ddd;
         }
-        .score-row { display: flex; height: 38px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .ov-team-box { width: 55px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.95rem; }
-        .home .ov-team-box { background: var(--hth-green); }
-        .away .ov-team-box { background: var(--tgb-navy); }
-        .ov-sets-box { width: 30px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); color: #ffd700; font-size: 1rem; }
-        .ov-points-box { flex: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.5rem; font-weight: 800; }
+        .score-row { display: flex; height: 42px; border-bottom: 1px solid #eee; position: relative; }
+        
+        /* Sticky Label (Colored bar on the left) */
+        .sticky-bar { width: 8px; height: 100%; flex-shrink: 0; }
+        .home .sticky-bar { background: var(--home-accent); }
+        .away .sticky-bar { background: var(--away-accent); }
 
+        .ov-team-box { flex: 1; display: flex; align-items: center; padding-left: 10px; font-weight: 700; color: #333; font-size: 1rem; background: #fff; }
+        .ov-sets-box { width: 35px; display: flex; align-items: center; justify-content: center; background: #fdfdfd; color: #888; font-size: 1rem; border-left: 1px solid #eee; }
+        .ov-points-box { width: 50px; display: flex; align-items: center; justify-content: center; color: #000; font-size: 1.7rem; font-weight: 800; background: #fff; border-left: 1px solid #eee; }
+
+        /* Mode Tabs */
         .mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
-        .mode-tab { flex: 1; padding: 10px 5px; border: none; background: #e4e6eb; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 0.75rem; }
+        .mode-tab { flex: 1; padding: 10px 5px; border: none; background: #e4e6eb; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 0.75rem; color: #555; }
         .mode-tab.active { background: var(--primary); color: white; }
 
         .filter-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
         .filter-label { font-size: 0.7rem; color: #888; font-weight: bold; display: block; margin-bottom: 4px; text-transform: uppercase; }
         select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; margin-bottom: 8px; }
 
+        /* List Styling */
         .set-divider { background: #555; color: white; padding: 6px; font-size: 0.75rem; font-weight: 900; border-radius: 4px; margin: 15px 0 8px 0; text-align: center; }
-        .instance-btn { padding: 10px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; border-left: 6px solid #ccc; background: #fff; }
-        .instance-btn.active { background: #f0f7ff; outline: 2px solid var(--primary); }
-        .score-box { font-family: "Arial Black"; font-size: 1rem; min-width: 55px; text-align: center; margin-right: 10px; background: #f0f0f0; border-radius: 4px; }
+        .instance-btn { padding: 10px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; border-left: 10px solid #ccc; background: #fff; transition: background 0.2s; }
+        .instance-btn.active { background: #f0f7ff !important; outline: 2px solid var(--primary); }
+        
+        /* Rally Win/Loss Sticky Colors */
+        .win-home { border-left-color: var(--home-accent) !important; }
+        .win-away { border-left-color: var(--away-accent) !important; }
 
+        .score-box { font-family: "Arial Black"; font-size: 1rem; min-width: 55px; text-align: center; margin-right: 12px; background: #f0f0f0; border-radius: 4px; }
+        .p-info { flex: 1; font-size: 0.9rem; color: #333; }
+        .p-info small { color: #888; font-size: 0.7rem; }
+
+        /* Stats Table */
         .stats-section-title { font-size: 0.85rem; font-weight: bold; padding: 8px; background: #f0f0f0; margin-top: 15px; border-radius: 4px; border-left: 5px solid #333; }
         .stats-container { overflow-x: auto; margin-bottom: 25px; }
         .stats-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; white-space: nowrap; }
@@ -70,8 +86,18 @@
     <div id="player-box" onclick="toggleOverlay()">
         <div id="player"></div>
         <div id="score-overlay">
-            <div class="score-row home"><div class="ov-team-box" id="ov-h-code">---</div><div class="ov-sets-box" id="ov-h-sets">0</div><div class="ov-points-box" id="ov-h-score">0</div></div>
-            <div class="score-row away"><div class="ov-team-box" id="ov-a-code">---</div><div class="ov-sets-box" id="ov-a-sets">0</div><div class="ov-points-box" id="ov-a-score">0</div></div>
+            <div class="score-row home">
+                <div class="sticky-bar"></div>
+                <div class="ov-team-box" id="ov-h-code">---</div>
+                <div class="ov-sets-box" id="ov-h-sets">0</div>
+                <div class="ov-points-box" id="ov-h-score">0</div>
+            </div>
+            <div class="score-row away">
+                <div class="sticky-bar"></div>
+                <div class="ov-team-box" id="ov-a-code">---</div>
+                <div class="ov-sets-box" id="ov-a-sets">0</div>
+                <div class="ov-points-box" id="ov-a-score">0</div>
+            </div>
         </div>
     </div>
 </div>
@@ -147,8 +173,12 @@
                 }
                 if (code.startsWith('*p') || code.startsWith('ap')) {
                     const m = code.match(/\d{2}:\d{2}/);
+                    const winner = code.startsWith('*p') ? '*' : 'a';
                     if (m) runningScore = m[0].replace(':', '-');
-                    if (tempRally) tempRally.endTime = parseFloat(c[12]) + 3.0;
+                    if (tempRally) {
+                        tempRally.endTime = parseFloat(c[12]) + 3.0;
+                        tempRally.wonBy = winner;
+                    }
                     return;
                 }
                 if ("SRAB".includes(code.charAt(3))) {
@@ -166,8 +196,7 @@
         });
         const tf = document.getElementById('teamFilter'); tf.disabled = false;
         tf.innerHTML = '<option value="">Both Teams (Default)</option>';
-        tf.add(new Option(home3C + " Serves", "*"));
-        tf.add(new Option(away3C + " Serves", "a"));
+        tf.add(new Option(home3C + " Serves", "*")); tf.add(new Option(away3C + " Serves", "a"));
         const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">All Players</option>';
         const allP = []; const seen = new Set();
         allPlays.forEach(p => { if (!seen.has(p.pName)) { allP.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } });
@@ -199,8 +228,9 @@
                 const div = document.createElement('div'); div.className = 'set-divider'; div.innerText = `SET ${d.setNum}`;
                 list.appendChild(div); lastSet = d.setNum;
             }
-            const btn = document.createElement('div'); btn.className = 'instance-btn'; btn.id = 'idx-'+i;
-            btn.innerHTML = `<div class="score-box">${d.score}</div><div>#${d.pNum} ${d.pName.split(' ')[0]}<br><small>P${d.rot} | ${d.skill}${d.effect}</small></div>`;
+            const winClass = d.wonBy === '*' ? 'win-home' : (d.wonBy === 'a' ? 'win-away' : '');
+            const btn = document.createElement('div'); btn.className = `instance-btn ${winClass}`; btn.id = 'idx-'+i;
+            btn.innerHTML = `<div class="score-box">${d.score}</div><div class="p-info">#${d.pNum} ${d.pName.split(' ')[0]}<br><small>P${d.rot} | ${d.skill}${d.effect}</small></div>`;
             btn.onclick = () => playIndex(i); list.appendChild(btn);
         });
     }
