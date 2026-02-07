@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>HTH Advanced Scouting</title>
     <style>
-        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #1a1a1a; }
-        body { font-family: -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: #f0f2f5; overflow: hidden; }
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #1a1a1a; --hth-green: #008d41; --tgb-navy: #1a237e; }
+        body { font-family: 'Inter', -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: #f0f2f5; overflow: hidden; }
         
         @media (max-width: 768px) {
             body { flex-direction: column; overflow-y: auto; }
-            #video-side { width: 100%; position: sticky; top: 0; z-index: 100; height: 30vh; }
+            #video-side { width: 100%; position: sticky; top: 0; z-index: 100; height: 35vh; }
             #control-side { width: 100%; flex: none; padding-bottom: 100px; }
             .mobile-controls { display: flex !important; }
         }
@@ -18,41 +18,43 @@
         #video-side { flex: 2; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
         #player-box { width: 100%; aspect-ratio: 16 / 9; position: relative; }
         
-        /* ビデオ上のスコアボード */
+        /* 【スタイリッシュ・スコアボード】 */
         #score-overlay {
-            position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85); color: white;
-            padding: 8px 15px; border-radius: 4px; font-family: "Arial Black"; font-size: 1.4rem;
-            z-index: 10; display: none; align-items: center; gap: 10px; border: 1px solid #444;
+            position: absolute; top: 20px; left: 20px;
+            display: none; align-items: stretch;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px);
+            border-radius: 4px; overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            font-family: 'Oswald', sans-serif; z-index: 10;
         }
+        .ov-team { padding: 6px 15px; display: flex; align-items: center; gap: 8px; font-weight: 700; color: #fff; letter-spacing: 0.05em; font-size: 1.1rem; }
+        .ov-team.home { border-left: 4px solid var(--hth-green); background: linear-gradient(90deg, rgba(0,141,65,0.3) 0%, rgba(0,0,0,0) 100%); }
+        .ov-team.away { border-right: 4px solid var(--tgb-navy); background: linear-gradient(270deg, rgba(26,35,126,0.3) 0%, rgba(0,0,0,0) 100%); }
+        .ov-score-container { background: rgba(255,255,255,0.1); padding: 0 15px; display: flex; align-items: center; justify-content: center; min-width: 80px; font-size: 1.6rem; font-weight: 800; border-left: 1px solid rgba(255,255,255,0.1); border-right: 1px solid rgba(255,255,255,0.1); }
+        .ov-score-val { min-width: 30px; text-align: center; color: #fff; }
 
         #control-side { flex: 1.2; padding: 15px; overflow-y: auto; background: white; border-left: 1px solid #ddd; }
-        
         .mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
         .mode-tab { flex: 1; padding: 12px 5px; border: none; background: #e4e6eb; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 0.85rem; }
         .mode-tab.active { background: var(--primary); color: white; }
 
         .filter-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-        h3 { margin: 0 0 10px 0; font-size: 0.9rem; border-left: 4px solid var(--primary); padding-left: 10px; }
-        select { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; background: #fff; }
+        h3 { margin: 0 0 10px 0; font-size: 0.9rem; border-left: 4px solid var(--primary); padding-left: 10px; color: #333; }
+        select { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; appearance: none; background: #fff; }
 
-        .instance-btn { 
-            padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; 
-            margin-bottom: 8px; display: flex; align-items: center; border-left: 8px solid #ccc; background: #fff;
-        }
+        .instance-btn { padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; border-left: 8px solid #ccc; background: #fff; position: relative; }
         .instance-btn.win { border-left-color: var(--success); }
         .instance-btn.loss { border-left-color: var(--danger); }
-        .instance-btn.active { background: #eef6ff; outline: 2px solid var(--primary); }
+        .instance-btn.active { background: #f0f7ff; border-color: var(--primary); outline: 2px solid var(--primary); z-index: 5; }
 
-        .score-box { font-family: "Arial Black"; font-size: 1.4rem; min-width: 80px; text-align: center; margin-right: 15px; background: #f0f0f0; border-radius: 4px; padding: 4px; }
+        .score-box { font-family: "Arial Black"; font-size: 1.4rem; min-width: 85px; text-align: center; margin-right: 15px; background: #f0f0f0; border-radius: 4px; padding: 6px 4px; letter-spacing: -1px; }
+        .player-name { font-weight: 700; font-size: 1.1rem; color: #000; }
         .result-tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 3px; color: white; font-weight: bold; margin-bottom: 4px; display: inline-block; }
 
-        .mobile-controls { 
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 70px; 
-            background: var(--dark); display: none; align-items: center; justify-content: space-around; z-index: 200;
-        }
-        .m-btn { color: white; background: none; border: 1px solid #444; border-radius: 5px; padding: 10px 20px; font-size: 1rem; }
-        .auto-play-box { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; margin-top: 5px; color: #555; }
+        .mobile-controls { position: fixed; bottom: 0; left: 0; width: 100%; height: 70px; background: #111; display: none; align-items: center; justify-content: space-around; z-index: 200; }
+        .m-btn { color: white; background: none; border: 1px solid #333; border-radius: 5px; padding: 12px 20px; font-size: 0.9rem; }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -60,9 +62,13 @@
     <div id="player-box">
         <div id="player"></div>
         <div id="score-overlay">
-            <span id="ov-h-code" style="color:#aaa; font-size:1rem;">HTH</span>
-            <span id="ov-h-score">0</span>:<span id="ov-a-score">0</span>
-            <span id="ov-a-code" style="color:#aaa; font-size:1rem;">TGB</span>
+            <div class="ov-team home" id="ov-h-code">HTH</div>
+            <div class="ov-score-container">
+                <span class="ov-score-val" id="ov-h-score">0</span>
+                <span style="opacity:0.5; font-size:1.2rem; margin:0 5px;">-</span>
+                <span class="ov-score-val" id="ov-a-score">0</span>
+            </div>
+            <div class="ov-team away" id="ov-a-code">TGB</div>
         </div>
     </div>
 </div>
@@ -75,40 +81,22 @@
     </div>
 
     <div class="filter-card">
-        <h3>1. 試合データ</h3>
-        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">-- 読込中 --</option></select>
-        
-        <h3 style="margin-top:10px;">2. フィルター</h3>
+        <h3>フィルター</h3>
+        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">試合を選択</option></select>
         <select id="playerFilter"></select>
         
-        <div id="rally-options" class="auto-play-box">
-            <input type="checkbox" id="autoNext" checked> <label for="autoNext">ラリー終了後に自動ジャンプ</label>
+        <div id="rally-options" style="display:flex; align-items:center; gap:8px; font-size:0.8rem; margin-top:5px; color:#666;">
+            <input type="checkbox" id="autoNext" checked> <label for="autoNext">ラリー終了後に自動スキップ</label>
         </div>
 
         <div id="skill-options" style="display:none;">
-            <select id="skillFilter">
-                <option value="">すべてのスキル</option>
-                <option value="S">Serve (S)</option><option value="R">Reception (R)</option>
-                <option value="A">Attack (A)</option><option value="B">Block (B)</option>
-            </select>
-            <select id="effectFilter">
-                <option value="">すべての結果</option>
-                <option value="#">得点 (#)</option><option value="+">成功 (+)</option>
-                <option value="-">被ブロック/ミス (-)</option><option value="=">失点 (=)</option>
-            </select>
+            <select id="skillFilter"><option value="">すべてのスキル</option><option value="S">Serve</option><option value="R">Reception</option><option value="A">Attack</option><option value="B">Block</option></select>
+            <select id="effectFilter"><option value="">すべての結果</option><option value="#">得点 (#)</option><option value="+">成功 (+)</option><option value="-">ミス/被ブロック (-)</option><option value="=">失点 (=)</option></select>
         </div>
 
         <div id="rot-options" style="display:none;">
-            <select id="sideFilter">
-                <option value="">S/R 両方</option>
-                <option value="R">Reception (サイドアウト局面)</option>
-                <option value="S">Serve (ブレイク局面)</option>
-            </select>
-            <select id="rotFilter">
-                <option value="">全ローテ</option>
-                <option value="1">P1</option><option value="6">P6</option><option value="5">P5</option>
-                <option value="4">P4</option><option value="3">P3</option><option value="2">P2</option>
-            </select>
+            <select id="sideFilter"><option value="">S/R 両局面</option><option value="R">Reception (サイドアウト)</option><option value="S">Serve (ブレイク)</option></select>
+            <select id="rotFilter"><option value="">全ローテ</option><option value="1">P1</option><option value="6">P6</option><option value="5">P5</option><option value="4">P4</option><option value="3">P3</option><option value="2">P2</option></select>
         </div>
     </div>
 
@@ -116,14 +104,13 @@
 </div>
 
 <div class="mobile-controls">
-    <button class="m-btn" onclick="prevRally()">前へ</button>
+    <button class="m-btn" onclick="prevRally()">← 前へ</button>
     <button class="m-btn" onclick="togglePlay()">Play/Pause</button>
-    <button class="m-btn" onclick="nextRally()">次へ</button>
+    <button class="m-btn" onclick="nextRally()">次へ →</button>
 </div>
 
 <script>
-    let player, allPlays = [], rallies = [], matchMap = {}, playerMaster = {};
-    let home3C = "HTH", away3C = "TGB", currentMode = 'rally', currentIndex = -1, checkInterval;
+    let player, allPlays = [], rallies = [], matchMap = {}, playerMaster = {}, home3C = "HTH", away3C = "TGB", currentMode = 'rally', currentIndex = -1, checkInterval;
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -140,7 +127,6 @@
     function fetchMatchList() {
         fetch('list.txt').then(res => res.text()).then(data => {
             const select = document.getElementById('matchSelect');
-            select.innerHTML = '<option value="">-- 試合を選択 --</option>';
             data.split('\n').filter(l => l.includes(',')).forEach(line => {
                 const [dvw, vid] = line.split(',').map(s => s.trim());
                 matchMap[dvw] = vid;
@@ -160,90 +146,60 @@
         const lines = text.split('\n');
         let currentSection = "", runningScore = "00-00", teamCount = 0;
 
-        lines.forEach(line => {
-            const l = line.trim();
-            if (l.startsWith('[')) { currentSection = l; return; }
-            if (currentSection === "[3TEAMS]" && l.includes(';')) {
-                const p = l.split(';');
+        lines.forEach(l => {
+            const line = l.trim();
+            if (line.startsWith('[')) { currentSection = line; return; }
+            if (currentSection === "[3TEAMS]" && line.includes(';')) {
+                const p = line.split(';');
                 if (teamCount === 0) { home3C = p[0]; document.getElementById('ov-h-code').innerText = home3C; teamCount++; }
                 else { away3C = p[0]; document.getElementById('ov-a-code').innerText = away3C; }
             }
-            if ((currentSection === "[3PLAYERS-H]" || currentSection === "[3PLAYERS-V]") && l.includes(';')) {
-                const p = l.split(';');
+            if ((currentSection === "[3PLAYERS-H]" || currentSection === "[3PLAYERS-V]") && line.includes(';')) {
+                const p = line.split(';');
                 const side = currentSection.includes('-H') ? '*' : 'a';
                 const num = parseInt(p[1]);
-                const fullName = (p[9] && p[10]) ? `${p[9]} ${p[10]}` : (p[10] || p[9] || num);
-                playerMaster[`${side}_${num}`] = { name: fullName, num: num };
+                playerMaster[`${side}_${num}`] = { name: (p[9] && p[10]) ? `${p[9]} ${p[10]}` : (p[10] || p[9] || num), num: num };
             }
-            if (currentSection === "[3SCOUT]" && l.includes(';')) {
-                const c = l.split(';');
+            if (currentSection === "[3SCOUT]" && line.includes(';')) {
+                const c = line.split(';');
                 if (c[0].startsWith('*p') || c[0].startsWith('ap')) {
                     const m = c[0].match(/\d{2}:\d{2}/);
                     if (m) runningScore = m[0].replace(':', '-');
                 } else if ("SRAB".includes(c[0].charAt(3))) {
-                    const side = c[0].charAt(0);
-                    const num = parseInt(c[0].substring(1,3));
-                    const skill = c[0].charAt(3);
+                    const side = c[0].charAt(0), num = parseInt(c[0].substring(1,3)), skill = c[0].charAt(3);
                     const pInfo = playerMaster[`${side}_${num}`] || { name: `Unknown`, num: num };
-                    const playObj = { 
-                        time: parseFloat(c[12]), score: runningScore, side, skill, 
-                        effect: c[0].charAt(4), pName: pInfo.name, pNum: pInfo.num, 
-                        rot: c[8], code: c[0] 
-                    };
+                    const playObj = { time: parseFloat(c[12]), score: runningScore, side, skill, effect: c[0].charAt(4), pName: pInfo.name, pNum: pInfo.num, rot: c[8], code: c[0] };
                     allPlays.push(playObj);
                     if (skill === 'S') rallies.push(playObj);
                 }
             }
         });
-        
-        for(let i=0; i<rallies.length; i++) {
-            rallies[i].endTime = (i < rallies.length - 1) ? rallies[i+1].time - 1 : rallies[i].time + 20;
-        }
-
+        for(let i=0; i<rallies.length; i++) rallies[i].endTime = (i < rallies.length - 1) ? rallies[i+1].time - 1 : rallies[i].time + 20;
         initFilters(); render();
         document.getElementById('score-overlay').style.display = 'flex';
     }
 
-    function onPlayerStateChange(event) {
-        if (event.data == YT.PlayerState.PLAYING && document.getElementById('autoNext').checked && currentMode === 'rally') startTracking();
-        else clearInterval(checkInterval);
-    }
-
-    function startTracking() {
-        clearInterval(checkInterval);
-        checkInterval = setInterval(() => {
-            if (currentIndex >= 0 && rallies[currentIndex] && player.getCurrentTime() > rallies[currentIndex].endTime + 1.5) nextRally();
-        }, 1000);
-    }
-
+    function onPlayerStateChange(e) { if (e.data == 1 && document.getElementById('autoNext').checked && currentMode === 'rally') startTracking(); else clearInterval(checkInterval); }
+    function startTracking() { clearInterval(checkInterval); checkInterval = setInterval(() => { if (currentIndex >= 0 && rallies[currentIndex] && player.getCurrentTime() > rallies[currentIndex].endTime + 1.5) nextRally(); }, 1000); }
     function setMode(m) {
-        currentMode = m;
-        document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
-        event.target.classList.add('active');
+        currentMode = m; document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active')); event.target.classList.add('active');
         document.getElementById('rally-options').style.display = (m === 'rally') ? 'flex' : 'none';
         document.getElementById('skill-options').style.display = (m === 'player') ? 'block' : 'none';
         document.getElementById('rot-options').style.display = (m === 'rot') ? 'block' : 'none';
         render();
     }
-
     function initFilters() {
-        const ps = document.getElementById('playerFilter');
-        ps.innerHTML = '<option value="">すべての選手</option>';
+        const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">すべての選手</option>';
         const unique = []; const seen = new Set();
         allPlays.forEach(p => { if (!seen.has(p.pName)) { unique.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } });
         unique.sort((a,b) => a.num - b.num).forEach(p => ps.add(new Option(`#${p.num} ${p.name}`, p.name)));
-        ps.onchange = render;
-        document.getElementById('skillFilter').onchange = render;
-        document.getElementById('effectFilter').onchange = render;
-        document.getElementById('sideFilter').onchange = render;
-        document.getElementById('rotFilter').onchange = render;
+        ps.onchange = render; document.getElementById('skillFilter').onchange = render; document.getElementById('effectFilter').onchange = render;
+        document.getElementById('sideFilter').onchange = render; document.getElementById('rotFilter').onchange = render;
     }
-
     function render() {
         const list = document.getElementById('instanceList'); list.innerHTML = '';
         const pf = document.getElementById('playerFilter').value, sf = document.getElementById('skillFilter').value, ef = document.getElementById('effectFilter').value;
         const sdf = document.getElementById('sideFilter').value, rf = document.getElementById('rotFilter').value;
-
         let base = (currentMode === 'rally') ? rallies : allPlays;
         currentFilteredData = base.filter(d => {
             let m = (!pf || d.pName === pf);
@@ -251,35 +207,19 @@
             if (currentMode === 'rot') m = m && (!rf || d.rot === rf) && (!sdf || (sdf === 'S' && d.side === '*') || (sdf === 'R' && d.side === 'a'));
             return m;
         });
-
         currentFilteredData.forEach((d, i) => {
             const btn = document.createElement('div');
-            btn.className = `instance-btn ${d.effect === '#' ? 'win' : (d.effect === '=' ? 'loss' : '')}`;
-            btn.id = 'idx-' + i;
-            btn.innerHTML = `
-                <div class="score-box">${d.score}</div>
-                <div style="flex:1">
-                    ${d.effect === '#' ? '<span class="result-tag" style="background:#28a745">得点</span>' : d.effect === '=' ? '<span class="result-tag" style="background:#dc3545">失点</span>' : ''}
-                    <div class="player-name">#${d.pNum} ${d.pName}</div>
-                    <div style="font-size:0.75rem; color:#666;">${d.side==='*'?home3C:away3C} | P${d.rot} | ${d.skill}${d.effect}</div>
-                </div>
-            `;
-            btn.onclick = () => playIndex(i);
-            list.appendChild(btn);
+            btn.className = `instance-btn ${d.effect === '#' ? 'win' : (d.effect === '=' ? 'loss' : '')}`; btn.id = 'idx-' + i;
+            btn.innerHTML = `<div class="score-box">${d.score}</div><div style="flex:1">${d.effect === '#' ? '<span class="result-tag" style="background:#28a745">得点</span>' : d.effect === '=' ? '<span class="result-tag" style="background:#dc3545">失点</span>' : ''}<div class="player-name">#${d.pNum} ${d.pName}</div><div style="font-size:0.75rem; color:#666;">${d.side==='*'?home3C:away3C} | P${d.rot} | ${d.skill}${d.effect}</div></div>`;
+            btn.onclick = () => playIndex(i); list.appendChild(btn);
         });
     }
-
     function playIndex(i) {
-        currentIndex = i; const d = currentFilteredData[i];
-        player.seekTo(d.time - 2.5, true); player.playVideo();
-        const s = d.score.split('-');
-        document.getElementById('ov-h-score').innerText = parseInt(s[0]);
-        document.getElementById('ov-a-score').innerText = parseInt(s[1]);
-        document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('idx-' + i)?.classList.add('active');
+        currentIndex = i; const d = currentFilteredData[i]; player.seekTo(d.time - 2.5, true); player.playVideo();
+        const s = d.score.split('-'); document.getElementById('ov-h-score').innerText = parseInt(s[0]); document.getElementById('ov-a-score').innerText = parseInt(s[1]);
+        document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active')); document.getElementById('idx-' + i)?.classList.add('active');
         document.getElementById('idx-' + i)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-
     function nextRally() { if (currentIndex < currentFilteredData.length - 1) playIndex(currentIndex + 1); }
     function prevRally() { if (currentIndex > 0) playIndex(currentIndex - 1); }
     function togglePlay() { player.getPlayerState() == 1 ? player.pauseVideo() : player.playVideo(); }
