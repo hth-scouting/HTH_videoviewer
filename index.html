@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH Pro Scouting - Analytics</title>
+    <title>HTH Pro Scouting - Layout Optimized</title>
     <style>
         :root { 
             --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #111; 
@@ -11,58 +11,61 @@
         }
         body { font-family: 'Inter', -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: #f0f2f5; overflow: hidden; }
         
-        /* PC版スコアボード */
-        #score-overlay {
-            position: absolute; top: 25px; left: 25px; display: none; flex-direction: column;
-            background: var(--score-bg); backdrop-filter: blur(8px); border-radius: 4px; overflow: hidden;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.6); font-family: 'Oswald', sans-serif; z-index: 10;
-            width: 220px; border: 1px solid rgba(255,255,255,0.2); transition: opacity 0.3s;
-        }
-        .score-row { display: flex; align-items: stretch; height: 42px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .ov-team-box { width: 65px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.1rem; }
-        .ov-sets-box { width: 35px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); color: #ffd700; font-size: 1.1rem; }
-        .ov-points-box { flex: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.7rem; font-weight: 800; }
+        /* --------------------------------------------------
+           ▼ レイアウト調整：左（動画）を広く、右（操作）を狭く
+        -------------------------------------------------- */
+        #video-side { flex: 3; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
+        #control-side { flex: 1; padding: 15px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
 
         @media (max-width: 768px) {
             body { flex-direction: column; overflow-y: auto; }
-            #video-side { width: 100%; position: sticky; top: 0; z-index: 100; height: 32vh; }
+            #video-side { width: 100%; position: sticky; top: 0; z-index: 100; height: 32vh; flex: none; }
             #control-side { width: 100%; flex: none; padding-bottom: 100px; }
             #score-overlay { top: 8px !important; left: 8px !important; width: 110px !important; }
             .score-row { height: 24px !important; }
             .ov-team-box { width: 35px !important; font-size: 0.75rem !important; }
             .ov-sets-box { width: 22px !important; font-size: 0.75rem !important; }
             .ov-points-box { font-size: 1rem !important; }
-            /* スマホで表を横スクロール可能に */
-            .stats-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         }
 
-        #video-side { flex: 2; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
         #player-box { width: 100%; aspect-ratio: 16 / 9; position: relative; cursor: pointer; }
-        #control-side { flex: 1.2; padding: 15px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
-        
-        .mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
-        .mode-tab { flex: 1; padding: 12px 5px; border: none; background: #e4e6eb; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 0.8rem; }
-        .mode-tab.active { background: var(--primary); color: white; }
 
-        .filter-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 12px; }
-        select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; margin-bottom: 5px; }
-
-        .set-divider { background: #555; color: white; padding: 5px 12px; font-size: 0.8rem; font-weight: 800; border-radius: 4px; margin: 15px 0 8px 0; text-align: center; }
-        
-        /* 統計表スタイル */
-        .stats-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; white-space: nowrap; }
-        .stats-table th { background: #f8f9fa; position: sticky; top: 0; padding: 8px 4px; border: 1px solid #ddd; font-weight: bold; }
-        .stats-table td { padding: 8px 4px; border: 1px solid #eee; text-align: center; }
-        .stats-table .p-cell { text-align: left; font-weight: bold; min-width: 100px; background: #fff; position: sticky; left: 0; }
-        .clickable { color: var(--primary); font-weight: bold; cursor: pointer; text-decoration: underline; }
-        .clickable:hover { background: #f0f7ff; }
-
-        .instance-btn { padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; border-left: 8px solid #ccc; background: #fff; }
-        .instance-btn.active { background: #f0f7ff; outline: 2px solid var(--primary); }
-        .score-box { font-family: "Arial Black"; font-size: 1.1rem; min-width: 65px; text-align: center; margin-right: 12px; background: #f0f0f0; border-radius: 4px; padding: 4px; }
-        .player-name { font-weight: 700; font-size: 0.95rem; }
+        /* スコアボード PC版 */
+        #score-overlay {
+            position: absolute; top: 25px; left: 25px; display: none; flex-direction: column;
+            background: var(--score-bg); backdrop-filter: blur(8px); border-radius: 4px; overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.6); font-family: 'Oswald', sans-serif; z-index: 10;
+            width: 200px; border: 1px solid rgba(255,255,255,0.2); transition: opacity 0.3s;
+        }
+        .score-row { display: flex; align-items: stretch; height: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .ov-team-box { width: 60px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1rem; }
         .home .ov-team-box { background: var(--hth-green); }
         .away .ov-team-box { background: var(--tgb-navy); }
+        .ov-sets-box { width: 35px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); color: #ffd700; font-size: 1rem; }
+        .ov-points-box { flex: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.5rem; font-weight: 800; }
+
+        /* フィルター・タブ */
+        .mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+        .mode-tab { flex: 1; padding: 10px 5px; border: none; background: #e4e6eb; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 0.8rem; }
+        .mode-tab.active { background: var(--primary); color: white; }
+        .filter-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 12px; }
+        .filter-label { font-size: 0.75rem; color: #666; font-weight: bold; display: block; margin-bottom: 5px; }
+        select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; margin-bottom: 10px; }
+
+        /* セット区切り */
+        .set-divider { background: #555; color: white; padding: 6px; font-size: 0.8rem; font-weight: 900; border-radius: 4px; margin: 15px 0 8px 0; text-align: center; }
+
+        /* 集計表 */
+        .stats-container { overflow-x: auto; margin-top: 10px; }
+        .stats-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; white-space: nowrap; }
+        .stats-table th, .stats-table td { border: 1px solid #ddd; padding: 6px 3px; text-align: center; }
+        .stats-table th { background: #f8f9fa; color: #555; position: sticky; top: 0; }
+        .stats-table .p-cell { text-align: left; font-weight: bold; background: #fff; position: sticky; left: 0; border-right: 2px solid #ddd; }
+        .click-num { color: var(--primary); font-weight: bold; cursor: pointer; text-decoration: underline; }
+
+        .instance-btn { padding: 10px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; border-left: 8px solid #ccc; background: #fff; }
+        .instance-btn.active { background: #f0f7ff; outline: 2px solid var(--primary); }
+        .score-box { font-family: "Arial Black"; font-size: 1rem; min-width: 60px; text-align: center; margin-right: 10px; background: #f0f0f0; border-radius: 4px; padding: 4px; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
 </head>
@@ -82,25 +85,22 @@
     <div class="mode-tabs">
         <button class="mode-tab active" id="btn-rally" onclick="setMode('rally')">インプレイ</button>
         <button class="mode-tab" id="btn-player" onclick="setMode('player')">個人別</button>
-        <button class="mode-tab" id="btn-rot" onclick="setMode('rot')">ローテ別</button>
         <button class="mode-tab" id="btn-stats" onclick="setMode('stats')">集計表</button>
     </div>
 
     <div class="filter-card" id="filterArea">
-        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">試合を選択...</option></select>
+        <span class="filter-label">1. 試合選択</span>
+        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">選択してください</option></select>
+        <span class="filter-label">2. チームフィルター</span>
         <select id="teamFilter" onchange="onTeamChange()" disabled><option value="">まず試合を選択</option></select>
-        
-        <div id="sub-filters" style="display:none; margin-top:8px;">
-            <select id="playerFilter" onchange="render()"><option value="">すべての選手</option></select>
-            <div id="skill-options" style="display:none; margin-top:5px;">
-                <select id="skillFilter" onchange="render()"><option value="">スキル...</option><option value="S">Serve</option><option value="R">Reception</option><option value="A">Attack</option><option value="B">Block</option></select>
-            </div>
-            <div id="rot-options" style="display:none; margin-top:5px;">
-                <select id="rotFilter" onchange="render()"><option value="">ローテ...</option><option value="1">P1</option><option value="6">P6</option><option value="5">P5</option><option value="4">P4</option><option value="3">P3</option><option value="2">P2</option></select>
+        <div id="sub-filters" style="display:none;">
+            <span class="filter-label">3. 選手詳細</span>
+            <select id="playerFilter" onchange="render()"></select>
+            <div style="display:flex; align-items:center; gap:8px; font-size:0.7rem; color:#666;">
+                <input type="checkbox" id="autoNext" checked> <label for="autoNext">自動スキップ有効</label>
             </div>
         </div>
     </div>
-
     <div id="instanceList"></div>
 </div>
 
@@ -157,15 +157,15 @@
                 }
                 if ("SRAB".includes(code.charAt(3))) {
                     const side = code.charAt(0), num = parseInt(code.substring(1,3)), skill = code.charAt(3), time = parseFloat(c[12]);
-                    let oS = 2.5, oE = 3; if (skill === 'S') { oS = 1; oE = 5; } else if (skill === 'A') { oS = 3; oE = 7; }
-                    const playObj = { time, startTime: time - oS, endTime: time + oE, score: runningScore, setNum: hSets+aSets+1, hSets, aSets, side, skill, effect: code.charAt(4), pName: playerMaster[`${side}_${num}`]?.name || `#${num}`, pNum: num, rot: c[8] };
+                    let oS = 2.5, oE = 3.5; if (skill === 'S') { oS = 1; oE = 5.5; } else if (skill === 'A') { oS = 3; oE = 7.5; }
+                    const playObj = { time, startTime: time - oS, endTime: time + oE, score: runningScore, setNum: hSets+aSets+1, hSets, aSets, side, skill, effect: code.charAt(4), type: code.charAt(4), pName: playerMaster[`${side}_${num}`]?.name || `#${num}`, pNum: num, rot: c[8], fullCode: code };
                     allPlays.push(playObj);
                     if (skill === 'S') { tempRally = playObj; rallies.push(playObj); }
                 }
             }
         });
         const tf = document.getElementById('teamFilter'); tf.disabled = false;
-        tf.innerHTML = '<option value="">チームを選択...</option>';
+        tf.innerHTML = '<option value="">チームを選択</option>';
         tf.add(new Option(home3C, "*")); tf.add(new Option(away3C, "a"));
         document.getElementById('score-overlay').style.display = 'flex';
         render();
@@ -174,7 +174,7 @@
     function onTeamChange() {
         document.getElementById('sub-filters').style.display = 'block';
         const team = document.getElementById('teamFilter').value;
-        const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">すべての選手</option>';
+        const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">全選手</option>';
         const teamPlayers = []; const seen = new Set();
         allPlays.filter(p => p.side === team).forEach(p => { if (!seen.has(p.pName)) { teamPlayers.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } });
         teamPlayers.sort((a,b) => a.num - b.num).forEach(p => ps.add(new Option(`#${p.num} ${p.name}`, p.name)));
@@ -185,106 +185,90 @@
         currentMode = m; document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
         document.getElementById('btn-' + m).classList.add('active');
         document.getElementById('filterArea').style.display = (m === 'stats') ? 'none' : 'block';
-        document.getElementById('skill-options').style.display = (m === 'player') ? 'block' : 'none';
-        document.getElementById('rot-options').style.display = (m === 'rot') ? 'block' : 'none';
         render();
     }
 
-    let currentDataList = [];
+    let currentList = [];
     function render() {
         const list = document.getElementById('instanceList'); list.innerHTML = '';
-        if (currentMode === 'stats') { renderStatsTable(); return; }
-
+        if (currentMode === 'stats') { renderTable(); return; }
         const team = document.getElementById('teamFilter').value; if (!team) return;
-        const pf = document.getElementById('playerFilter').value, sf = document.getElementById('skillFilter').value, rf = document.getElementById('rotFilter').value;
+        const pf = document.getElementById('playerFilter').value;
         let base = (currentMode === 'rally') ? rallies : allPlays;
-        currentDataList = base.filter(d => (d.side === team) && (!pf || d.pName === pf) && (!sf || d.skill === sf) && (!rf || d.rot === rf));
-
+        currentList = base.filter(d => (d.side === team) && (!pf || d.pName === pf));
         let lastSet = -1;
-        currentDataList.forEach((d, i) => {
+        currentList.forEach((d, i) => {
             if (d.setNum !== lastSet) {
                 const div = document.createElement('div'); div.className = 'set-divider'; div.innerText = `SET ${d.setNum}`;
                 list.appendChild(div); lastSet = d.setNum;
             }
-            const btn = document.createElement('div'); btn.className = `instance-btn ${d.effect==='#'?'win':d.effect==='='?'loss':''}`; btn.id = 'idx-'+i;
+            const btn = document.createElement('div'); btn.className = 'instance-btn'; btn.id = 'idx-'+i;
             btn.innerHTML = `<div class="score-box">${d.score}</div><div style="flex:1"><div class="player-name">#${d.pNum} ${d.pName}</div><div style="font-size:0.7rem; color:#666;">P${d.rot} | ${d.skill}${d.effect}</div></div>`;
             btn.onclick = () => playIndex(i); list.appendChild(btn);
         });
     }
 
-    function renderStatsTable() {
-        const team = document.getElementById('teamFilter').value; if (!team) { document.getElementById('instanceList').innerHTML = '<p style="text-align:center; padding:20px;">まずチームを選択してください</p>'; return; }
+    function renderTable() {
+        const team = document.getElementById('teamFilter').value; if (!team) { document.getElementById('instanceList').innerHTML = '<p style="text-align:center;">チームを選択してください</p>'; return; }
         const ps = []; const seen = new Set();
         allPlays.filter(p => p.side === team).forEach(p => { if (!seen.has(p.pName)) { ps.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } });
         ps.sort((a,b) => a.num - b.num);
 
         let html = `<div class="stats-container"><table class="stats-table">
             <tr><th rowspan="2">選手</th><th colspan="3">サーブ</th><th colspan="4">レセプション</th><th colspan="4">アタック</th></tr>
-            <tr><th>打数</th><th>エース</th><th>ミス</th><th>本数</th><th>エラー</th><th>#+%</th><th>#%</th><th>打数</th><th>決定</th><th>失点</th><th>決定率</th></tr>`;
+            <tr><th>打数</th><th>Ace</th><th>Miss</th><th>受数</th><th>Err</th><th>#+%</th><th>#%</th><th>打数</th><th>決定</th><th>失点</th><th>率</th></tr>`;
         
         ps.forEach(p => {
-            const pPlays = allPlays.filter(play => play.pName === p.name);
-            const s = pPlays.filter(pl => pl.skill === 'S'), r = pPlays.filter(pl => pl.skill === 'R'), a = pPlays.filter(pl => pl.skill === 'A');
-            
-            const sTotal = s.length, sAce = s.filter(pl => pl.effect === '#').length, sErr = s.filter(pl => pl.effect === '=').length;
-            const rTotal = r.length, rErr = r.filter(pl => pl.effect === '=').length, rPerf = r.filter(pl => pl.effect === '#').length, rPos = r.filter(pl => pl.effect === '+').length;
-            const aTotal = a.length, aKill = a.filter(pl => pl.effect === '#').length, aErr = a.filter(pl => pl.effect === '=' || pl.effect === '/').length;
-            
-            const rEff = rTotal ? Math.round(((rPerf + rPos) / rTotal) * 100) : 0;
-            const rPerfRate = rTotal ? Math.round((rPerf / rTotal) * 100) : 0;
-            const aRate = aTotal ? Math.round((aKill / aTotal) * 100) : 0;
+            const pl = allPlays.filter(play => play.pName === p.name);
+            const s = pl.filter(d => d.skill === 'S'), r = pl.filter(d => d.skill === 'R'), a = pl.filter(d => d.skill === 'A');
+            const sAce = s.filter(d => d.effect === '#').length;
+            const sErr = s.filter(d => d.effect === '=' && (d.fullCode.includes('SM=') || d.fullCode.includes('SQ='))).length;
+            const rErr = r.filter(d => d.effect === '=').length, rPerf = r.filter(d => d.effect === '#').length, rPos = r.filter(d => d.effect === '+').length;
+            const aKill = a.filter(d => d.effect === '#').length, aLoss = a.filter(d => d.effect === '=' || d.effect === '/').length;
 
             html += `<tr><td class="p-cell">#${p.num} ${p.name.split(' ')[0]}</td>
-                <td><span class="clickable" onclick="jumpTo('${p.name}','S','')">${sTotal || '-'}</span></td>
-                <td><span class="clickable" onclick="jumpTo('${p.name}','S','#')">${sAce || '-'}</span></td>
-                <td><span class="clickable" onclick="jumpTo('${p.name}','S','=')">${sErr || '-'}</span></td>
-                <td><span class="clickable" onclick="jumpTo('${p.name}','R','')">${rTotal || '-'}</span></td>
-                <td><span class="clickable" onclick="jumpTo('${p.name}','R','=')">${rErr || '-'}</span></td>
-                <td>${rEff}%</td><td>${rPerfRate}%</td>
-                <td><span class="clickable" onclick="jumpTo('${p.name}','A','')">${aTotal || '-'}</span></td>
-                <td><span class="clickable" onclick="jumpTo('${p.name}','A','#')">${aKill || '-'}</span></td>
-                <td><span class="clickable" onclick="jumpTo('${p.name}','A','=')">${aErr || '-'}</span></td>
-                <td>${aRate}%</td></tr>`;
+                <td><span class="click-num" onclick="jumpTo('${p.name}','S','')">${s.length}</span></td>
+                <td><span class="click-num" onclick="jumpTo('${p.name}','S','#')">${sAce}</span></td>
+                <td><span class="click-num" onclick="jumpTo('${p.name}','S','=')">${sErr}</span></td>
+                <td><span class="click-num" onclick="jumpTo('${p.name}','R','')">${r.length}</span></td>
+                <td><span class="click-num" onclick="jumpTo('${p.name}','R','=')">${rErr}</span></td>
+                <td>${r.length ? Math.round((rPerf+rPos)/r.length*100) : 0}%</td><td>${r.length ? Math.round(rPerf/r.length*100) : 0}%</td>
+                <td><span class="click-num" onclick="jumpTo('${p.name}','A','')">${a.length}</span></td>
+                <td><span class="click-num" onclick="jumpTo('${p.name}','A','#')">${aKill}</span></td>
+                <td><span class="click-num" onclick="jumpTo('${p.name}','A','loss')">${aLoss}</span></td>
+                <td>${a.length ? Math.round(aKill/a.length*100) : 0}%</td></tr>`;
         });
         document.getElementById('instanceList').innerHTML = html + `</table></div>`;
     }
 
-    function jumpTo(pName, skill, effect) {
-        setMode('player');
-        document.getElementById('playerFilter').value = pName;
-        document.getElementById('skillFilter').value = skill;
-        // effectのフィルタリング機能も内部的に適用（簡易版）
-        currentDataList = allPlays.filter(d => d.pName === pName && d.skill === skill && (!effect || d.effect === effect));
-        renderListManual();
-        if (currentDataList.length > 0) playIndex(0);
+    function jumpTo(pName, skill, eff) {
+        setMode('player'); document.getElementById('playerFilter').value = pName;
+        currentList = allPlays.filter(d => d.pName === pName && d.skill === skill && (!eff || (eff === 'loss' ? (d.effect === '=' || d.effect === '/') : d.effect === eff)));
+        renderList(); if (currentList.length > 0) playIndex(0);
     }
-
-    function renderListManual() {
+    function renderList() {
         const list = document.getElementById('instanceList'); list.innerHTML = '';
-        currentDataList.forEach((d, i) => {
-            const btn = document.createElement('div'); btn.className = `instance-btn ${d.effect==='#'?'win':d.effect==='='?'loss':''}`; btn.id = 'idx-'+i;
-            btn.innerHTML = `<div class="score-box">${d.score}</div><div style="flex:1"><div class="player-name">#${d.pNum} ${d.pName}</div><div style="font-size:0.7rem; color:#666;">P${d.rot} | ${d.skill}${d.effect}</div></div>`;
+        currentList.forEach((d, i) => {
+            const btn = document.createElement('div'); btn.className = 'instance-btn'; btn.id = 'idx-'+i;
+            btn.innerHTML = `<div class="score-box">${d.score}</div><div>#${d.pNum} ${d.pName}<br><small>P${d.rot} | ${d.skill}${d.effect}</small></div>`;
             btn.onclick = () => playIndex(i); list.appendChild(btn);
         });
     }
 
     function playIndex(i) {
-        currentIndex = i; const d = currentDataList[i]; player.seekTo(d.startTime, true); player.playVideo();
+        currentIndex = i; const d = currentList[i]; player.seekTo(d.startTime, true); player.playVideo();
         document.getElementById('ov-h-sets').innerText = d.hSets; document.getElementById('ov-a-sets').innerText = d.aSets;
         const s = d.score.split('-'); document.getElementById('ov-h-score').innerText = parseInt(s[0]); document.getElementById('ov-a-score').innerText = parseInt(s[1]);
         document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
-        const activeBtn = document.getElementById('idx-' + i); if (activeBtn) { activeBtn.classList.add('active'); activeBtn.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        document.getElementById('idx-' + i)?.classList.add('active');
     }
 
-    function onPlayerStateChange(e) { if (e.data == 1) startTracking(); else clearInterval(checkInterval); }
+    function onPlayerStateChange(e) { if (e.data == 1 && document.getElementById('autoNext').checked) startTracking(); else clearInterval(checkInterval); }
     function startTracking() {
         clearInterval(checkInterval);
-        checkInterval = setInterval(() => {
-            if (currentIndex >= 0 && currentDataList[currentIndex] && player.getCurrentTime() > currentDataList[currentIndex].endTime) nextRally();
-        }, 500);
+        checkInterval = setInterval(() => { if (currentIndex >= 0 && currentList[currentIndex] && player.getCurrentTime() > currentList[currentIndex].endTime) nextRally(); }, 500);
     }
-    function nextRally() { if (currentIndex < currentDataList.length - 1) playIndex(currentIndex + 1); }
-    function togglePlay() { player.getPlayerState() == 1 ? player.pauseVideo() : player.playVideo(); }
+    function nextRally() { if (currentIndex < currentList.length - 1) playIndex(currentIndex + 1); }
     function toggleOverlay() { document.getElementById('score-overlay').classList.toggle('hidden'); }
 </script>
 </body>
