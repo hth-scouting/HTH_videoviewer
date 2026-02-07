@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH Pro Scouting v0.5.0</title>
+    <title>HTH Pro Scouting v0.5.1</title>
     <style>
         :root { 
             --primary: #007bff; --home-accent: #f06292; --away-accent: #64b5f6; --score-bg: rgba(255, 255, 255, 0.95);
@@ -174,8 +174,22 @@
                 const skillChar = code.charAt(3);
                 if ("SRABDE".includes(skillChar)) {
                     const side = code.charAt(0), num = parseInt(code.substring(1,3)), eff = code.charAt(5), time = parseFloat(c[12]);
-                    let oS = 2.5, oE = 4.0;
-                    if (skillChar === 'S') { oS = 1.2; oE = 5.5; } else if (skillChar === 'A') { oS = 3.0; oE = 7.5; }
+                    
+                    // --- Offset Settings (v0.5.1 Updated) ---
+                    let oS = 2.5; 
+                    let oE = 4.0; 
+
+                    if (skillChar === 'S') { 
+                        oS = 1.2; 
+                        oE = 5.5; 
+                    } else if (skillChar === 'A') { 
+                        oS = 2.5; 
+                        oE = 5.0; 
+                    } else if (skillChar === 'R') {
+                        oS = 2.0; 
+                        oE = 5.0;
+                    }
+
                     const playObj = { time, startTime: time - oS, endTime: time + oE, score: runningScore, setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: eff, pName: playerMaster[`${side}_${num}`]?.name || `#${num}`, pNum: num, rot: c[8], fullCode: code };
                     allPlays.push(playObj);
                     if (skillChar === 'S') { tempRally = playObj; rallies.push(playObj); }
