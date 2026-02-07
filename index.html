@@ -5,33 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>HTH Advanced Scouting</title>
     <style>
-        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #1a1a1a; --hth-green: #008d41; --tgb-navy: #1a237e; }
+        :root { 
+            --primary: #007bff; 
+            --success: #28a745; 
+            --danger: #dc3545; 
+            --dark: #111; 
+            --hth-green: #008d41; 
+            --tgb-navy: #1a237e; 
+            --score-bg: rgba(0, 0, 0, 0.7);
+        }
         body { font-family: 'Inter', -apple-system, sans-serif; display: flex; height: 100vh; margin: 0; background: #f0f2f5; overflow: hidden; }
         
-        @media (max-width: 768px) {
-            body { flex-direction: column; overflow-y: auto; }
-            #video-side { width: 100%; position: sticky; top: 0; z-index: 100; height: 35vh; }
-            #control-side { width: 100%; flex: none; padding-bottom: 100px; }
-            .mobile-controls { display: flex !important; }
-        }
-
         #video-side { flex: 2; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
         #player-box { width: 100%; aspect-ratio: 16 / 9; position: relative; }
         
-        /* 【スタイリッシュ・スコアボード】 */
+        /* 【縦型スタイリッシュ・スコアボード】 */
         #score-overlay {
-            position: absolute; top: 20px; left: 20px;
-            display: none; align-items: stretch;
-            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px);
+            position: absolute; top: 25px; left: 25px;
+            display: none; flex-direction: column;
+            background: var(--score-bg); backdrop-filter: blur(10px);
             border-radius: 4px; overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
             font-family: 'Oswald', sans-serif; z-index: 10;
+            min-width: 180px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .ov-team { padding: 6px 15px; display: flex; align-items: center; gap: 8px; font-weight: 700; color: #fff; letter-spacing: 0.05em; font-size: 1.1rem; }
-        .ov-team.home { border-left: 4px solid var(--hth-green); background: linear-gradient(90deg, rgba(0,141,65,0.3) 0%, rgba(0,0,0,0) 100%); }
-        .ov-team.away { border-right: 4px solid var(--tgb-navy); background: linear-gradient(270deg, rgba(26,35,126,0.3) 0%, rgba(0,0,0,0) 100%); }
-        .ov-score-container { background: rgba(255,255,255,0.1); padding: 0 15px; display: flex; align-items: center; justify-content: center; min-width: 80px; font-size: 1.6rem; font-weight: 800; border-left: 1px solid rgba(255,255,255,0.1); border-right: 1px solid rgba(255,255,255,0.1); }
-        .ov-score-val { min-width: 30px; text-align: center; color: #fff; }
+        .score-row { display: flex; align-items: stretch; height: 40px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .score-row:last-child { border-bottom: none; }
+        
+        /* チームコード部分 */
+        .ov-team-box { width: 60px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1rem; position: relative; }
+        .home .ov-team-box { background: linear-gradient(90deg, var(--hth-green) 0%, rgba(0,141,65,0.5) 100%); }
+        .away .ov-team-box { background: linear-gradient(90deg, var(--tgb-navy) 0%, rgba(26,35,126,0.5) 100%); }
+        
+        /* セットカウント部分 */
+        .ov-sets-box { width: 35px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); color: #ffd700; font-size: 1.1rem; font-weight: 700; }
+        
+        /* 現在の点数部分 */
+        .ov-points-box { flex: 1; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); color: #fff; font-size: 1.5rem; font-weight: 800; min-width: 50px; }
 
         #control-side { flex: 1.2; padding: 15px; overflow-y: auto; background: white; border-left: 1px solid #ddd; }
         .mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
@@ -42,14 +53,13 @@
         h3 { margin: 0 0 10px 0; font-size: 0.9rem; border-left: 4px solid var(--primary); padding-left: 10px; color: #333; }
         select { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; appearance: none; background: #fff; }
 
-        .instance-btn { padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; border-left: 8px solid #ccc; background: #fff; position: relative; }
+        .instance-btn { padding: 12px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; border-left: 8px solid #ccc; background: #fff; }
         .instance-btn.win { border-left-color: var(--success); }
         .instance-btn.loss { border-left-color: var(--danger); }
-        .instance-btn.active { background: #f0f7ff; border-color: var(--primary); outline: 2px solid var(--primary); z-index: 5; }
+        .instance-btn.active { background: #f0f7ff; border-color: var(--primary); outline: 2px solid var(--primary); }
 
-        .score-box { font-family: "Arial Black"; font-size: 1.4rem; min-width: 85px; text-align: center; margin-right: 15px; background: #f0f0f0; border-radius: 4px; padding: 6px 4px; letter-spacing: -1px; }
-        .player-name { font-weight: 700; font-size: 1.1rem; color: #000; }
-        .result-tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 3px; color: white; font-weight: bold; margin-bottom: 4px; display: inline-block; }
+        .score-box { font-family: "Arial Black"; font-size: 1.3rem; min-width: 80px; text-align: center; margin-right: 15px; background: #f0f0f0; border-radius: 4px; padding: 6px 4px; }
+        .player-name { font-weight: 700; font-size: 1rem; color: #000; }
 
         .mobile-controls { position: fixed; bottom: 0; left: 0; width: 100%; height: 70px; background: #111; display: none; align-items: center; justify-content: space-around; z-index: 200; }
         .m-btn { color: white; background: none; border: 1px solid #333; border-radius: 5px; padding: 12px 20px; font-size: 0.9rem; }
@@ -62,13 +72,16 @@
     <div id="player-box">
         <div id="player"></div>
         <div id="score-overlay">
-            <div class="ov-team home" id="ov-h-code">HTH</div>
-            <div class="ov-score-container">
-                <span class="ov-score-val" id="ov-h-score">0</span>
-                <span style="opacity:0.5; font-size:1.2rem; margin:0 5px;">-</span>
-                <span class="ov-score-val" id="ov-a-score">0</span>
+            <div class="score-row home">
+                <div class="ov-team-box" id="ov-h-code">HTH</div>
+                <div class="ov-sets-box" id="ov-h-sets">0</div>
+                <div class="ov-points-box" id="ov-h-score">0</div>
             </div>
-            <div class="ov-team away" id="ov-a-code">TGB</div>
+            <div class="score-row away">
+                <div class="ov-team-box" id="ov-a-code">TGB</div>
+                <div class="ov-sets-box" id="ov-a-sets">0</div>
+                <div class="ov-points-box" id="ov-a-score">0</div>
+            </div>
         </div>
     </div>
 </div>
@@ -111,6 +124,7 @@
 
 <script>
     let player, allPlays = [], rallies = [], matchMap = {}, playerMaster = {}, home3C = "HTH", away3C = "TGB", currentMode = 'rally', currentIndex = -1, checkInterval;
+    let homeSets = 0, awaySets = 0;
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -145,10 +159,21 @@
         allPlays = []; rallies = []; playerMaster = {};
         const lines = text.split('\n');
         let currentSection = "", runningScore = "00-00", teamCount = 0;
+        let setScores = [];
 
         lines.forEach(l => {
             const line = l.trim();
             if (line.startsWith('[')) { currentSection = line; return; }
+            
+            // セットカウントの取得 (例: True; 5- 8;12-16;...)
+            if (currentSection === "[3SET]" && line.startsWith('True')) {
+                const parts = line.split(';');
+                if (parts.length > 5) {
+                    const finalScore = parts[4].trim(); // 25-20 のような形式
+                    setScores.push(finalScore);
+                }
+            }
+
             if (currentSection === "[3TEAMS]" && line.includes(';')) {
                 const p = line.split(';');
                 if (teamCount === 0) { home3C = p[0]; document.getElementById('ov-h-code').innerText = home3C; teamCount++; }
@@ -174,6 +199,16 @@
                 }
             }
         });
+
+        // 簡易的なセットカウント計算 (DVWの[3SET]セクションに基づく)
+        homeSets = 0; awaySets = 0;
+        setScores.forEach(s => {
+            const sc = s.split('-').map(n => parseInt(n.trim()));
+            if (sc[0] > sc[1]) homeSets++; else if (sc[1] > sc[0]) awaySets++;
+        });
+        document.getElementById('ov-h-sets').innerText = homeSets;
+        document.getElementById('ov-a-sets').innerText = awaySets;
+
         for(let i=0; i<rallies.length; i++) rallies[i].endTime = (i < rallies.length - 1) ? rallies[i+1].time - 1 : rallies[i].time + 20;
         initFilters(); render();
         document.getElementById('score-overlay').style.display = 'flex';
@@ -181,6 +216,7 @@
 
     function onPlayerStateChange(e) { if (e.data == 1 && document.getElementById('autoNext').checked && currentMode === 'rally') startTracking(); else clearInterval(checkInterval); }
     function startTracking() { clearInterval(checkInterval); checkInterval = setInterval(() => { if (currentIndex >= 0 && rallies[currentIndex] && player.getCurrentTime() > rallies[currentIndex].endTime + 1.5) nextRally(); }, 1000); }
+    
     function setMode(m) {
         currentMode = m; document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active')); event.target.classList.add('active');
         document.getElementById('rally-options').style.display = (m === 'rally') ? 'flex' : 'none';
@@ -188,6 +224,7 @@
         document.getElementById('rot-options').style.display = (m === 'rot') ? 'block' : 'none';
         render();
     }
+    
     function initFilters() {
         const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">すべての選手</option>';
         const unique = []; const seen = new Set();
@@ -196,6 +233,7 @@
         ps.onchange = render; document.getElementById('skillFilter').onchange = render; document.getElementById('effectFilter').onchange = render;
         document.getElementById('sideFilter').onchange = render; document.getElementById('rotFilter').onchange = render;
     }
+
     function render() {
         const list = document.getElementById('instanceList'); list.innerHTML = '';
         const pf = document.getElementById('playerFilter').value, sf = document.getElementById('skillFilter').value, ef = document.getElementById('effectFilter').value;
@@ -214,12 +252,16 @@
             btn.onclick = () => playIndex(i); list.appendChild(btn);
         });
     }
+
     function playIndex(i) {
         currentIndex = i; const d = currentFilteredData[i]; player.seekTo(d.time - 2.5, true); player.playVideo();
-        const s = d.score.split('-'); document.getElementById('ov-h-score').innerText = parseInt(s[0]); document.getElementById('ov-a-score').innerText = parseInt(s[1]);
+        const s = d.score.split('-'); 
+        document.getElementById('ov-h-score').innerText = parseInt(s[0]); 
+        document.getElementById('ov-a-score').innerText = parseInt(s[1]);
         document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active')); document.getElementById('idx-' + i)?.classList.add('active');
         document.getElementById('idx-' + i)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+
     function nextRally() { if (currentIndex < currentFilteredData.length - 1) playIndex(currentIndex + 1); }
     function prevRally() { if (currentIndex > 0) playIndex(currentIndex - 1); }
     function togglePlay() { player.getPlayerState() == 1 ? player.pauseVideo() : player.playVideo(); }
