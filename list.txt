@@ -1,9 +1,9 @@
-&260209_all home.dvw,c__B6I27Qgk
-&260207_all home.dvw,AAAUo1FJsHc
-&260131HTH-TGB_2-3_4th.dvw,6bztEHk2oGo
-&260130HTH-TGB_3-0_3rd.dvw,CKg4yd5VkF0
-&260125HTH-VCN_3-0_2nd.dvw,fUeTT88anL8
-&260124HTH-VCN_3-0_1st.dvw,WA0DdMvzpKQ
-&260118HTH-TOR_3-0_2nd.dvw,B1aSCiNQqAw
-&260117HTH-TOR_1-3_1st.dvw,zwfNzkn0e5A
-&2024-08-10 526302 FRA-POL(VM).dvw,eP95CrT6GGA
+Training,&260209_all home.dvw,c__B6I27Qgk
+Training,&260207_all home.dvw,AAAUo1FJsHc
+Match,&260131HTH-TGB_2-3_4th.dvw,6bztEHk2oGo
+Match,&260130HTH-TGB_3-0_3rd.dvw,CKg4yd5VkF0
+Match,&260125HTH-VCN_3-0_2nd.dvw,fUeTT88anL8
+Match,&260124HTH-VCN_3-0_1st.dvw,WA0DdMvzpKQ
+Match,&260118HTH-TOR_3-0_2nd.dvw,B1aSCiNQqAw
+Match,&260117HTH-TOR_1-3_1st.dvw,zwfNzkn0e5A
+others,&2024-08-10 526302 FRA-POL(VM).dvw,eP95CrT6GGA
