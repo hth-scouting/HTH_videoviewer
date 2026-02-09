@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH Pro Scouting v0.5.3</title>
+    <title>HTH Pro Scouting v0.5.4</title>
     <style>
         :root { 
             --primary: #007bff; --home-accent: #f06292; --away-accent: #64b5f6; --score-bg: rgba(255, 255, 255, 0.95);
@@ -50,14 +50,20 @@
         .filter-label { font-size: 0.7rem; color: #888; font-weight: bold; display: block; margin-bottom: 4px; text-transform: uppercase; }
         select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; margin-bottom: 8px; }
 
+        .set-divider { background: #555; color: white; padding: 6px; font-size: 0.75rem; font-weight: 900; border-radius: 4px; margin: 15px 0 8px 0; text-align: center; }
         .instance-btn { padding: 10px; cursor: pointer; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; border-left: 10px solid #ccc; background: #fff; }
         .instance-btn.active { background: #f0f7ff !important; outline: 2px solid var(--primary); }
+        .win-home { border-left-color: var(--home-accent) !important; }
+        .win-away { border-left-color: var(--away-accent) !important; }
         .score-box { font-family: "Arial Black"; font-size: 1rem; min-width: 55px; text-align: center; margin-right: 12px; background: #f0f0f0; border-radius: 4px; }
         
+        .stats-section-title { font-size: 0.85rem; font-weight: bold; padding: 8px; background: #f0f0f0; margin-top: 15px; border-radius: 4px; border-left: 5px solid #333; }
+        .stats-container { overflow-x: auto; margin-bottom: 25px; border: 1px solid #eee; }
         .stats-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; white-space: nowrap; }
         .stats-table th, .stats-table td { border: 1px solid #ddd; padding: 6px 4px; text-align: center; }
+        .stats-table th { background: #f8f9fa; color: #555; position: sticky; top: 0; }
         .p-cell { text-align: left !important; font-weight: bold; background: #fff; position: sticky; left: 0; border-right: 2px solid #ddd !important; z-index: 2; }
-        .click-num { color: var(--primary); font-weight: 800; cursor: pointer; text-decoration: underline; }
+        .click-num { color: var(--primary); font-weight: 800; cursor: pointer; text-decoration: underline; display: block; }
     </style>
 </head>
 <body>
@@ -81,28 +87,25 @@
 
     <div class="filter-card" id="filterArea">
         <span class="filter-label">1. Category</span>
-        <div id="categoryTabs" class="mode-tabs" style="margin-bottom: 8px;">
-            </div>
+        <div id="categoryTabs" class="mode-tabs" style="margin-bottom: 8px;"></div>
         
-        <span class="filter-label">2. Select Video</span>
-        <select id="matchSelect" onchange="onMatchChange(this.value)">
-            <option value="">Select Video...</option>
-        </select>
+        <span class="filter-label">2. Match</span>
+        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">Select Video...</option></select>
 
         <div id="rally-filters">
-            <span class="filter-label">3. Server Team</span>
-            <select id="teamFilterRally" onchange="render()"><option value="">Both Teams</option></select>
+            <span class="filter-label">3. Server Team (Optional)</span>
+            <select id="teamFilterRally" onchange="render()"><option value="">Both Teams (Default)</option></select>
         </div>
         <div id="player-filters" style="display:none;">
             <span class="filter-label">3. Select Team & Player</span>
             <div style="display:flex; gap:5px;">
-                <select id="teamFilterPlayer" onchange="onTeamChangePlayer()"><option value="">Team</option></select>
-                <select id="playerFilter" onchange="render()"><option value="">Player</option></select>
+                <select id="teamFilterPlayer" onchange="onTeamChangePlayer()"><option value="">Choose Team</option></select>
+                <select id="playerFilter" onchange="render()"><option value="">Select Player</option></select>
             </div>
-            <span class="filter-label">4. Skill</span>
+            <span class="filter-label">4. Select Skill</span>
             <select id="skillFilter" onchange="render()">
                 <option value="">All Skills</option>
-                <option value="S">Serve</option><option value="A">Attack</option><option value="R">Reception</option>
+                <option value="S">Serve (S)</option><option value="A">Attack (A)</option><option value="R">Reception (R)</option><option value="B">Block (B)</option><option value="D">Dig (D)</option><option value="E">Set (E)</option>
             </select>
         </div>
         <div style="display:flex; align-items:center; gap:8px; font-size:0.7rem; color:#666; margin-top:5px;">
@@ -116,31 +119,21 @@
     let player, allPlays = [], rallies = [], matchMap = {}, playerMaster = {}, allMatchData = [], currentMode = 'rally', currentIndex = -1, checkInterval;
 
     function onYouTubeIframeAPIReady() {
-        player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'playsinline': 1, 'rel': 0 }, events: { 'onReady': fetchMatchList, 'onStateChange': onPlayerStateChange } });
+        player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'playsinline': 1, 'rel': 0, 'modestbranding': 1 }, events: { 'onReady': fetchMatchList, 'onStateChange': onPlayerStateChange } });
     }
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag);
 
-    // リスト読み込み & カテゴリ自動生成
     function fetchMatchList() {
         fetch('list.txt').then(res => res.text()).then(data => {
-            allMatchData = [];
-            const categories = new Set();
+            allMatchData = []; const categories = new Set();
             data.split('\n').forEach(line => {
-                const p = line.split(',').map(s => s.trim());
-                if (p.length < 3) return;
-                allMatchData.push({ cat: p[0], dvw: p[1], vid: p[2] });
-                categories.add(p[0]);
+                const p = line.split(',').map(s => s.trim()); if (p.length < 3) return;
+                allMatchData.push({ cat: p[0], dvw: p[1], vid: p[2] }); categories.add(p[0]);
             });
-
-            const tabArea = document.getElementById('categoryTabs');
-            tabArea.innerHTML = '';
+            const tabArea = document.getElementById('categoryTabs'); tabArea.innerHTML = '';
             categories.forEach(cat => {
-                const btn = document.createElement('button');
-                btn.className = 'mode-tab';
-                btn.id = 'cat-' + cat;
-                btn.innerText = cat;
-                btn.onclick = () => filterMatchList(cat);
-                tabArea.appendChild(btn);
+                const btn = document.createElement('button'); btn.className = 'mode-tab'; btn.id = 'cat-' + cat; btn.innerText = cat;
+                btn.onclick = () => filterMatchList(cat); tabArea.appendChild(btn);
             });
             if (categories.size > 0) filterMatchList(Array.from(categories)[0]);
         });
@@ -148,14 +141,10 @@
 
     function filterMatchList(cat) {
         document.querySelectorAll('[id^="cat-"]').forEach(b => b.classList.remove('active'));
-        const activeBtn = document.getElementById('cat-' + cat);
-        if (activeBtn) activeBtn.classList.add('active');
-
-        const select = document.getElementById('matchSelect');
-        select.innerHTML = '<option value="">Select Video...</option>';
+        document.getElementById('cat-' + cat)?.classList.add('active');
+        const select = document.getElementById('matchSelect'); select.innerHTML = '<option value="">Select Video...</option>';
         allMatchData.filter(m => m.cat === cat).forEach(m => {
-            matchMap[m.dvw] = m.vid;
-            select.add(new Option(m.dvw.replace('.dvw',''), m.dvw));
+            matchMap[m.dvw] = m.vid; select.add(new Option(m.dvw.replace('.dvw',''), m.dvw));
         });
     }
 
@@ -167,13 +156,11 @@
         let currentSection = "", runningScore = "00-00", hSets = 0, aSets = 0, teamCount = 0, tempRally = null;
 
         lines.forEach((line) => {
-            const l = line.trim();
-            if (l.startsWith('[')) { currentSection = l; return; }
+            const l = line.trim(); if (l.startsWith('[')) { currentSection = l; return; }
             if (currentSection === "[3TEAMS]") {
                 const p = l.split(';'); if (p.length < 2) return;
-                const code = p[0] || "UNK";
-                if (teamCount === 0) { document.getElementById('ov-h-code').innerText = code; teamCount++; }
-                else { document.getElementById('ov-a-code').innerText = code; }
+                if (teamCount === 0) { document.getElementById('ov-h-code').innerText = p[0]; teamCount++; }
+                else { document.getElementById('ov-a-code').innerText = p[0]; }
             }
             if (currentSection === "[3PLAYERS-H]" || currentSection === "[3PLAYERS-V]") {
                 const p = l.split(';'); if (p.length < 10) return;
@@ -185,24 +172,29 @@
             if (currentSection === "[3SCOUT]") {
                 const c = l.split(';'); const code = c[0]; if (!code) return;
                 if (code.startsWith('**') && code.includes('set')) {
-                    const s = runningScore.split('-').map(Number);
-                    if (s[0] > s[1]) hSets++; else if (s[1] > s[0]) aSets++;
+                    const last = runningScore.split('-').map(Number);
+                    if (last[0] > last[1]) hSets++; else if (last[1] > last[0]) aSets++;
                     runningScore = "00-00"; return;
                 }
                 if (code.startsWith('*p') || code.startsWith('ap')) {
                     const m = code.match(/\d{2}:\d{2}/);
+                    const winner = code.startsWith('*p') ? '*' : 'a';
                     if (m) runningScore = m[0].replace(':', '-');
-                    if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]); tempRally.wonBy = code.startsWith('*p') ? '*' : 'a'; }
+                    if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]); tempRally.wonBy = winner; }
                     return;
                 }
-                const skill = code.charAt(3);
-                if ("SRABDE".includes(skill)) {
+                const skillChar = code.charAt(3);
+                if ("SRABDE".includes(skillChar)) {
                     const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                     if (isNaN(num)) return;
+                    let oS = 2.5, oE = 4.0;
+                    if (skillChar === 'S') { oS = 1.2; oE = 5.5; } 
+                    else if (skillChar === 'A') { oS = 2.5; oE = 5.0; } 
+                    else if (skillChar === 'R') { oS = 2.0; oE = 5.0; }
                     const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
-                    const play = { time, startTime: time - 2.5, endTime: time + 4, score: runningScore, setNum: hSets+aSets+1, hSets, aSets, side, skill, effect: code.charAt(5), pName: p.name, pNum: p.num, rot: c[8], fullCode: code };
-                    allPlays.push(play);
-                    if (skill === 'S') { tempRally = play; rallies.push(play); }
+                    const playObj = { time, startTime: time - oS, endTime: time + oE, score: runningScore, setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: code.charAt(5), pName: p.name, pNum: p.num, rot: c[8], fullCode: code };
+                    allPlays.push(playObj);
+                    if (skillChar === 'S') { tempRally = playObj; rallies.push(playObj); }
                 }
             }
         });
@@ -210,22 +202,19 @@
     }
 
     function updateFilters() {
-        const tr = document.getElementById('teamFilterRally');
-        tr.innerHTML = '<option value="">Both Teams</option>';
-        tr.add(new Option(document.getElementById('ov-h-code').innerText + " Serves", "*"));
-        tr.add(new Option(document.getElementById('ov-a-code').innerText + " Serves", "a"));
-        
-        const tp = document.getElementById('teamFilterPlayer');
-        tp.innerHTML = '<option value="">Team</option>';
-        tp.add(new Option("Home", "*")); tp.add(new Option("Away", "a"));
+        const hCode = document.getElementById('ov-h-code').innerText;
+        const aCode = document.getElementById('ov-a-code').innerText;
+        const tr = document.getElementById('teamFilterRally'); tr.innerHTML = '<option value="">Both Teams (Default)</option>';
+        tr.add(new Option(hCode + " Serves", "*")); tr.add(new Option(aCode + " Serves", "a"));
+        const tp = document.getElementById('teamFilterPlayer'); tp.innerHTML = '<option value="">Choose Team</option>';
+        tp.add(new Option(hCode, "*")); tp.add(new Option(aCode, "a"));
         document.getElementById('score-overlay').style.display = 'flex';
     }
 
     function onTeamChangePlayer() {
         const team = document.getElementById('teamFilterPlayer').value;
-        const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">Player</option>';
-        if (!team) return;
-        const seen = new Set();
+        const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">Select Player</option>';
+        if (!team) return; const seen = new Set();
         allPlays.filter(p => p.side === team).forEach(p => {
             if (!seen.has(p.pName)) { ps.add(new Option(`#${p.pNum} ${p.pName}`, p.pName)); seen.add(p.pName); }
         });
@@ -238,57 +227,97 @@
         document.getElementById('filterArea').style.display = (m === 'stats') ? 'none' : 'block';
         document.getElementById('rally-filters').style.display = (m === 'rally') ? 'block' : 'none';
         document.getElementById('player-filters').style.display = (m === 'player') ? 'block' : 'none';
+        document.getElementById('autoNextLabel').innerText = (m === 'player') ? 'Auto-Skip (No Buffer)' : 'Auto-Skip (3s Buffer)';
         render();
     }
 
+    let currentData = [];
     function render() {
         const list = document.getElementById('instanceList'); list.innerHTML = '';
-        if (currentMode === 'stats') { renderStats(); return; }
-        
-        const filtered = (currentMode === 'rally') 
-            ? rallies.filter(d => !document.getElementById('teamFilterRally').value || d.side === document.getElementById('teamFilterRally').value)
-            : allPlays.filter(d => d.side === document.getElementById('teamFilterPlayer').value && (!document.getElementById('playerFilter').value || d.pName === document.getElementById('playerFilter').value) && (!document.getElementById('skillFilter').value || d.skill === document.getElementById('skillFilter').value));
+        if (currentMode === 'stats') { renderDualTables(); return; }
 
-        filtered.forEach((d, i) => {
-            const btn = document.createElement('div'); btn.className = 'instance-btn'; btn.id = 'idx-'+i;
-            if (d.wonBy === '*') btn.style.borderLeftColor = 'var(--home-accent)';
-            else if (d.wonBy === 'a') btn.style.borderLeftColor = 'var(--away-accent)';
-            btn.innerHTML = `<div class="score-box">${d.score}</div><div>#${d.pNum} ${d.pName}<br><small>Set${d.setNum} | ${d.skill}${d.effect}</small></div>`;
-            btn.onclick = () => playIndex(i, filtered); list.appendChild(btn);
+        if (currentMode === 'rally') {
+            const teamF = document.getElementById('teamFilterRally').value;
+            currentData = rallies.filter(d => !teamF || d.side === teamF);
+        } else {
+            const teamF = document.getElementById('teamFilterPlayer').value, playerF = document.getElementById('playerFilter').value, skillF = document.getElementById('skillFilter').value;
+            if (!teamF) { list.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Select a Team</p>'; return; }
+            currentData = allPlays.filter(d => d.side === teamF && (!playerF || d.pName === playerF) && (!skillF || d.skill === skillF));
+        }
+
+        let lastSet = -1;
+        currentData.forEach((d, i) => {
+            if (d.setNum !== lastSet) {
+                const div = document.createElement('div'); div.className = 'set-divider'; div.innerText = `SET ${d.setNum}`;
+                list.appendChild(div); lastSet = d.setNum;
+            }
+            const winC = d.wonBy === '*' ? 'win-home' : (d.wonBy === 'a' ? 'win-away' : '');
+            const btn = document.createElement('div'); btn.className = `instance-btn ${winC}`; btn.id = 'idx-'+i;
+            const shortName = d.pName.split(' ')[0];
+            btn.innerHTML = `<div class="score-box">${d.score}</div><div style="flex:1">#${d.pNum} ${shortName}<br><small>P${d.rot} | ${d.skill}${d.effect}</small></div>`;
+            btn.onclick = () => playIndex(i); list.appendChild(btn);
         });
     }
 
-    function renderStats() {
-        const list = document.getElementById('instanceList');
+    function renderDualTables() {
+        const list = document.getElementById('instanceList'); list.innerHTML = '';
         ["*", "a"].forEach(side => {
-            const teamCode = side === "*" ? document.getElementById('ov-h-code').innerText : document.getElementById('ov-a-code').innerText;
-            list.innerHTML += `<div style="padding:10px; font-weight:bold; background:#eee; margin-top:10px;">${teamCode} Stats</div>`;
-            let table = `<table class="stats-table"><tr><th>Player</th><th>S-Tot</th><th>S-Ace</th><th>A-Kill</th><th>A-%</th></tr>`;
-            const players = [...new Set(allPlays.filter(p => p.side === side).map(p => p.pName))];
-            players.forEach(pName => {
-                const pPlays = allPlays.filter(p => p.pName === pName && p.side === side);
-                const s = pPlays.filter(p => p.skill === 'S'), a = pPlays.filter(p => p.skill === 'A');
-                const kill = a.filter(p => p.effect === '#').length;
-                table += `<tr><td class="p-cell">${pName}</td><td>${s.length}</td><td>${s.filter(p => p.effect === '#').length}</td><td>${kill}</td><td>${a.length?Math.round(kill/a.length*100):0}%</td></tr>`;
-            });
-            list.innerHTML += table + `</table>`;
+            const team = side === "*" ? document.getElementById('ov-h-code').innerText : document.getElementById('ov-a-code').innerText;
+            list.innerHTML += `<div class="stats-section-title">${team} Statistics</div><div class="stats-container"><table class="stats-table" id="t-${side}"></table></div>`;
+            buildTable(side, `t-${side}`);
         });
     }
 
-    function playIndex(i, data) {
-        currentIndex = i; const d = data[i]; player.seekTo(d.startTime, true); player.playVideo();
+    function buildTable(side, targetId) {
+        const ps = []; const seen = new Set();
+        allPlays.filter(p => p.side === side).forEach(p => { if (!seen.has(p.pName)) { ps.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } });
+        ps.sort((a,b) => a.num - b.num);
+        let html = `<tr><th rowspan="2">Player</th><th colspan="3">Serve</th><th colspan="4">Rec</th><th colspan="4">Attack</th></tr><tr><th>Tot</th><th>Ace</th><th>Err</th><th>Tot</th><th>Err</th><th>#+%</th><th>#%</th><th>Tot</th><th>Kill</th><th>Err</th><th>%</th></tr>`;
+        ps.forEach(p => {
+            const pl = allPlays.filter(play => play.pName === p.name && play.side === side);
+            const s = pl.filter(d => d.skill === 'S'), r = pl.filter(d => d.skill === 'R'), a = pl.filter(d => d.skill === 'A');
+            const sAce = s.filter(d => d.effect === '#').length, sErr = s.filter(d => d.effect === '=' && (d.fullCode.includes('SM=') || d.fullCode.includes('SQ='))).length; 
+            const rErr = r.filter(d => d.effect === '=').length, rPerf = r.filter(d => d.effect === '#').length, rPos = r.filter(d => d.effect === '+').length;
+            const aKill = a.filter(d => d.effect === '#').length, aLoss = a.filter(d => d.effect === '=' || d.effect === '/').length;
+            const short = p.name.split(' ')[0], esc = p.name.replace(/'/g, "\\'");
+            html += `<tr><td class="p-cell">#${p.num} ${short}</td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','S','')">${s.length}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','S','#')">${sAce}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','S','=')">${sErr}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','R','')">${r.length}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','R','=')">${rErr}</span></td>
+                <td>${r.length?Math.round((rPerf+rPos)/r.length*100):0}%</td>
+                <td>${r.length?Math.round(rPerf/r.length*100):0}%</td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','A','')">${a.length}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','A','#')">${aKill}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','A','loss')">${aLoss}</span></td>
+                <td>${a.length?((aKill/a.length)*100).toFixed(1):'0.0'}%</td></tr>`;
+        });
+        document.getElementById(targetId).innerHTML = html;
+    }
+
+    function jumpToStat(side, pName, skill, eff) { setMode('player'); document.getElementById('teamFilterPlayer').value = side; onTeamChangePlayer(); document.getElementById('playerFilter').value = pName; document.getElementById('skillFilter').value = skill; render(); if (currentData.length > 0) playIndex(0); }
+
+    function playIndex(i) {
+        currentIndex = i; const d = currentData[i]; player.seekTo(d.startTime, true); player.playVideo();
         document.getElementById('ov-h-sets').innerText = d.hSets; document.getElementById('ov-a-sets').innerText = d.aSets;
-        const s = d.score.split('-'); document.getElementById('ov-h-score').innerText = s[0] || 0; document.getElementById('ov-a-score').innerText = s[1] || 0;
+        const s = d.score.split('-'); 
+        document.getElementById('ov-h-score').innerText = parseInt(s[0]) || 0; 
+        document.getElementById('ov-a-score').innerText = parseInt(s[1]) || 0;
         document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('idx-' + i)?.classList.add('active');
+        document.getElementById('idx-' + i)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function onPlayerStateChange(e) { if (e.data == 1 && document.getElementById('autoNext').checked) startTracking(); else clearInterval(checkInterval); }
     function startTracking() {
         clearInterval(checkInterval);
         checkInterval = setInterval(() => {
-            const now = player.getCurrentTime();
-            // 自動スキップ処理など（簡易化のため省略）
+            if (currentIndex >= 0 && currentData[currentIndex]) {
+                const now = player.getCurrentTime(), d = currentData[currentIndex];
+                let limit = (currentMode === 'player') ? d.endTime : (d.rallyEndTime + 3.0);
+                if (now > limit) { if (currentIndex < currentData.length - 1) playIndex(currentIndex + 1); else clearInterval(checkInterval); }
+            }
         }, 500);
     }
     function toggleOverlay() { document.getElementById('score-overlay').style.display = (document.getElementById('score-overlay').style.display === 'none') ? 'flex' : 'none'; }
