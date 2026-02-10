@@ -1,9 +1,20 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5MRSVH1C6H
+"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-5MRSVH1C6H');
+    </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HTH Pro Scouting v0.5.5</title>
+    <meta name="robots" content="noindex, nofollow">
+    
+    <title>HTH Pro Scouting v0.5.6</title>
     <style>
         :root { 
             --primary: #007bff; --home-accent: #f06292; --away-accent: #64b5f6; --score-bg: rgba(255, 255, 255, 0.95);
@@ -13,7 +24,7 @@
 
         #video-side { flex: 3.5; background: #000; position: relative; }
 
-        /* スマホ縦向き (Mobile Vertical) */
+        /* スマホ縦向き */
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #video-side { width: 100%; height: 0; padding-top: 56.25%; flex: none; position: relative; display: block; }
@@ -26,7 +37,7 @@
             .sticky-bar { width: 4px !important; }
         }
 
-        /* iPad/Tablet 横画面向け (iPad Landscape Optimization) */
+        /* iPad/Tablet 横画面最適化 */
         @media (min-width: 769px) and (max-width: 1180px) {
             #score-overlay { width: 180px !important; top: 15px !important; left: 15px !important; }
             .score-row { height: 40px !important; }
