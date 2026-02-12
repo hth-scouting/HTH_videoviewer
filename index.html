@@ -1,20 +1,19 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5MRSVH1C6H
-"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=5MRSVH1C6H"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-5MRSVH1C6H');
+      gtag('config', '5MRSVH1C6H');
     </script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
     
-    <title>HTH Pro Scouting v0.5.6</title>
+    <title>HTH Pro Scouting v0.5.8</title>
     <style>
         :root { 
             --primary: #007bff; --home-accent: #f06292; --away-accent: #64b5f6; --score-bg: rgba(255, 255, 255, 0.95);
@@ -125,11 +124,22 @@
                 <select id="teamFilterPlayer" onchange="onTeamChangePlayer()"><option value="">Choose Team</option></select>
                 <select id="playerFilter" onchange="render()"><option value="">Select Player</option></select>
             </div>
-            <span class="filter-label">4. Select Skill</span>
-            <select id="skillFilter" onchange="render()">
-                <option value="">All Skills</option>
-                <option value="S">Serve (S)</option><option value="A">Attack (A)</option><option value="R">Reception (R)</option><option value="B">Block (B)</option><option value="D">Dig (D)</option><option value="E">Set (E)</option>
-            </select>
+            <div style="display:flex; gap:5px;">
+                <div style="flex:1">
+                    <span class="filter-label">4. Skill</span>
+                    <select id="skillFilter" onchange="render()">
+                        <option value="">All Skills</option>
+                        <option value="S">Serve (S)</option><option value="A">Attack (A)</option><option value="R">Reception (R)</option>
+                    </select>
+                </div>
+                <div style="flex:1">
+                    <span class="filter-label">5. Effect</span>
+                    <select id="effectFilter" onchange="render()">
+                        <option value="">All Results</option>
+                        <option value="#">Win (#)</option><option value="=">Error (=)</option><option value="+">Pos/Kill (+)</option><option value="-">Poor (-)</option><option value="!">Neutral (!)</option>
+                    </select>
+                </div>
+            </div>
         </div>
         <div style="display:flex; align-items:center; gap:8px; font-size:0.7rem; color:#666; margin-top:5px;">
             <input type="checkbox" id="autoNext" checked> <label for="autoNext" id="autoNextLabel">Auto-Skip</label>
@@ -250,7 +260,6 @@
         document.getElementById('filterArea').style.display = (m === 'stats') ? 'none' : 'block';
         document.getElementById('rally-filters').style.display = (m === 'rally') ? 'block' : 'none';
         document.getElementById('player-filters').style.display = (m === 'player') ? 'block' : 'none';
-        document.getElementById('autoNextLabel').innerText = (m === 'player') ? 'Auto-Skip (No Buffer)' : 'Auto-Skip (3s Buffer)';
         render();
     }
 
@@ -263,9 +272,12 @@
             const teamF = document.getElementById('teamFilterRally').value;
             currentData = rallies.filter(d => !teamF || d.side === teamF);
         } else {
-            const teamF = document.getElementById('teamFilterPlayer').value, playerF = document.getElementById('playerFilter').value, skillF = document.getElementById('skillFilter').value;
+            const teamF = document.getElementById('teamFilterPlayer').value;
+            const playerF = document.getElementById('playerFilter').value;
+            const skillF = document.getElementById('skillFilter').value;
+            const effectF = document.getElementById('effectFilter').value;
             if (!teamF) { list.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Select a Team</p>'; return; }
-            currentData = allPlays.filter(d => d.side === teamF && (!playerF || d.pName === playerF) && (!skillF || d.skill === skillF));
+            currentData = allPlays.filter(d => d.side === teamF && (!playerF || d.pName === playerF) && (!skillF || d.skill === skillF) && (!effectF || (effectF === 'loss' ? (d.effect === '=' || d.effect === '/') : d.effect === effectF)));
         }
 
         let lastSet = -1;
@@ -276,8 +288,7 @@
             }
             const winC = d.wonBy === '*' ? 'win-home' : (d.wonBy === 'a' ? 'win-away' : '');
             const btn = document.createElement('div'); btn.className = `instance-btn ${winC}`; btn.id = 'idx-'+i;
-            const shortName = d.pName.split(' ')[0];
-            btn.innerHTML = `<div class="score-box">${d.score}</div><div style="flex:1">#${d.pNum} ${shortName}<br><small>P${d.rot} | ${d.skill}${d.effect}</small></div>`;
+            btn.innerHTML = `<div class="score-box">${d.score}</div><div style="flex:1">#${d.pNum} ${d.pName.split(' ')[0]}<br><small>P${d.rot} | ${d.skill}${d.effect}</small></div>`;
             btn.onclick = () => playIndex(i); list.appendChild(btn);
         });
     }
@@ -299,7 +310,7 @@
         ps.forEach(p => {
             const pl = allPlays.filter(play => play.pName === p.name && play.side === side);
             const s = pl.filter(d => d.skill === 'S'), r = pl.filter(d => d.skill === 'R'), a = pl.filter(d => d.skill === 'A');
-            const sAce = s.filter(d => d.effect === '#').length, sErr = s.filter(d => d.effect === '=' && (d.fullCode.includes('SM=') || d.fullCode.includes('SQ='))).length; 
+            const sAce = s.filter(d => d.effect === '#').length, sErr = s.filter(d => d.effect === '=').length; 
             const rErr = r.filter(d => d.effect === '=').length, rPerf = r.filter(d => d.effect === '#').length, rPos = r.filter(d => d.effect === '+').length;
             const aKill = a.filter(d => d.effect === '#').length, aLoss = a.filter(d => d.effect === '=' || d.effect === '/').length;
             const short = p.name.split(' ')[0], esc = p.name.replace(/'/g, "\\'");
@@ -319,7 +330,15 @@
         document.getElementById(targetId).innerHTML = html;
     }
 
-    function jumpToStat(side, pName, skill, eff) { setMode('player'); document.getElementById('teamFilterPlayer').value = side; onTeamChangePlayer(); document.getElementById('playerFilter').value = pName; document.getElementById('skillFilter').value = skill; render(); if (currentData.length > 0) playIndex(0); }
+    function jumpToStat(side, pName, skill, eff) { 
+        setMode('player'); 
+        document.getElementById('teamFilterPlayer').value = side; 
+        onTeamChangePlayer(); 
+        document.getElementById('playerFilter').value = pName; 
+        document.getElementById('skillFilter').value = skill;
+        document.getElementById('effectFilter').value = eff;
+        render(); if (currentData.length > 0) playIndex(0); 
+    }
 
     function playIndex(i) {
         currentIndex = i; const d = currentData[i]; player.seekTo(d.startTime, true); player.playVideo();
@@ -339,7 +358,7 @@
             if (currentIndex >= 0 && currentData[currentIndex]) {
                 const now = player.getCurrentTime(), d = currentData[currentIndex];
                 let limit = (currentMode === 'player') ? d.endTime : (d.rallyEndTime + 3.0);
-                if (now > limit) { if (currentIndex < currentData.length - 1) playIndex(currentIndex + 1); else clearInterval(checkInterval); }
+                if (now > limit && currentIndex < currentData.length - 1) playIndex(currentIndex + 1);
             }
         }, 500);
     }
