@@ -1,20 +1,19 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-5MRSVH1C6H"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5MRSVH1C6H"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-5MRSVH1C6H');
+    </script>
 
-  gtag('config', 'G-5MRSVH1C6H');
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
     
-    <title>HTH Pro Scouting v0.5.9</title>
+    <title>HTH Pro Scouting v0.5.11</title>
     <style>
         :root { 
             --primary: #007bff; --home-accent: #f06292; --away-accent: #64b5f6; --score-bg: rgba(255, 255, 255, 0.95);
@@ -347,6 +346,7 @@
     }
 
     function playIndex(i) {
+        if (i < 0 || i >= currentData.length) return;
         currentIndex = i; const d = currentData[i]; player.seekTo(d.startTime, true); player.playVideo();
         document.getElementById('ov-h-sets').innerText = d.hSets; document.getElementById('ov-a-sets').innerText = d.aSets;
         const s = d.score.split('-'); 
@@ -369,6 +369,19 @@
         }, 500);
     }
     function toggleOverlay() { document.getElementById('score-overlay').style.display = (document.getElementById('score-overlay').style.display === 'none') ? 'flex' : 'none'; }
+
+    // ショートカットキー設定 (Shortcut Keys: D=Prev, F=Next)
+    window.addEventListener('keydown', (e) => {
+        // 入力フィールドにフォーカスがある時は無効化
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+        const key = e.key.toLowerCase();
+        if (key === 'f') {
+            if (currentIndex < currentData.length - 1) playIndex(currentIndex + 1);
+        } else if (key === 'd') {
+            if (currentIndex > 0) playIndex(currentIndex - 1);
+        }
+    });
 </script>
 </body>
 </html>
