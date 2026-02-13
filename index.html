@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=5MRSVH1C6H"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', '5MRSVH1C6H');
-    </script>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5MRSVH1C6H"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
 
+  gtag('config', 'G-5MRSVH1C6H');
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
     
-    <title>HTH Pro Scouting v0.5.8</title>
+    <title>HTH Pro Scouting v0.5.9</title>
     <style>
         :root { 
             --primary: #007bff; --home-accent: #f06292; --away-accent: #64b5f6; --score-bg: rgba(255, 255, 255, 0.95);
@@ -129,7 +130,12 @@
                     <span class="filter-label">4. Skill</span>
                     <select id="skillFilter" onchange="render()">
                         <option value="">All Skills</option>
-                        <option value="S">Serve (S)</option><option value="A">Attack (A)</option><option value="R">Reception (R)</option>
+                        <option value="S">Serve (S)</option>
+                        <option value="R">Reception (R)</option>
+                        <option value="E">Set (E)</option>
+                        <option value="A">Attack (A)</option>
+                        <option value="B">Block (B)</option>
+                        <option value="D">Dig (D)</option>
                     </select>
                 </div>
                 <div style="flex:1">
