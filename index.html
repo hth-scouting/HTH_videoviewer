@@ -14,7 +14,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>HTH Pro Scouting v0.8.4</title>
+    <title>HTH Pro Scouting v0.8.5</title>
     <style>
         :root { 
             --primary: #007bff; --primary-hover: #0056b3; 
@@ -115,7 +115,7 @@
         .copy-link-btn { background: #6c757d; flex: 1; }
         .line-btn { background: var(--line-green); flex: 1; }
 
-        /* PC版 Tableのコンパクト化修正 */
+        /* PC Table Compact Fix */
         .stats-section-title { font-weight: 900; padding: 15px 0 5px; border-bottom: 2px solid #333; margin-top: 20px; }
         .stats-container { width: 100%; overflow-x: auto; margin-bottom: 20px; background: #fff; border-radius: 8px; border: 1px solid #eee; }
         .stats-table { width: auto; border-collapse: collapse; font-size: 0.6rem; margin: 0 auto; min-width: 400px; }
@@ -123,12 +123,25 @@
         .stats-table th { background: #f8f9fa; font-weight: bold; }
         .click-num { color: var(--primary); font-weight: bold; cursor: pointer; text-decoration: underline; }
 
+        /* Shortcut UI Styles */
+        #shortcut-btn { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); color: #fff; border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer; z-index: 50; font-weight: bold; font-size: 0.8rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        #shortcut-btn:hover { background: rgba(0,0,0,0.9); }
+        #shortcut-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .modal-content { background: #222; color: #fff; padding: 25px; border-radius: 12px; min-width: 280px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 0.9rem; border: 1px solid #444; }
+        .modal-content h3 { margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; border-bottom: 1px solid #444; padding-bottom: 10px; color: var(--away-accent); }
+        .modal-content ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+        .modal-content li { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding-bottom: 5px; }
+        .modal-content li span { color: #aaa; }
+        .modal-content kbd { background: #444; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; color: #fff; }
+        .close-modal-btn { width: 100%; padding: 10px; background: #444; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .close-modal-btn:hover { background: #555; }
+
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #video-side { width: 100%; height: 0; padding-top: 56.25%; flex: none; }
             #control-side { width: 100%; flex: 1; }
             
-            /* スマホ版スコアボードの極小化（以前の50%サイズ） */
+            /* Mobile Scoreboard Minimized */
             #score-overlay { top: 5px !important; left: 5px !important; width: 60px !important; border-radius: 4px !important; }
             .ov-team-box { font-size: 0.4rem !important; padding-left: 2px !important; }
             .ov-sets-box, .ov-points-box { font-size: 0.5rem !important; width: 15px !important; }
@@ -138,13 +151,29 @@
             .card-main { padding-right: 10px; flex-direction: column; align-items: flex-start; }
             .top-right-actions { position: relative; top: 0; right: 0; margin-top: 10px; width: 100%; justify-content: flex-end; }
             
-            /* Omit Draw button on mobile */
+            /* Omit Draw/Shortcut features on mobile */
             .draw-trigger-btn { display: none !important; }
+            #shortcut-btn { display: none !important; }
+            #shortcut-modal { display: none !important; }
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
+
+<datalist id="tagList">
+    <option value="#MB"></option>
+    <option value="#OH"></option>
+    <option value="#OP"></option>
+    <option value="#S"></option>
+    <option value="#L"></option>
+    <option value="#Good"></option>
+    <option value="#Bad"></option>
+    <option value="#System"></option>
+    <option value="#Transition"></option>
+    <option value="#BlockDefense"></option>
+    <option value="#Javi"></option>
+</datalist>
 
 <div id="video-side">
     <div id="player-box" onclick="toggleOverlay()">
@@ -163,7 +192,7 @@
         <span style="color:white; font-size:0.85rem; font-weight:bold;">✏️ Drawing Mode</span>
         <button class="draw-btn" onclick="clearCanvas()">Clear</button>
         <button class="draw-btn cancel" onclick="exitDrawMode()">Cancel</button>
-        <button class="draw-btn save" onclick="saveDrawing()">Save</button>
+        <button class="draw-btn save" onclick="saveDrawing()">Save (P)</button>
     </div>
 </div>
 
@@ -213,7 +242,7 @@
             <span id="searchArrow">▼</span>
         </button>
         <div class="search-container" id="searchArea">
-            <input type="text" id="searchFilter" class="search-input" oninput="render()" placeholder="Keyword (e.g. Block, #Good)">
+            <input type="text" id="searchFilter" class="search-input" list="tagList" oninput="render()" placeholder="Keyword (e.g. Block, #Good, #MB)">
             <div style="display:flex; gap:8px;">
                 <button class="action-sm-btn" style="flex:1; background:#6c757d; color:white;" onclick="copyPlaylistLink()">Copy URL</button>
                 <button class="action-sm-btn" style="flex:1; background:var(--line-green); color:white;" onclick="sharePlaylist()">Share LINE</button>
@@ -227,6 +256,22 @@
     </div>
     
     <div id="instanceList"></div>
+</div>
+
+<button id="shortcut-btn" onclick="toggleShortcuts()">⌨️ Shortcuts</button>
+<div id="shortcut-modal" onclick="toggleShortcuts()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h3>Keyboard Shortcuts</h3>
+        <ul>
+            <li><span>Next / Prev Play</span> <kbd>F</kbd> / <kbd>D</kbd></li>
+            <li><span>Repeat Current Play</span> <kbd>R</kbd></li>
+            <li><span>-2s / +2s Skip</span> <kbd>←</kbd> / <kbd>→</kbd></li>
+            <li><span>Draw Mode On / Save</span> <kbd>P</kbd></li>
+            <li><span>Focus Comment Input</span> <kbd>C</kbd></li>
+            <li><span>Submit Comment</span> <kbd>Enter</kbd></li>
+        </ul>
+        <button class="close-modal-btn" onclick="toggleShortcuts()">Close</button>
+    </div>
 </div>
 
 <script>
@@ -302,6 +347,11 @@
     function toggleSearchArea() {
         const area = document.getElementById('searchArea'); const arrow = document.getElementById('searchArrow');
         area.classList.toggle('show'); arrow.innerText = area.classList.contains('show') ? '▲' : '▼';
+    }
+
+    function toggleShortcuts() {
+        const modal = document.getElementById('shortcut-modal');
+        modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
     }
 
     async function loadCloudData() {
@@ -434,7 +484,7 @@
                 <div class="card-actions" id="actions-${i}">
                     <div class="comments-display" id="c-disp-${d.id}">${commentsHTML}</div>
                     <div class="action-row">
-                        <input type="text" class="comment-input" id="c-input-${d.id}" placeholder="Add a comment..." onclick="event.stopPropagation()">
+                        <input type="text" class="comment-input" id="c-input-${d.id}" list="tagList" placeholder="Add a comment... (e.g. #MB)" onclick="event.stopPropagation()">
                         <button class="action-btn add-btn" onclick="event.stopPropagation(); addComment(${d.id})">Send</button>
                     </div>
                     <div class="action-row" style="margin-top:2px;">
@@ -447,10 +497,13 @@
         });
     }
 
-    function toggleActions(event, index) {
-        event.stopPropagation(); 
+    function toggleActions(event, index, forceShow = false) {
+        if(event) event.stopPropagation(); 
         const actionsDiv = document.getElementById(`actions-${index}`);
-        actionsDiv.classList.toggle('show');
+        if(actionsDiv) {
+            if(forceShow) actionsDiv.classList.add('show');
+            else actionsDiv.classList.toggle('show');
+        }
     }
 
     // Telestrator
@@ -605,7 +658,7 @@
 
     function onPlayerStateChange(e) { 
         if (e.data == 1) {
-            // ⭐ Removed clearCanvasVisuals() from here so drawings stay visible during playback
+            // Drawings stay visible during playback as clearCanvasVisuals() was removed from here
             if (document.getElementById('autoNext').checked) startTracking();
         } else { clearInterval(checkInterval); }
     }
@@ -621,9 +674,56 @@
         }, 500);
     }
 
+    // Comprehensive Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-        const key = e.key.toLowerCase(); if (key === 'f') playNext(); else if (key === 'd') playPrev();
+        const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA';
+        
+        // Handle "Enter" to send comment when typing in the comment box
+        if (isInput) {
+            if (e.key === 'Enter' && e.target.classList.contains('comment-input')) {
+                const playId = e.target.id.split('c-input-')[1];
+                if (playId) addComment(playId);
+            }
+            return; // Ignore other shortcuts while typing
+        }
+
+        const key = e.key.toLowerCase(); 
+        if (key === 'f') {
+            playNext(); 
+        } else if (key === 'd') {
+            playPrev();
+        } else if (key === 'r') {
+            if (currentIndex >= 0 && currentData[currentIndex] && typeof player.seekTo === 'function') {
+                player.seekTo(currentData[currentIndex].startTime, true);
+                player.playVideo();
+            }
+        } else if (e.key === 'ArrowLeft') {
+            if (typeof player.getCurrentTime === 'function') {
+                player.seekTo(player.getCurrentTime() - 2, true);
+                e.preventDefault(); // Prevent page scroll
+            }
+        } else if (e.key === 'ArrowRight') {
+            if (typeof player.getCurrentTime === 'function') {
+                player.seekTo(player.getCurrentTime() + 2, true);
+                e.preventDefault(); // Prevent page scroll
+            }
+        } else if (key === 'p') {
+            if (isDrawingMode) {
+                saveDrawing();
+            } else if (currentIndex >= 0 && currentData[currentIndex]) {
+                enterDrawMode(currentData[currentIndex].id);
+            }
+        } else if (key === 'c') {
+            if (currentIndex >= 0 && currentData[currentIndex]) {
+                const playId = currentData[currentIndex].id;
+                toggleActions(null, currentIndex, true); // Force open the note area
+                const input = document.getElementById(`c-input-${playId}`);
+                if (input) {
+                    input.focus();
+                    e.preventDefault();
+                }
+            }
+        }
     });
 </script>
 </body>
