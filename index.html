@@ -118,8 +118,8 @@
         /* PC版 Tableのコンパクト化修正 */
         .stats-section-title { font-weight: 900; padding: 15px 0 5px; border-bottom: 2px solid #333; margin-top: 20px; }
         .stats-container { width: 100%; overflow-x: auto; margin-bottom: 20px; background: #fff; border-radius: 8px; border: 1px solid #eee; }
-        .stats-table { width: auto; border-collapse: collapse; font-size: 0.65rem; margin: 0 auto; min-width: 400px; }
-        .stats-table th, .stats-table td { border: 1px solid #eee; padding: 5px 4px; text-align: center; }
+        .stats-table { width: auto; border-collapse: collapse; font-size: 0.6rem; margin: 0 auto; min-width: 400px; }
+        .stats-table th, .stats-table td { border: 1px solid #eee; padding: 4px 3px; text-align: center; }
         .stats-table th { background: #f8f9fa; font-weight: bold; }
         .click-num { color: var(--primary); font-weight: bold; cursor: pointer; text-decoration: underline; }
 
@@ -497,7 +497,7 @@
     function clearCanvas() { drawingLines = []; renderDrawing(); }
     function clearCanvasVisuals() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
     
-    // Save Drawing - Modified to Delete then Insert to avoid Upsert errors
+    // DB Save Fix: Delete then Insert
     async function saveDrawing() {
         const data = JSON.parse(JSON.stringify(drawingLines)); 
         matchDrawings[activePlayIdForDraw] = data; 
@@ -505,15 +505,9 @@
         exitDrawMode();
         if(typeof player.playVideo === 'function') player.playVideo();
         
-        // 1. Delete existing drawing for this play
         await supabaseClient.from('drawings').delete().match({ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw });
-        // 2. Insert new drawing
         const { error } = await supabaseClient.from('drawings').insert([{ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw, drawing_data: JSON.stringify(data) }]);
-        
-        if (error) {
-            console.error("Save Error:", error);
-            alert("Failed to save drawing.");
-        }
+        if (error) { console.error("Save Error:", error); alert("Failed to save drawing."); }
     }
 
     async function addLike(playId) {
@@ -611,7 +605,7 @@
 
     function onPlayerStateChange(e) { 
         if (e.data == 1) {
-            if (!isDrawingMode) clearCanvasVisuals(); 
+            // ⭐ Removed clearCanvasVisuals() from here so drawings stay visible during playback
             if (document.getElementById('autoNext').checked) startTracking();
         } else { clearInterval(checkInterval); }
     }
