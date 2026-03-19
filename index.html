@@ -8,11 +8,13 @@
       gtag('js', new Date());
       gtag('config', 'G-5MRSVH1C6H');
     </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>HTH Pro Scouting v0.6.1</title>
+    <title>HTH Pro Scouting v0.6.3 (Cloud Sync)</title>
     <style>
         :root { --primary: #007bff; --home-accent: #f06292; --away-accent: #64b5f6; --score-bg: rgba(255, 255, 255, 0.95); --line-green: #06C755; }
         body, html { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Inter', -apple-system, sans-serif; }
@@ -45,7 +47,6 @@
         .filter-label { font-size: 0.7rem; color: #888; font-weight: bold; display: block; margin-bottom: 4px; text-transform: uppercase; }
         select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; margin-bottom: 8px; }
 
-        /* インスタンスカード */
         .set-divider { background: #555; color: white; padding: 6px; font-size: 0.75rem; font-weight: 900; border-radius: 4px; margin: 15px 0 8px 0; text-align: center; }
         .instance-btn { padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; border-left: 10px solid #ccc; background: #fff; position: relative; }
         .instance-btn.active { background: #f0f7ff !important; border-color: var(--primary); outline: 2px solid var(--primary); }
@@ -55,18 +56,23 @@
         .card-main { display: flex; align-items: center; cursor: pointer; }
         .score-box { font-family: "Arial Black"; font-size: 1rem; min-width: 55px; text-align: center; margin-right: 12px; background: #f0f0f0; border-radius: 4px; }
         
-        /* コメント/共有の折りたたみUI */
         .toggle-actions-btn { position: absolute; top: 10px; right: 10px; background: transparent; border: 1px solid #ddd; border-radius: 4px; color: #666; font-size: 0.65rem; padding: 4px 8px; cursor: pointer; z-index: 2; }
         .toggle-actions-btn:hover { background: #f0f0f0; }
         .card-actions { display: none; flex-direction: column; gap: 6px; margin-top: 10px; border-top: 1px dashed #ddd; padding-top: 10px; }
         .card-actions.show { display: flex; }
-        .comment-input { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 6px; font-size: 0.8rem; box-sizing: border-box; }
+        
+        .comments-display { font-size: 0.75rem; color: #333; max-height: 90px; overflow-y: auto; background: #f8f9fa; border-radius: 4px; padding: 4px; }
+        .comments-display:empty { display: none; }
+        .comment-item { padding: 4px; border-bottom: 1px solid #eee; word-break: break-all; }
+        .comment-item:last-child { border-bottom: none; }
+        
         .action-row { display: flex; gap: 5px; }
-        .action-btn { flex: 1; padding: 6px; font-size: 0.7rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-align: center; color: white; }
-        .copy-link-btn { background: #6c757d; }
-        .line-btn { background: var(--line-green); }
+        .comment-input { flex: 1; border: 1px solid #ddd; border-radius: 4px; padding: 6px; font-size: 0.8rem; box-sizing: border-box; }
+        .action-btn { padding: 6px; font-size: 0.7rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-align: center; color: white; }
+        .add-btn { background: var(--primary); width: 45px; }
+        .copy-link-btn { background: #6c757d; flex: 1; }
+        .line-btn { background: var(--line-green); flex: 1; }
 
-        /* スタッツテーブル */
         .stats-section-title { font-size: 0.85rem; font-weight: bold; padding: 8px; background: #f0f0f0; margin-top: 15px; border-radius: 4px; border-left: 5px solid #333; }
         .stats-container { overflow-x: auto; margin-bottom: 25px; border: 1px solid #eee; }
         .stats-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; white-space: nowrap; }
@@ -146,8 +152,19 @@
 </div>
 
 <script>
+    // ==========================================
+    // ⚠️ Supabaseの初期設定（ここにキーを貼り付けます）
+    // ==========================================
+    const SUPABASE_URL = 'https://mqkoahmpuqjttlpubeoo.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xa29haG1wdXFqdHRscHViZW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDUyMDQsImV4cCI6MjA4OTQ4MTIwNH0.iIsfV5Cf_rPApNACbMvFVCiPZrLVDeGOYRB4op-0KCI';
+    
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let matchComments = {}; // クラウドから取得したコメントを一時保存する箱
+    // ==========================================
+
     let player, allPlays = [], rallies = [], matchMap = {}, playerMaster = {}, allMatchData = [], currentMode = 'rally', currentIndex = -1, checkInterval;
     let currentMatchDVW = "";
+    window.initLinkData = { t: null };
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'playsinline': 1, 'rel': 0, 'modestbranding': 1 }, events: { 'onReady': fetchMatchList, 'onStateChange': onPlayerStateChange } });
@@ -169,14 +186,14 @@
             
             const params = new URLSearchParams(window.location.search);
             const pMatch = params.get('match');
-            const pTime = params.get('t');
+            window.initLinkData.t = params.get('t');
 
             if (pMatch) {
                 const target = allMatchData.find(m => m.dvw === pMatch);
                 if (target) {
                     filterMatchList(target.cat);
                     document.getElementById('matchSelect').value = pMatch;
-                    onMatchChange(pMatch, pTime);
+                    onMatchChange(pMatch);
                     return;
                 }
             }
@@ -193,17 +210,33 @@
         });
     }
 
-    function onMatchChange(dvw, startTime = null) { 
+    function onMatchChange(dvw) { 
         if (!dvw) return; 
         currentMatchDVW = dvw;
         player.loadVideoById(matchMap[dvw]); 
-        if (startTime) {
-            setTimeout(() => player.seekTo(parseFloat(startTime), true), 1000);
-        }
         fetch(dvw).then(res => res.text()).then(parseDVW); 
     }
 
-    function parseDVW(text) {
+    // Supabaseから現在の試合の全コメントを取得する関数
+    async function loadCommentsFromCloud() {
+        const { data, error } = await supabaseClient
+            .from('comments')
+            .select('*')
+            .eq('match_dvw', currentMatchDVW)
+            .order('created_at', { ascending: true }); // 古い順に並べる
+
+        matchComments = {};
+        if (data && !error) {
+            data.forEach(row => {
+                if (!matchComments[row.play_id]) matchComments[row.play_id] = [];
+                matchComments[row.play_id].push(row.comment_text);
+            });
+        } else if (error) {
+            console.error("コメント取得エラー:", error);
+        }
+    }
+
+    async function parseDVW(text) {
         allPlays = []; rallies = []; playerMaster = {};
         const lines = text.split('\n');
         let currentSection = "", runningScore = "00-00", hSets = 0, aSets = 0, teamCount = 0, tempRally = null;
@@ -251,7 +284,32 @@
                 }
             }
         });
-        updateFilters(); render();
+        
+        updateFilters(); 
+
+        // データベースからコメントを取得してから画面を描画する
+        await loadCommentsFromCloud();
+        
+        if (window.initLinkData.t) {
+            const targetTime = parseFloat(window.initLinkData.t);
+            let targetIdx = 0; let minDiff = Infinity;
+            rallies.forEach((d, i) => { 
+                let diff = Math.abs(d.startTime - targetTime);
+                if (diff < minDiff) { minDiff = diff; targetIdx = i; }
+            });
+
+            render(); 
+
+            setTimeout(() => {
+                playIndex(targetIdx);
+                const actionsDiv = document.getElementById(`actions-${targetIdx}`);
+                if (actionsDiv) actionsDiv.classList.add('show');
+            }, 1000);
+
+            window.initLinkData = { t: null };
+        } else {
+            render();
+        }
     }
 
     function updateFilters() {
@@ -309,9 +367,10 @@
             const winC = d.wonBy === '*' ? 'win-home' : (d.wonBy === 'a' ? 'win-away' : '');
             const btn = document.createElement('div'); btn.className = `instance-btn ${winC}`; btn.id = 'idx-'+i;
             
-            const savedComment = localStorage.getItem(`${currentMatchDVW}_${d.id}`) || "";
+            // クラウドから取得したコメントを描画
+            const commentsArr = matchComments[d.id] || [];
+            const commentsHTML = commentsArr.map(c => `<div class="comment-item">・${c}</div>`).join('');
 
-            // アコーディオンのUI構造
             btn.innerHTML = `
                 <div class="card-main" onclick="playIndex(${i})">
                     <div class="score-box">${d.score}</div>
@@ -319,10 +378,14 @@
                 </div>
                 <button class="toggle-actions-btn" onclick="toggleActions(event, ${i})">💬 メモ/共有</button>
                 <div class="card-actions" id="actions-${i}">
-                    <input type="text" class="comment-input" placeholder="メモを入力..." value="${savedComment}" onchange="saveComment(${d.id}, this.value)" onclick="event.stopPropagation()">
+                    <div class="comments-display" id="c-disp-${d.id}">${commentsHTML}</div>
                     <div class="action-row">
-                        <button class="action-btn copy-link-btn" onclick="event.stopPropagation(); copyLink(${d.startTime})">URLコピー</button>
-                        <button class="action-btn line-btn" onclick="event.stopPropagation(); shareLine(${d.id}, ${d.startTime})">LINE送信</button>
+                        <input type="text" class="comment-input" id="c-input-${d.id}" placeholder="クラウドに保存..." onclick="event.stopPropagation()">
+                        <button class="action-btn add-btn" onclick="event.stopPropagation(); addComment(${d.id})">送信</button>
+                    </div>
+                    <div class="action-row" style="margin-top:2px;">
+                        <button class="action-btn copy-link-btn" onclick="event.stopPropagation(); copyLink(${d.startTime})">動画URLコピー</button>
+                        <button class="action-btn line-btn" onclick="event.stopPropagation(); shareLine(${d.id}, ${d.startTime})">LINEで知らせる</button>
                     </div>
                 </div>
             `;
@@ -330,17 +393,41 @@
         });
     }
 
-    // --- UI/共有のアクション関数 ---
     function toggleActions(event, index) {
-        event.stopPropagation(); // プレイ再生が発火しないようにする
+        event.stopPropagation(); 
         const actionsDiv = document.getElementById(`actions-${index}`);
         actionsDiv.classList.toggle('show');
     }
 
-    function saveComment(playId, text) {
-        localStorage.setItem(`${currentMatchDVW}_${playId}`, text);
+    // コメントをSupabaseに保存する関数
+    async function addComment(playId) {
+        const input = document.getElementById(`c-input-${playId}`);
+        const text = input.value.trim();
+        if (!text) return;
+
+        // まず画面上（ローカル）に即座に反映させる
+        if (!matchComments[playId]) matchComments[playId] = [];
+        matchComments[playId].push(text);
+        
+        input.value = ""; // 入力欄を空にする
+        const disp = document.getElementById(`c-disp-${playId}`);
+        disp.innerHTML = matchComments[playId].map(c => `<div class="comment-item">・${c}</div>`).join('');
+        disp.style.display = "block";
+
+        // 裏側でデータベースへ送信
+        const { error } = await supabaseClient
+            .from('comments')
+            .insert([
+                { match_dvw: currentMatchDVW, play_id: playId, comment_text: text }
+            ]);
+
+        if (error) {
+            console.error("保存失敗:", error);
+            alert("クラウドへの保存に失敗しました。");
+        }
     }
 
+    // URL共有は非常にシンプルになりました（msgsパラメータが不要）
     function getLink(startTime) {
         const url = new URL(window.location.href);
         url.searchParams.set('match', currentMatchDVW);
@@ -354,13 +441,13 @@
     }
 
     function shareLine(playId, startTime) {
-        const comment = localStorage.getItem(`${currentMatchDVW}_${playId}`) || "";
         const link = getLink(startTime);
-        const text = `【HTH分析】\n${comment}\n${link}`;
+        // コメント本文は送らなくても、相手が開けばデータベースから最新のものが表示されます
+        let text = `【HTH分析】このプレーを見て！\n\n${link}`;
         window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
     }
 
-    // --- スタッツ表の完全な復元 ---
+    // --- スタッツ表 ---
     function renderDualTables() {
         const list = document.getElementById('instanceList'); list.innerHTML = '';
         ["*", "a"].forEach(side => {
@@ -408,14 +495,16 @@
         render(); if (currentData.length > 0) playIndex(0); 
     }
 
-    // --- 動画制御 ---
     function playIndex(i) {
         if (i < 0 || i >= currentData.length) return;
         currentIndex = i; const d = currentData[i]; player.seekTo(d.startTime, true); player.playVideo();
-        document.getElementById('ov-h-sets').innerText = d.hSets; document.getElementById('ov-a-sets').innerText = d.aSets;
+        
+        document.getElementById('ov-h-sets').innerText = d.hSets; 
+        document.getElementById('ov-a-sets').innerText = d.aSets;
         const s = d.score.split('-'); 
         document.getElementById('ov-h-score').innerText = parseInt(s[0]) || 0; 
         document.getElementById('ov-a-score').innerText = parseInt(s[1]) || 0;
+        
         document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('idx-' + i)?.classList.add('active');
         document.getElementById('idx-' + i)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
