@@ -14,7 +14,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>HTH Pro Scouting v0.8.6</title>
+    <title>HTH Pro Scouting v0.8.8</title>
     <style>
         :root { 
             --primary: #007bff; --primary-hover: #0056b3; 
@@ -113,7 +113,7 @@
         .copy-link-btn { background: #6c757d; flex: 1; }
         .line-btn { background: var(--line-green); flex: 1; }
 
-        /* Tag Popup Styles */
+        /* Mobile Tag Popup Styles */
         .tag-popup {
             position: absolute; bottom: 45px; left: 0; background: #fff; border: 1px solid #ccc; 
             border-radius: 8px; display: none; flex-wrap: wrap; gap: 5px; padding: 8px; 
@@ -122,6 +122,16 @@
         .tag-popup.show { display: flex; }
         .tag-chip { background: #f0f0f0; border: 1px solid #ddd; padding: 4px 10px; border-radius: 15px; font-size: 0.75rem; cursor: pointer; font-weight: bold; color: var(--primary); }
         .tag-chip:hover { background: var(--primary); color: white; }
+
+        /* Custom Auto-Suggest Dropdown */
+        .auto-suggest-box {
+            position: absolute; bottom: 100%; left: 45px; background: #fff; border: 1px solid #ccc;
+            border-radius: 6px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); display: none;
+            z-index: 150; max-height: 160px; overflow-y: auto; min-width: 140px; margin-bottom: 5px;
+        }
+        .s-item { padding: 8px 12px; font-size: 0.8rem; cursor: pointer; color: #333; font-weight: bold; border-bottom: 1px solid #eee; }
+        .s-item:last-child { border-bottom: none; }
+        .s-item:hover, .s-item.active { background: var(--primary); color: #fff; }
 
         /* PC Table Compact Fix */
         .stats-section-title { font-weight: 900; padding: 15px 0 5px; border-bottom: 2px solid #333; margin-top: 20px; }
@@ -206,7 +216,7 @@
 </div>
 
 <button id="shortcut-btn" onclick="toggleShortcuts()">⌨️ Shortcuts</button>
-<div id="shortcut-modal" onclick="toggleShortcuts()"><div class="modal-content" onclick="event.stopPropagation()"><h3>Keyboard Shortcuts</h3><ul><li><span>Next / Prev</span> <kbd>F</kbd> / <kbd>D</kbd></li><li><span>Repeat</span> <kbd>R</kbd></li><li><span>-2s / +2s</span> <kbd>←</kbd> / <kbd>→</kbd></li><li><span>Draw On/Save</span> <kbd>P</kbd></li><li><span>Focus Note</span> <kbd>C</kbd></li><li><span>Submit</span> <kbd>Enter</kbd></li></ul><button class="close-modal-btn" onclick="toggleShortcuts()">Close</button></div></div>
+<div id="shortcut-modal" onclick="toggleShortcuts()"><div class="modal-content" onclick="event.stopPropagation()"><h3>Keyboard Shortcuts</h3><ul><li><span>Next / Prev</span> <kbd>F</kbd> / <kbd>D</kbd></li><li><span>Repeat</span> <kbd>R</kbd></li><li><span>-2s / +2s</span> <kbd>←</kbd> / <kbd>→</kbd></li><li><span>Draw On/Save</span> <kbd>P</kbd></li><li><span>Focus Note</span> <kbd>C</kbd></li><li><span>Submit</span> <kbd>Enter</kbd></li><li><span>Select Tag</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd></li></ul><button class="close-modal-btn" onclick="toggleShortcuts()">Close</button></div></div>
 
 <script>
     const SUPABASE_URL = 'https://mqkoahmpuqjttlpubeoo.supabase.co';
@@ -338,7 +348,12 @@
                     <div class="action-row">
                         <div class="tag-popup" id="tags-${d.id}">${starterTags.map(t => `<div class="tag-chip" onclick="applyTag(${d.id}, '${t}')">${t}</div>`).join('')}</div>
                         <button class="tag-trigger" onclick="event.stopPropagation(); toggleTagPopup(${d.id})">#</button>
-                        <input type="text" class="comment-input" id="c-input-${d.id}" placeholder="Add a comment..." onclick="event.stopPropagation()">
+                        
+                        <div style="flex:1; position:relative;">
+                            <input type="text" class="comment-input" id="c-input-${d.id}" placeholder="Add a comment... (e.g. mb, good)" autocomplete="off" oninput="handleSuggestInput(event, ${d.id})" onclick="event.stopPropagation()" style="width:100%;">
+                            <div class="auto-suggest-box" id="suggest-${d.id}"></div>
+                        </div>
+
                         <button class="action-btn add-btn" onclick="event.stopPropagation(); addComment(${d.id})">Send</button>
                     </div>
                     <div class="action-row" style="margin-top:2px;"><button class="action-btn copy-link-btn" onclick="event.stopPropagation(); copyLink(${d.startTime})">Copy Link</button><button class="action-btn line-btn" onclick="event.stopPropagation(); shareLine(${d.id}, ${d.startTime})">Share LINE</button></div>
@@ -348,11 +363,65 @@
         });
     }
 
-    function toggleTagPopup(playId) { 
-        hideAllTagPopups();
-        document.getElementById(`tags-${playId}`).classList.toggle('show'); 
+    // --- Custom Auto-Suggest Logic ---
+    function handleSuggestInput(e, playId) {
+        const val = e.target.value;
+        const cursorStart = e.target.selectionStart;
+        const textBeforeCursor = val.substring(0, cursorStart);
+        const words = textBeforeCursor.split(/\s+/);
+        const currentWord = words[words.length - 1];
+        const suggestBox = document.getElementById(`suggest-${playId}`);
+        
+        if (currentWord.length > 0) {
+            const searchStr = currentWord.replace(/^#/, '').toLowerCase();
+            const matches = starterTags.filter(t => t.toLowerCase().includes(searchStr) || t.toLowerCase().replace(/^#/, '').includes(searchStr));
+            
+            if (matches.length > 0) {
+                suggestBox.innerHTML = matches.map((m, idx) => `<div class="s-item ${idx === 0 ? 'active' : ''}" onclick="event.stopPropagation(); selectSuggest(${playId}, '${m}')">${m}</div>`).join('');
+                suggestBox.style.display = 'block';
+                suggestBox.dataset.activeIdx = 0;
+                suggestBox.dataset.word = currentWord;
+                return;
+            }
+        }
+        suggestBox.style.display = 'none';
     }
-    function hideAllTagPopups() { document.querySelectorAll('.tag-popup').forEach(p => p.classList.remove('show')); }
+
+    function selectSuggest(playId, tag) {
+        const input = document.getElementById(`c-input-${playId}`);
+        const suggestBox = document.getElementById(`suggest-${playId}`);
+        const currentWord = suggestBox.dataset.word;
+        
+        const val = input.value;
+        const cursorStart = input.selectionStart;
+        const textBeforeCursor = val.substring(0, cursorStart);
+        const textAfterCursor = val.substring(cursorStart);
+        
+        const newTextBefore = textBeforeCursor.substring(0, textBeforeCursor.length - currentWord.length) + tag + ' ';
+        input.value = newTextBefore + textAfterCursor;
+        input.focus();
+        input.selectionStart = input.selectionEnd = newTextBefore.length;
+        
+        suggestBox.style.display = 'none';
+    }
+
+    function updateSuggestHighlight(suggestBox, index) {
+        const items = suggestBox.querySelectorAll('.s-item');
+        items.forEach(el => el.classList.remove('active'));
+        if(items[index]) items[index].classList.add('active');
+        suggestBox.dataset.activeIdx = index;
+    }
+    // ---------------------------------
+
+    function toggleTagPopup(playId) { 
+        const alreadyShow = document.getElementById(`tags-${playId}`).classList.contains('show');
+        hideAllTagPopups();
+        if(!alreadyShow) document.getElementById(`tags-${playId}`).classList.add('show'); 
+    }
+    function hideAllTagPopups() { 
+        document.querySelectorAll('.tag-popup').forEach(p => p.classList.remove('show')); 
+        document.querySelectorAll('.auto-suggest-box').forEach(p => p.style.display = 'none');
+    }
     function applyTag(playId, tag) { 
         const input = document.getElementById(`c-input-${playId}`); 
         input.value = (input.value.trim() + " " + tag).trim() + " "; 
@@ -411,9 +480,47 @@
     function onPlayerStateChange(e) { if (e.data == 1 && document.getElementById('autoNext').checked) startTracking(); else clearInterval(checkInterval); }
     function startTracking() { clearInterval(checkInterval); checkInterval = setInterval(() => { if (currentIndex >= 0 && currentData[currentIndex]) { const now = player.getCurrentTime(), d = currentData[currentIndex]; let limit = (currentMode === 'player') ? d.endTime : (d.rallyEndTime || (d.startTime + 6.0)); if (now > limit && currentIndex < currentData.length - 1) playNext(); } }, 500); }
 
+    // Enhanced Keyboard Shortcuts with Auto-Suggest Nav
     window.addEventListener('keydown', (e) => {
         const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA';
-        if (isInput) { if (e.key === 'Enter' && e.target.classList.contains('comment-input')) { const playId = e.target.id.split('c-input-')[1]; if (playId) addComment(playId); } return; }
+        
+        if (isInput && e.target.classList.contains('comment-input')) {
+            const playId = e.target.id.split('c-input-')[1];
+            const suggestBox = document.getElementById(`suggest-${playId}`);
+            const isSuggestOpen = suggestBox && suggestBox.style.display === 'block';
+
+            if (isSuggestOpen) {
+                let activeIdx = parseInt(suggestBox.dataset.activeIdx) || 0;
+                const items = suggestBox.querySelectorAll('.s-item');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    activeIdx = (activeIdx + 1) % items.length;
+                    updateSuggestHighlight(suggestBox, activeIdx);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    activeIdx = (activeIdx - 1 + items.length) % items.length;
+                    updateSuggestHighlight(suggestBox, activeIdx);
+                } else if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    if (items[activeIdx]) items[activeIdx].click();
+                } else if (e.key === 'Escape') {
+                    suggestBox.style.display = 'none';
+                }
+                
+                // Block these keys from doing other things when suggestion box is open
+                if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(e.key)) return;
+            } else {
+                if (e.key === 'Enter') {
+                    if (playId) addComment(playId);
+                    return;
+                }
+            }
+            return; // Ignore general shortcuts while typing
+        }
+
+        if (isInput) return;
+
         const key = e.key.toLowerCase();
         if (key === 'f') playNext(); else if (key === 'd') playPrev(); else if (key === 'r') { player.seekTo(currentData[currentIndex].startTime, true); player.playVideo(); }
         else if (e.key === 'ArrowLeft') { player.seekTo(player.getCurrentTime() - 2, true); e.preventDefault(); }
