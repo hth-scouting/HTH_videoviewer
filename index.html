@@ -14,7 +14,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>HTH Pro Scouting v0.8.3</title>
+    <title>HTH Pro Scouting v0.8.4</title>
     <style>
         :root { 
             --primary: #007bff; --primary-hover: #0056b3; 
@@ -115,10 +115,11 @@
         .copy-link-btn { background: #6c757d; flex: 1; }
         .line-btn { background: var(--line-green); flex: 1; }
 
+        /* PC版 Tableのコンパクト化修正 */
         .stats-section-title { font-weight: 900; padding: 15px 0 5px; border-bottom: 2px solid #333; margin-top: 20px; }
         .stats-container { width: 100%; overflow-x: auto; margin-bottom: 20px; background: #fff; border-radius: 8px; border: 1px solid #eee; }
-        .stats-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 500px; }
-        .stats-table th, .stats-table td { border: 1px solid #eee; padding: 8px 4px; text-align: center; }
+        .stats-table { width: auto; border-collapse: collapse; font-size: 0.65rem; margin: 0 auto; min-width: 400px; }
+        .stats-table th, .stats-table td { border: 1px solid #eee; padding: 5px 4px; text-align: center; }
         .stats-table th { background: #f8f9fa; font-weight: bold; }
         .click-num { color: var(--primary); font-weight: bold; cursor: pointer; text-decoration: underline; }
 
@@ -126,14 +127,18 @@
             body { flex-direction: column; }
             #video-side { width: 100%; height: 0; padding-top: 56.25%; flex: none; }
             #control-side { width: 100%; flex: 1; }
-            #score-overlay { top: 10px; left: 10px; width: 120px; }
-            .ov-team-box { font-size: 0.7rem; padding-left: 5px; }
-            .ov-sets-box, .ov-points-box { font-size: 0.8rem; width: 30px; }
-            .score-row { height: 30px; }
+            
+            /* スマホ版スコアボードの極小化（以前の50%サイズ） */
+            #score-overlay { top: 5px !important; left: 5px !important; width: 60px !important; border-radius: 4px !important; }
+            .ov-team-box { font-size: 0.4rem !important; padding-left: 2px !important; }
+            .ov-sets-box, .ov-points-box { font-size: 0.5rem !important; width: 15px !important; }
+            .score-row { height: 15px !important; }
+            .sticky-bar { width: 2px !important; }
+            
             .card-main { padding-right: 10px; flex-direction: column; align-items: flex-start; }
             .top-right-actions { position: relative; top: 0; right: 0; margin-top: 10px; width: 100%; justify-content: flex-end; }
             
-            /* Omit Draw button on mobile to save space and prevent misclicks */
+            /* Omit Draw button on mobile */
             .draw-trigger-btn { display: none !important; }
         }
     </style>
@@ -233,17 +238,12 @@
     let currentMatchDVW = "", currentCategory = "All", matchComments = {}, matchLikes = {}, matchDrawings = {}, likedPlaysSession = new Set();
     window.initLinkData = { t: null, q: null };
 
-    // プレイヤーの準備が完了してからリストを読み込む
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', { 
-            height: '100%', 
-            width: '100%', 
+            height: '100%', width: '100%', 
             playerVars: { 'playsinline': 1, 'rel': 0, 'modestbranding': 1, 'origin': location.origin }, 
             events: { 
-                'onReady': () => {
-                    initTelestrator();
-                    fetchMatchList();
-                }, 
+                'onReady': () => { initTelestrator(); fetchMatchList(); }, 
                 'onStateChange': onPlayerStateChange 
             } 
         });
@@ -268,7 +268,6 @@
                 window.initLinkData.q = params.get('q');
                 onMatchChange(mParam);
             } else if (allMatchData.length > 0) {
-                // URL指定がない場合は、リストの最初の試合を自動読み込み
                 const firstDVW = allMatchData[0].dvw;
                 document.getElementById('matchSelect').value = firstDVW;
                 onMatchChange(firstDVW);
@@ -497,11 +496,24 @@
     }
     function clearCanvas() { drawingLines = []; renderDrawing(); }
     function clearCanvasVisuals() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    
+    // Save Drawing - Modified to Delete then Insert to avoid Upsert errors
     async function saveDrawing() {
-        const data = JSON.parse(JSON.stringify(drawingLines)); matchDrawings[activePlayIdForDraw] = data; render(); exitDrawMode();
+        const data = JSON.parse(JSON.stringify(drawingLines)); 
+        matchDrawings[activePlayIdForDraw] = data; 
+        render(); 
+        exitDrawMode();
         if(typeof player.playVideo === 'function') player.playVideo();
-        const { error } = await supabaseClient.from('drawings').upsert([{ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw, drawing_data: JSON.stringify(data) }], { onConflict: 'match_dvw,play_id' });
-        if (error) alert("Failed to save.");
+        
+        // 1. Delete existing drawing for this play
+        await supabaseClient.from('drawings').delete().match({ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw });
+        // 2. Insert new drawing
+        const { error } = await supabaseClient.from('drawings').insert([{ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw, drawing_data: JSON.stringify(data) }]);
+        
+        if (error) {
+            console.error("Save Error:", error);
+            alert("Failed to save drawing.");
+        }
     }
 
     async function addLike(playId) {
