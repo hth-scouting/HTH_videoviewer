@@ -14,121 +14,158 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>HTH Pro Scouting v0.8.0 (Telestrator)</title>
+    <title>HTH Pro Scouting v0.8.2 (Ergonomic UI)</title>
     <style>
-        :root { --primary: #007bff; --home-accent: #f06292; --away-accent: #64b5f6; --score-bg: rgba(255, 255, 255, 0.95); --line-green: #06C755; }
-        body, html { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Inter', -apple-system, sans-serif; }
-        body { display: flex; background: #f0f2f5; }
+        :root { 
+            --primary: #007bff; --primary-hover: #0056b3; 
+            --home-accent: #f06292; --away-accent: #64b5f6; 
+            --score-bg: rgba(255, 255, 255, 0.95); --line-green: #06C755; 
+            --bg-light: #f8f9fa; --text-main: #333; --text-muted: #666;
+        }
+        body, html { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { display: flex; background: #eaedf1; } /* 全体の背景を少し落ち着いた色に */
 
         #video-side { flex: 3.5; background: #000; position: relative; }
         #player-box { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; }
         #player { width: 100%; height: 100%; }
 
-        /* お絵かき用Canvas（通常時は pointer-events: none でクリックをすり抜ける！） */
-        #telestratorCanvas {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 15;
-        }
-        /* 描画モード時はクリックを受け付ける */
-        #telestratorCanvas.drawing-mode {
-            pointer-events: auto; z-index: 30; cursor: crosshair;
-        }
+        /* お絵かき用Canvas */
+        #telestratorCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15; }
+        #telestratorCanvas.drawing-mode { pointer-events: auto; z-index: 30; cursor: crosshair; }
 
         /* 描画ツールバー */
         #draw-toolbar {
             display: none; position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 30px; z-index: 40;
-            gap: 10px; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.85); padding: 10px 20px; border-radius: 30px; z-index: 40;
+            gap: 12px; align-items: center; box-shadow: 0 8px 16px rgba(0,0,0,0.3); backdrop-filter: blur(5px);
         }
-        .draw-btn { background: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+        .draw-btn { background: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .draw-btn:hover { transform: scale(1.05); }
         .draw-btn.save { background: var(--line-green); color: white; }
         .draw-btn.cancel { background: #d32f2f; color: white; }
 
+        /* スコアオーバーレイ */
         #score-overlay {
             position: absolute; top: 30px; left: 30px; display: none; flex-direction: column;
-            background: var(--score-bg); border-radius: 9px; overflow: hidden;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3); font-family: 'Oswald', sans-serif; z-index: 10;
-            width: 285px; border: 1px solid #ddd;
+            background: var(--score-bg); border-radius: 12px; overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2); font-family: 'Oswald', sans-serif; z-index: 10;
+            width: 285px; border: 1px solid rgba(0,0,0,0.1);
         }
         .score-row { display: flex; height: 63px; border-bottom: 1px solid #eee; position: relative; }
+        .score-row:last-child { border-bottom: none; }
         .sticky-bar { width: 12px; height: 100%; flex-shrink: 0; }
         .home .sticky-bar { background: var(--home-accent); }
         .away .sticky-bar { background: var(--away-accent); }
-        .ov-team-box { flex: 1; display: flex; align-items: center; padding-left: 15px; font-weight: 700; color: #333; font-size: 1.5rem; background: #fff; }
+        .ov-team-box { flex: 1; display: flex; align-items: center; padding-left: 15px; font-weight: 700; color: var(--text-main); font-size: 1.5rem; background: #fff; }
         .ov-sets-box { width: 52px; display: flex; align-items: center; justify-content: center; background: #fdfdfd; color: #888; font-size: 1.5rem; border-left: 1px solid #eee; }
         .ov-points-box { width: 75px; display: flex; align-items: center; justify-content: center; color: #000; font-size: 2.5rem; font-weight: 800; background: #fff; border-left: 1px solid #eee; }
 
+        /* 動画ナビゲーション */
         .video-nav-btn {
-            position: absolute; top: 50%; transform: translateY(-50%);
-            width: 50px; height: 50px;
-            background: rgba(0, 0, 0, 0.4); color: rgba(255, 255, 255, 0.9);
-            border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 50%;
-            font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; z-index: 20; backdrop-filter: blur(4px); transition: 0.2s;
+            position: absolute; top: 50%; transform: translateY(-50%); width: 54px; height: 54px;
+            background: rgba(0, 0, 0, 0.5); color: rgba(255, 255, 255, 0.9);
+            border: none; border-radius: 50%; font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 20; backdrop-filter: blur(4px); transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
-        .video-nav-btn:hover { background: rgba(0, 0, 0, 0.7); border-color: rgba(255, 255, 255, 0.5); }
-        .nav-prev { left: 15px; }
-        .nav-next { right: 15px; }
+        .video-nav-btn:hover { background: rgba(0, 0, 0, 0.8); transform: translateY(-50%) scale(1.1); }
+        .nav-prev { left: 20px; }
+        .nav-next { right: 20px; }
 
-        #control-side { flex: 1; padding: 15px; overflow-y: auto; background: white; border-left: 1px solid #ddd; box-sizing: border-box; }
-        .mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
-        .mode-tab { flex: 1; min-width: 60px; padding: 10px 5px; border: none; background: #e4e6eb; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 0.75rem; color: #555; }
-        .mode-tab.active { background: var(--primary); color: white; }
+        /* 右側コントロールパネル全体 */
+        #control-side { flex: 1; padding: 15px 20px; overflow-y: auto; background: #fff; border-left: 1px solid #ddd; box-sizing: border-box; display: flex; flex-direction: column; }
         
-        .filter-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
-        .filter-label { font-size: 0.7rem; color: #888; font-weight: bold; display: block; margin-bottom: 4px; text-transform: uppercase; }
-        select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; margin-bottom: 8px; }
+        .mode-tabs { display: flex; gap: 6px; margin-bottom: 15px; flex-wrap: wrap; background: var(--bg-light); padding: 4px; border-radius: 8px; }
+        .mode-tab { flex: 1; min-width: 60px; padding: 10px 5px; border: none; background: transparent; font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 0.8rem; color: var(--text-muted); transition: 0.2s; }
+        .mode-tab.active { background: #fff; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
-        .search-container { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; }
-        .search-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; box-sizing: border-box; }
-        .playlist-action-btns { display: flex; gap: 4px; margin-top: 5px; }
-        .playlist-share-btn { flex: 1; padding: 6px 0; color: white; border: none; border-radius: 4px; font-size: 0.7rem; font-weight: bold; cursor: pointer; text-align: center; }
+        /* フィルターカード（操作盤）の視認性向上 */
+        .filter-card { background: var(--bg-light); border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .filter-label { font-size: 0.7rem; color: #888; font-weight: 700; display: block; margin-bottom: 6px; letter-spacing: 0.5px; }
+        select, .search-input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ced4da; font-size: 0.9rem; margin-bottom: 10px; background: #fff; transition: border-color 0.2s; box-sizing: border-box; }
+        select:focus, .search-input:focus { outline: none; border-color: var(--primary); }
 
-        .set-divider { background: #555; color: white; padding: 6px; font-size: 0.75rem; font-weight: 900; border-radius: 4px; margin: 15px 0 8px 0; text-align: center; }
-        .instance-btn { padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; border-left: 10px solid #ccc; background: #fff; position: relative; }
-        .instance-btn.active { background: #f0f7ff !important; border-color: var(--primary); outline: 2px solid var(--primary); }
+        /* 新UI：検索アコーディオンのトグルボタン */
+        .toggle-search-btn { 
+            width: 100%; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 8px; 
+            font-size: 0.8rem; font-weight: bold; color: var(--text-main); cursor: pointer; 
+            display: flex; justify-content: space-between; align-items: center; transition: 0.2s; 
+            margin-bottom: 5px;
+        }
+        .toggle-search-btn:hover { background: #f0f0f0; }
+        .search-container { display: none; padding-top: 10px; animation: fadeIn 0.3s ease; }
+        .search-container.show { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .playlist-action-btns { display: flex; gap: 8px; margin-top: 5px; }
+        .playlist-share-btn { flex: 1; padding: 10px 0; color: white; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .playlist-share-btn:hover { filter: brightness(0.9); }
+
+        /* プレイリスト（インスタンス）の人間工学的改善 */
+        .set-divider { background: #e9ecef; color: #495057; padding: 8px; font-size: 0.75rem; font-weight: 900; border-radius: 6px; margin: 20px 0 10px 0; text-align: center; letter-spacing: 1px; }
+        
+        .instance-btn { 
+            padding: 12px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 10px; 
+            border-left: 6px solid #ccc; background: #fff; position: relative;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: transform 0.1s, box-shadow 0.1s, border-color 0.2s;
+        }
+        /* ホバー時のアフォーダンス（押せる感） */
+        .instance-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        .instance-btn.active { background: #f0f7ff !important; border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: -1px; }
         .win-home { border-left-color: var(--home-accent) !important; }
         .win-away { border-left-color: var(--away-accent) !important; }
         
-        .card-main { display: flex; align-items: center; cursor: pointer; padding-right: 120px; }
-        .score-box { font-family: "Arial Black"; font-size: 1rem; min-width: 55px; text-align: center; margin-right: 12px; background: #f0f0f0; border-radius: 4px; }
+        .card-main { display: flex; align-items: center; cursor: pointer; padding-right: 140px; min-height: 44px; } /* タップ領域確保 */
+        .score-box { font-family: "Arial Black", sans-serif; font-size: 1.1rem; min-width: 60px; text-align: center; margin-right: 15px; background: var(--bg-light); border-radius: 6px; padding: 4px 0; color: var(--text-main); }
         
-        .top-right-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; z-index: 2; }
-        .action-sm-btn { background: transparent; border: 1px solid #ddd; border-radius: 4px; color: #666; font-size: 0.65rem; padding: 4px 8px; cursor: pointer; transition: 0.2s; }
-        .action-sm-btn:hover { background: #f0f0f0; }
-        .like-btn.liked { background: #ffebee; border-color: #ffcdd2; color: #d32f2f; }
+        /* 押し間違い防止：右上のアクションボタン（チップ風デザイン） */
+        .top-right-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 2; }
+        .action-sm-btn { 
+            background: var(--bg-light); border: 1px solid transparent; border-radius: 16px; 
+            color: var(--text-muted); font-size: 0.7rem; font-weight: bold; 
+            padding: 6px 10px; cursor: pointer; transition: 0.2s; 
+            display: flex; align-items: center; gap: 4px;
+        }
+        .action-sm-btn:hover { background: #e2e6ea; color: var(--text-main); }
+        .like-btn.liked { background: #ffebee; color: #d32f2f; border-color: #ffcdd2; }
         
-        .card-actions { display: none; flex-direction: column; gap: 6px; margin-top: 10px; border-top: 1px dashed #ddd; padding-top: 10px; }
-        .card-actions.show { display: flex; }
+        /* コメント/共有エリア */
+        .card-actions { display: none; flex-direction: column; gap: 8px; margin-top: 12px; border-top: 1px dashed #ddd; padding-top: 12px; }
+        .card-actions.show { display: flex; animation: fadeIn 0.2s; }
         
-        .comments-display { font-size: 0.75rem; color: #333; max-height: 90px; overflow-y: auto; background: #f8f9fa; border-radius: 4px; padding: 4px; }
+        .comments-display { font-size: 0.8rem; color: var(--text-main); max-height: 100px; overflow-y: auto; background: var(--bg-light); border-radius: 6px; padding: 8px; line-height: 1.4; }
         .comments-display:empty { display: none; }
-        .comment-item { padding: 4px; border-bottom: 1px solid #eee; word-break: break-all; }
+        .comment-item { padding: 4px 0; border-bottom: 1px solid #eee; word-break: break-all; }
         .comment-item:last-child { border-bottom: none; }
         
-        .action-row { display: flex; gap: 5px; }
-        .comment-input { flex: 1; border: 1px solid #ddd; border-radius: 4px; padding: 6px; font-size: 0.8rem; box-sizing: border-box; }
-        .action-btn { padding: 6px; font-size: 0.7rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-align: center; color: white; }
-        .add-btn { background: var(--primary); width: 45px; }
+        .action-row { display: flex; gap: 8px; }
+        .action-btn { padding: 8px; font-size: 0.75rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; text-align: center; color: white; transition: 0.2s; }
+        .action-btn:hover { filter: brightness(0.9); }
+        .add-btn { background: var(--primary); min-width: 60px; }
         .copy-link-btn { background: #6c757d; flex: 1; }
         .line-btn { background: var(--line-green); flex: 1; }
 
+        /* スマホ最適化 */
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #video-side { width: 100%; height: 0; padding-top: 56.25%; flex: none; position: relative; display: block; }
-            #control-side { width: 100%; flex: 1; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
-            #score-overlay { top: 8px !important; left: 8px !important; width: 95px !important; }
-            .score-row { height: 21px !important; }
-            .ov-team-box { padding-left: 5px !important; font-size: 0.5rem !important; }
-            .ov-sets-box { width: 18px !important; font-size: 0.5rem !important; }
-            .ov-points-box { width: 25px !important; font-size: 0.8rem !important; }
+            #control-side { width: 100%; flex: 1; overflow-y: scroll; -webkit-overflow-scrolling: touch; padding: 10px; }
+            #score-overlay { top: 8px !important; left: 8px !important; width: 100px !important; border-radius: 8px; }
+            .score-row { height: 24px !important; }
+            .ov-team-box { padding-left: 6px !important; font-size: 0.6rem !important; }
+            .ov-sets-box { width: 20px !important; font-size: 0.6rem !important; }
+            .ov-points-box { width: 28px !important; font-size: 0.9rem !important; }
             .sticky-bar { width: 4px !important; }
-            .video-nav-btn { width: 40px; height: 40px; font-size: 1.2rem; }
-            .nav-prev { left: 8px; }
-            .nav-next { right: 8px; }
+            .video-nav-btn { width: 44px; height: 44px; font-size: 1.2rem; }
+            .nav-prev { left: 10px; }
+            .nav-next { right: 10px; }
+            
+            /* スマホ時はボタンのパディングを増やして押しやすく */
+            .action-sm-btn { padding: 8px 12px; font-size: 0.75rem; }
+            .card-main { padding-right: 10px; align-items: flex-start; flex-direction: column; }
+            .top-right-actions { position: relative; top: 0; right: 0; margin-top: 10px; width: 100%; justify-content: flex-end; }
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -146,7 +183,7 @@
     <canvas id="telestratorCanvas"></canvas>
     
     <div id="draw-toolbar">
-        <span style="color:white; font-size:0.8rem; font-weight:bold; margin-right:5px;">描画中</span>
+        <span style="color:white; font-size:0.85rem; font-weight:bold;">✏️ 描画モード</span>
         <button class="draw-btn" onclick="clearCanvas()">クリア</button>
         <button class="draw-btn cancel" onclick="exitDrawMode()">キャンセル</button>
         <button class="draw-btn save" onclick="saveDrawing()">保存</button>
@@ -161,68 +198,63 @@
     </div>
 
     <div class="filter-card" id="filterArea">
-        <span class="filter-label">1. Category</span>
-        <div id="categoryTabs" class="mode-tabs" style="margin-bottom: 8px;"></div>
-        <span class="filter-label">2. Match</span>
+        <span class="filter-label">1. Match</span>
         <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">Select Video...</option></select>
+        
         <div id="rally-filters">
-            <span class="filter-label">3. Server Team (Optional)</span>
-            <select id="teamFilterRally" onchange="render()"><option value="">Both Teams (Default)</option></select>
-        </div>
-        <div id="player-filters" style="display:none;">
-            <span class="filter-label">3. Select Team & Player</span>
-            <div style="display:flex; gap:5px;">
-                <select id="teamFilterPlayer" onchange="onTeamChangePlayer()"><option value="">Choose Team</option></select>
-                <select id="playerFilter" onchange="render()"><option value="">Select Player</option></select>
-            </div>
-            <div style="display:flex; gap:5px;">
-                <div style="flex:1">
-                    <span class="filter-label">4. Skill</span>
-                    <select id="skillFilter" onchange="render()">
-                        <option value="">All Skills</option><option value="S">Serve (S)</option><option value="R">Reception (R)</option><option value="E">Set (E)</option><option value="A">Attack (A)</option><option value="B">Block (B)</option><option value="D">Dig (D)</option>
-                    </select>
-                </div>
-                <div style="flex:1">
-                    <span class="filter-label">5. Effect</span>
-                    <select id="effectFilter" onchange="render()">
-                        <option value="">All Results</option><option value="#">Win (#)</option><option value="=">Error (=)</option><option value="+">Pos/Kill (+)</option><option value="-">Poor (-)</option><option value="!">Neutral (!)</option>
-                    </select>
-                </div>
-            </div>
+            <span class="filter-label">2. Server Team</span>
+            <select id="teamFilterRally" onchange="render()"><option value="">Both Teams</option></select>
         </div>
         
-        <div class="search-container">
-            <span class="filter-label">🔍 コメント/タグで絞り込み</span>
-            <div style="display:flex; flex-direction:column; gap:5px;">
-                <input type="text" id="searchFilter" class="search-input" oninput="render()" placeholder="例: ブロック, #Good">
-                <div class="playlist-action-btns">
-                    <button class="playlist-share-btn" style="background: #6c757d;" onclick="copyPlaylistLink()">URLコピー</button>
-                    <button class="playlist-share-btn" style="background: var(--line-green);" onclick="sharePlaylist()">LINEでリスト共有</button>
+        <div id="player-filters" style="display:none;">
+            <span class="filter-label">2. Select Team & Player</span>
+            <div style="display:flex; gap:8px;">
+                <select id="teamFilterPlayer" onchange="onTeamChangePlayer()"><option value="">Team</option></select>
+                <select id="playerFilter" onchange="render()"><option value="">Player</option></select>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <div style="flex:1">
+                    <span class="filter-label">3. Skill</span>
+                    <select id="skillFilter" onchange="render()">
+                        <option value="">All</option><option value="S">Serve</option><option value="R">Rec</option><option value="E">Set</option><option value="A">Attack</option><option value="B">Block</option><option value="D">Dig</option>
+                    </select>
+                </div>
+                <div style="flex:1">
+                    <span class="filter-label">4. Effect</span>
+                    <select id="effectFilter" onchange="render()">
+                        <option value="">All</option><option value="#">Win (#)</option><option value="=">Error (=)</option><option value="+">Pos (+)</option><option value="-">Poor (-)</option><option value="!">Neutral (!)</option>
+                    </select>
                 </div>
             </div>
         </div>
 
-        <div style="display:flex; align-items:center; gap:8px; font-size:0.7rem; color:#666; margin-top:8px;">
-            <input type="checkbox" id="autoNext" checked> <label for="autoNext" id="autoNextLabel">Auto-Skip (プレイリスト連続再生)</label>
+        <button class="toggle-search-btn" onclick="toggleSearchArea()">
+            <span>🔍 コメント/タグ検索・リスト共有</span>
+            <span id="searchArrow">▼</span>
+        </button>
+        <div class="search-container" id="searchArea">
+            <input type="text" id="searchFilter" class="search-input" oninput="render()" placeholder="キーワードを入力 (例: ブロック, #Good)">
+            <div class="playlist-action-btns">
+                <button class="playlist-share-btn" style="background: #6c757d;" onclick="copyPlaylistLink()">URLコピー</button>
+                <button class="playlist-share-btn" style="background: var(--line-green);" onclick="sharePlaylist()">LINEで共有</button>
+            </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem; color:var(--text-muted); margin-top:12px; font-weight:bold;">
+            <input type="checkbox" id="autoNext" checked style="width:auto; margin:0;"> 
+            <label for="autoNext" id="autoNextLabel" style="cursor:pointer;">自動スキップ (Auto-Skip)</label>
         </div>
     </div>
+    
     <div id="instanceList"></div>
 </div>
 
 <script>
-    // ==========================================
-    // Supabaseの初期設定
-    // ==========================================
     const SUPABASE_URL = 'https://mqkoahmpuqjttlpubeoo.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xa29haG1wdXFqdHRscHViZW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDUyMDQsImV4cCI6MjA4OTQ4MTIwNH0.iIsfV5Cf_rPApNACbMvFVCiPZrLVDeGOYRB4op-0KCI';
-    
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    let matchComments = {}; 
-    let matchLikes = {}; 
-    let matchDrawings = {}; // クラウドから取得したお絵かきデータを保持
-    let likedPlaysSession = new Set(); 
-    // ==========================================
+    let matchComments = {}; let matchLikes = {}; let matchDrawings = {}; let likedPlaysSession = new Set(); 
 
     let player, allPlays = [], rallies = [], matchMap = {}, playerMaster = {}, allMatchData = [], currentMode = 'rally', currentIndex = -1, checkInterval;
     let currentMatchDVW = "";
@@ -230,21 +262,16 @@
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'playsinline': 1, 'rel': 0, 'modestbranding': 1 }, events: { 'onReady': fetchMatchList, 'onStateChange': onPlayerStateChange } });
-        initTelestrator(); // Canvasの初期化
+        initTelestrator();
     }
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag);
 
     function fetchMatchList() {
         fetch('list.txt').then(res => res.text()).then(data => {
-            allMatchData = []; const categories = new Set();
+            allMatchData = [];
             data.split('\n').forEach(line => {
                 const p = line.split(',').map(s => s.trim()); if (p.length < 3) return;
-                allMatchData.push({ cat: p[0], dvw: p[1], vid: p[2] }); categories.add(p[0]);
-            });
-            const tabArea = document.getElementById('categoryTabs'); tabArea.innerHTML = '';
-            categories.forEach(cat => {
-                const btn = document.createElement('button'); btn.className = 'mode-tab'; btn.id = 'cat-' + cat; btn.innerText = cat;
-                btn.onclick = () => filterMatchList(cat); tabArea.appendChild(btn);
+                allMatchData.push({ cat: p[0], dvw: p[1], vid: p[2] });
             });
             
             const params = new URLSearchParams(window.location.search);
@@ -252,25 +279,16 @@
             window.initLinkData.t = params.get('t');
             window.initLinkData.q = params.get('q'); 
 
-            if (pMatch) {
-                const target = allMatchData.find(m => m.dvw === pMatch);
-                if (target) {
-                    filterMatchList(target.cat);
-                    document.getElementById('matchSelect').value = pMatch;
-                    onMatchChange(pMatch);
-                    return;
-                }
-            }
-            if (categories.size > 0) filterMatchList(Array.from(categories)[0]);
-        });
-    }
+            // Matchのプルダウン生成
+            const select = document.getElementById('matchSelect'); select.innerHTML = '<option value="">Select Video...</option>';
+            allMatchData.forEach(m => {
+                matchMap[m.dvw] = m.vid; select.add(new Option(m.dvw.replace('.dvw',''), m.dvw));
+            });
 
-    function filterMatchList(cat) {
-        document.querySelectorAll('[id^="cat-"]').forEach(b => b.classList.remove('active'));
-        document.getElementById('cat-' + cat)?.classList.add('active');
-        const select = document.getElementById('matchSelect'); select.innerHTML = '<option value="">Select Video...</option>';
-        allMatchData.filter(m => m.cat === cat).forEach(m => {
-            matchMap[m.dvw] = m.vid; select.add(new Option(m.dvw.replace('.dvw',''), m.dvw));
+            if (pMatch && matchMap[pMatch]) {
+                document.getElementById('matchSelect').value = pMatch;
+                onMatchChange(pMatch);
+            }
         });
     }
 
@@ -281,11 +299,24 @@
         fetch(dvw).then(res => res.text()).then(parseDVW); 
     }
 
+    // 検索エリアのトグル機能
+    function toggleSearchArea() {
+        const area = document.getElementById('searchArea');
+        const arrow = document.getElementById('searchArrow');
+        if (area.classList.contains('show')) {
+            area.classList.remove('show');
+            arrow.innerText = '▼';
+        } else {
+            area.classList.add('show');
+            arrow.innerText = '▲';
+        }
+    }
+
     async function loadCloudData() {
         const [commentsRes, likesRes, drawingsRes] = await Promise.all([
             supabaseClient.from('comments').select('*').eq('match_dvw', currentMatchDVW).order('created_at', { ascending: true }),
             supabaseClient.from('likes').select('play_id').eq('match_dvw', currentMatchDVW),
-            supabaseClient.from('drawings').select('*').eq('match_dvw', currentMatchDVW).order('created_at', { ascending: false }) // 最新のものを上に
+            supabaseClient.from('drawings').select('*').eq('match_dvw', currentMatchDVW).order('created_at', { ascending: false })
         ]);
 
         matchComments = {};
@@ -302,10 +333,9 @@
         matchDrawings = {};
         if (drawingsRes.data) {
             drawingsRes.data.forEach(row => {
-                // 最新のものだけを保持（上書き）
                 if (!matchDrawings[row.play_id]) {
                     try { matchDrawings[row.play_id] = JSON.parse(row.drawing_data); } 
-                    catch(e) { console.error("描画データの解析に失敗しました", e); }
+                    catch(e) {}
                 }
             });
         }
@@ -373,11 +403,11 @@
         
         updateFilters(); 
         await loadCloudData(); 
-        
         if (window.initLinkData.q) {
             document.getElementById('searchFilter').value = window.initLinkData.q;
+            document.getElementById('searchArea').classList.add('show'); // Qがあればアコーディオンを開く
+            document.getElementById('searchArrow').innerText = '▲';
         }
-
         render(); 
         
         if (window.initLinkData.t) {
@@ -395,23 +425,22 @@
         } else if (window.initLinkData.q && currentData.length > 0) {
             setTimeout(() => { playIndex(0); }, 1000);
         }
-
         window.initLinkData = { t: null, q: null };
     }
 
     function updateFilters() {
         const hCode = document.getElementById('ov-h-code').innerText;
         const aCode = document.getElementById('ov-a-code').innerText;
-        const tr = document.getElementById('teamFilterRally'); tr.innerHTML = '<option value="">Both Teams (Default)</option>';
+        const tr = document.getElementById('teamFilterRally'); tr.innerHTML = '<option value="">Both Teams</option>';
         tr.add(new Option(hCode + " Serves", "*")); tr.add(new Option(aCode + " Serves", "a"));
-        const tp = document.getElementById('teamFilterPlayer'); tp.innerHTML = '<option value="">Choose Team</option>';
+        const tp = document.getElementById('teamFilterPlayer'); tp.innerHTML = '<option value="">Team</option>';
         tp.add(new Option(hCode, "*")); tp.add(new Option(aCode, "a"));
         document.getElementById('score-overlay').style.display = 'flex';
     }
 
     function onTeamChangePlayer() {
         const team = document.getElementById('teamFilterPlayer').value;
-        const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">Select Player</option>';
+        const ps = document.getElementById('playerFilter'); ps.innerHTML = '<option value="">Player</option>';
         if (!team) return; const seen = new Set();
         allPlays.filter(p => p.side === team).forEach(p => {
             if (!seen.has(p.pName)) { ps.add(new Option(`#${p.pNum} ${p.pName}`, p.pName)); seen.add(p.pName); }
@@ -441,7 +470,7 @@
             const playerF = document.getElementById('playerFilter').value;
             const skillF = document.getElementById('skillFilter').value;
             const effectF = document.getElementById('effectFilter').value;
-            if (!teamF) { list.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Select a Team</p>'; return; }
+            if (!teamF) { list.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">チームを選択してください</div>'; return; }
             currentData = allPlays.filter(d => d.side === teamF && (!playerF || d.pName === playerF) && (!skillF || d.skill === skillF) && (!effectF || (effectF === 'loss' ? (d.effect === '=' || d.effect === '/') : d.effect === effectF)));
         }
 
@@ -453,7 +482,7 @@
                 return targetText.includes(searchQ);
             });
             if (currentData.length === 0) {
-                list.innerHTML = `<p style="text-align:center; padding:20px; color:#888;">「${searchQ}」に一致するプレイはありません。</p>`;
+                list.innerHTML = `<div style="text-align:center; padding:30px; color:#888; font-weight:bold;">「${searchQ}」に一致するプレイはありません。</div>`;
                 return;
             }
         }
@@ -473,31 +502,35 @@
             const likesCount = matchLikes[d.id] || 0;
             const likedClass = likedPlaysSession.has(d.id) ? 'liked' : '';
 
-            // お絵かきが存在する場合はペンアイコンを目立たせる
             const hasDrawing = matchDrawings[d.id] && matchDrawings[d.id].length > 0;
-            const drawBtnStyle = hasDrawing ? 'color: var(--primary); border-color: var(--primary); font-weight: bold;' : '';
+            const drawBtnStyle = hasDrawing ? 'color: #d32f2f; font-weight: 900; background: #ffebee;' : '';
 
             btn.innerHTML = `
                 <div class="card-main" onclick="playIndex(${i})">
                     <div class="score-box">${d.score}</div>
-                    <div style="flex:1">#${d.pNum} ${d.pName.split(' ')[0]}<br><small>P${d.rot} | ${d.skill}${d.effect}</small></div>
+                    <div style="flex:1; line-height:1.2;">
+                        <strong>#${d.pNum} ${d.pName.split(' ')[0]}</strong><br>
+                        <small style="color:var(--text-muted);">P${d.rot} | ${d.skill}${d.effect}</small>
+                    </div>
                 </div>
                 
                 <div class="top-right-actions">
-                    <button class="action-sm-btn like-btn ${likedClass}" id="like-btn-${d.id}" onclick="event.stopPropagation(); addLike(${d.id})">👍 ${likesCount}</button>
-                    <button class="action-sm-btn" style="${drawBtnStyle}" onclick="event.stopPropagation(); enterDrawMode(${d.id})">✏️ 描画</button>
+                    <button class="action-sm-btn like-btn ${likedClass}" id="like-btn-${d.id}" onclick="event.stopPropagation(); addLike(${d.id})">
+                        👍 <span>${likesCount}</span>
+                    </button>
+                    <button class="action-sm-btn" style="${drawBtnStyle}" onclick="event.stopPropagation(); enterDrawMode(${d.id})">✏️ 赤ペン</button>
                     <button class="action-sm-btn" onclick="toggleActions(event, ${i})">💬 メモ</button>
                 </div>
 
                 <div class="card-actions" id="actions-${i}">
                     <div class="comments-display" id="c-disp-${d.id}">${commentsHTML}</div>
                     <div class="action-row">
-                        <input type="text" class="comment-input" id="c-input-${d.id}" placeholder="クラウドに保存..." onclick="event.stopPropagation()">
+                        <input type="text" class="comment-input" id="c-input-${d.id}" placeholder="コメントを追加..." onclick="event.stopPropagation()">
                         <button class="action-btn add-btn" onclick="event.stopPropagation(); addComment(${d.id})">送信</button>
                     </div>
                     <div class="action-row" style="margin-top:2px;">
-                        <button class="action-btn copy-link-btn" onclick="event.stopPropagation(); copyLink(${d.startTime})">動画URLコピー</button>
-                        <button class="action-btn line-btn" onclick="event.stopPropagation(); shareLine(${d.id}, ${d.startTime})">LINEで知らせる</button>
+                        <button class="action-btn copy-link-btn" onclick="event.stopPropagation(); copyLink(${d.startTime})">個別URLコピー</button>
+                        <button class="action-btn line-btn" onclick="event.stopPropagation(); shareLine(${d.id}, ${d.startTime})">LINEで送る</button>
                     </div>
                 </div>
             `;
@@ -511,55 +544,106 @@
         actionsDiv.classList.toggle('show');
     }
 
+    // ==========================================
+    // 🎨 テレストレーター（赤ペン）機能
+    // ==========================================
+    const canvas = document.getElementById('telestratorCanvas');
+    const ctx = canvas.getContext('2d');
+    let isDrawingMode = false, isDrawing = false;
+    let drawingLines = [], currentPath = [], activePlayIdForDraw = null;
+
+    function initTelestrator() {
+        resizeCanvas(); window.addEventListener('resize', resizeCanvas);
+        canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing);
+        canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false});
+        canvas.addEventListener('touchend', stopDrawing);
+    }
+    function resizeCanvas() {
+        const box = document.getElementById('player-box'); if(!box) return;
+        canvas.width = box.offsetWidth; canvas.height = box.offsetHeight; renderDrawing();
+    }
+    function getNormPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        let clientX = e.clientX, clientY = e.clientY;
+        if (e.touches && e.touches.length > 0) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
+        return { x: (clientX - rect.left) / canvas.width, y: (clientY - rect.top) / canvas.height };
+    }
+    function startDrawing(e) {
+        if (!isDrawingMode) return; e.preventDefault();
+        isDrawing = true; currentPath = [getNormPos(e)]; drawingLines.push(currentPath);
+    }
+    function draw(e) {
+        if (!isDrawing || !isDrawingMode) return; e.preventDefault();
+        currentPath.push(getNormPos(e)); renderDrawing();
+    }
+    function stopDrawing() { isDrawing = false; }
+    function renderDrawing() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.shadowBlur = 2; ctx.shadowColor = 'rgba(255,255,255,0.8)';
+        drawingLines.forEach(path => {
+            if (path.length < 2) return;
+            ctx.beginPath(); ctx.moveTo(path[0].x * canvas.width, path[0].y * canvas.height);
+            for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x * canvas.width, path[i].y * canvas.height);
+            ctx.stroke();
+        });
+    }
+    function enterDrawMode(playId) {
+        if(typeof player.pauseVideo === 'function') player.pauseVideo();
+        isDrawingMode = true; activePlayIdForDraw = playId;
+        canvas.classList.add('drawing-mode'); document.getElementById('draw-toolbar').style.display = 'flex';
+        resizeCanvas();
+        drawingLines = matchDrawings[playId] ? JSON.parse(JSON.stringify(matchDrawings[playId])) : [];
+        renderDrawing();
+    }
+    function exitDrawMode() {
+        isDrawingMode = false; canvas.classList.remove('drawing-mode');
+        document.getElementById('draw-toolbar').style.display = 'none'; clearCanvasVisuals();
+    }
+    function clearCanvas() { drawingLines = []; renderDrawing(); }
+    function clearCanvasVisuals() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+    async function saveDrawing() {
+        const saveData = JSON.parse(JSON.stringify(drawingLines));
+        matchDrawings[activePlayIdForDraw] = saveData; render(); exitDrawMode();
+        if(typeof player.playVideo === 'function') player.playVideo();
+        const { error } = await supabaseClient.from('drawings').upsert([{ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw, drawing_data: JSON.stringify(saveData) }], { onConflict: 'match_dvw,play_id' });
+        if (error) { console.error("保存エラー", error); alert("保存に失敗しました。"); }
+    }
+    // ==========================================
+
     async function addLike(playId) {
-        if (likedPlaysSession.has(playId)) return;
-        likedPlaysSession.add(playId);
+        if (likedPlaysSession.has(playId)) return; likedPlaysSession.add(playId);
         matchLikes[playId] = (matchLikes[playId] || 0) + 1;
         const btn = document.getElementById(`like-btn-${playId}`);
-        if (btn) { btn.innerHTML = `👍 ${matchLikes[playId]}`; btn.classList.add('liked'); }
+        if (btn) { btn.innerHTML = `👍 <span>${matchLikes[playId]}</span>`; btn.classList.add('liked'); }
         await supabaseClient.from('likes').insert([{ match_dvw: currentMatchDVW, play_id: playId }]);
     }
-
     async function addComment(playId) {
-        const input = document.getElementById(`c-input-${playId}`);
-        const text = input.value.trim();
-        if (!text) return;
-        if (!matchComments[playId]) matchComments[playId] = [];
-        matchComments[playId].push(text);
-        input.value = ""; 
-        const disp = document.getElementById(`c-disp-${playId}`);
-        disp.innerHTML = matchComments[playId].map(c => `<div class="comment-item">・${c}</div>`).join('');
-        disp.style.display = "block";
+        const input = document.getElementById(`c-input-${playId}`); const text = input.value.trim(); if (!text) return;
+        if (!matchComments[playId]) matchComments[playId] = []; matchComments[playId].push(text);
+        input.value = ""; const disp = document.getElementById(`c-disp-${playId}`);
+        disp.innerHTML = matchComments[playId].map(c => `<div class="comment-item">・${c}</div>`).join(''); disp.style.display = "block";
         await supabaseClient.from('comments').insert([{ match_dvw: currentMatchDVW, play_id: playId, comment_text: text }]);
     }
 
     function getLink(startTime) {
-        const url = new URL(window.location.href);
-        url.searchParams.set('match', currentMatchDVW);
-        url.searchParams.set('t', Math.floor(startTime));
-        return url.toString();
+        const url = new URL(window.location.href); url.searchParams.set('match', currentMatchDVW); url.searchParams.set('t', Math.floor(startTime)); return url.toString();
     }
-    
     function copyLink(startTime) { navigator.clipboard.writeText(getLink(startTime)).then(() => alert("リンクをコピーしました")); }
-    
     function shareLine(playId, startTime) {
-        const link = getLink(startTime);
-        window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【HTH分析】このプレーを見て！\n\n" + link)}`, '_blank');
+        window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【HTH分析】このプレーを見て！\n\n" + getLink(startTime))}`, '_blank');
     }
 
     function getPlaylistLink() {
-        const q = document.getElementById('searchFilter').value.trim();
-        const url = new URL(window.location.href);
-        url.searchParams.set('match', currentMatchDVW);
-        if (q) url.searchParams.set('q', q); else url.searchParams.delete('q');
-        url.searchParams.delete('t'); 
-        return url.toString();
+        const q = document.getElementById('searchFilter').value.trim(); const url = new URL(window.location.href);
+        url.searchParams.set('match', currentMatchDVW); if (q) url.searchParams.set('q', q); else url.searchParams.delete('q'); url.searchParams.delete('t'); return url.toString();
     }
     function copyPlaylistLink() { navigator.clipboard.writeText(getPlaylistLink()).then(() => alert("プレイリストのリンクをコピーしました！")); }
     function sharePlaylist() {
         const q = document.getElementById('searchFilter').value.trim();
-        const title = q ? `「${q}」のプレイリスト` : "全プレイリスト";
-        const text = `【HTH プレイ集】\n${title}が共有されました。\n開くと自動再生されます！\n\n${getPlaylistLink()}`;
+        const text = `【HTH プレイ集】\n${q ? `「${q}」のプレイリスト` : "全プレイリスト"}が共有されました。\n開くと自動再生されます！\n\n${getPlaylistLink()}`;
         window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
     }
 
@@ -606,150 +690,11 @@
         document.getElementById('effectFilter').value = eff; render(); if (currentData.length > 0) playIndex(0); 
     }
 
-    // ==========================================
-    // 🎨 テレストレーター（お絵かき）機能
-    // ==========================================
-    const canvas = document.getElementById('telestratorCanvas');
-    const ctx = canvas.getContext('2d');
-    let isDrawingMode = false;
-    let isDrawing = false;
-    let drawingLines = []; // 現在画面に表示されている線
-    let currentPath = [];
-    let activePlayIdForDraw = null;
-
-    function initTelestrator() {
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        
-        // マウス＆タッチイベント
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
-        
-        canvas.addEventListener('touchstart', startDrawing, {passive: false});
-        canvas.addEventListener('touchmove', draw, {passive: false});
-        canvas.addEventListener('touchend', stopDrawing);
-    }
-
-    function resizeCanvas() {
-        // Video要素のサイズに合わせる
-        const box = document.getElementById('player-box');
-        canvas.width = box.offsetWidth;
-        canvas.height = box.offsetHeight;
-        renderDrawing(); // リサイズされても歪まないように再描画
-    }
-
-    // 画面サイズが変わっても同じ位置に描画できるように、座標を「割合（0.0〜1.0）」で取得
-    function getNormPos(e) {
-        const rect = canvas.getBoundingClientRect();
-        let clientX = e.clientX;
-        let clientY = e.clientY;
-        if (e.touches && e.touches.length > 0) {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
-        }
-        return { x: (clientX - rect.left) / canvas.width, y: (clientY - rect.top) / canvas.height };
-    }
-
-    function startDrawing(e) {
-        if (!isDrawingMode) return;
-        e.preventDefault();
-        isDrawing = true;
-        currentPath = [getNormPos(e)];
-        drawingLines.push(currentPath);
-    }
-
-    function draw(e) {
-        if (!isDrawing || !isDrawingMode) return;
-        e.preventDefault();
-        currentPath.push(getNormPos(e));
-        renderDrawing();
-    }
-
-    function stopDrawing() {
-        isDrawing = false;
-    }
-
-    function renderDrawing() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = '#ffeb3b'; // 蛍光イエロー
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.shadowBlur = 5;
-        ctx.shadowColor = 'rgba(0,0,0,0.5)'; // 見やすくするための影
-
-        drawingLines.forEach(path => {
-            if (path.length < 2) return;
-            ctx.beginPath();
-            ctx.moveTo(path[0].x * canvas.width, path[0].y * canvas.height);
-            for (let i = 1; i < path.length; i++) {
-                ctx.lineTo(path[i].x * canvas.width, path[i].y * canvas.height);
-            }
-            ctx.stroke();
-        });
-    }
-
-    function enterDrawMode(playId) {
-        player.pauseVideo(); // 動画を一時停止
-        isDrawingMode = true;
-        activePlayIdForDraw = playId;
-        
-        // Canvasのクリックブロックを解除し、一番手前へ
-        canvas.classList.add('drawing-mode');
-        document.getElementById('draw-toolbar').style.display = 'flex';
-        
-        resizeCanvas();
-        // すでに保存されている絵があれば読み込む
-        drawingLines = matchDrawings[playId] ? JSON.parse(JSON.stringify(matchDrawings[playId])) : [];
-        renderDrawing();
-    }
-
-    function exitDrawMode() {
-        isDrawingMode = false;
-        canvas.classList.remove('drawing-mode');
-        document.getElementById('draw-toolbar').style.display = 'none';
-        
-        // 描画状態をリセットし、動画上の線を消す（データは残る）
-        clearCanvasVisuals();
-    }
-
-    function clearCanvas() {
-        drawingLines = [];
-        renderDrawing();
-    }
-    
-    function clearCanvasVisuals() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-
-    async function saveDrawing() {
-        matchDrawings[activePlayIdForDraw] = JSON.parse(JSON.stringify(drawingLines));
-        
-        const { error } = await supabaseClient
-            .from('drawings')
-            .insert([{ 
-                match_dvw: currentMatchDVW, 
-                play_id: activePlayIdForDraw, 
-                drawing_data: JSON.stringify(drawingLines) 
-            }]);
-
-        if (error) {
-            console.error("お絵かき保存エラー:", error);
-            alert("保存に失敗しました。");
-        } else {
-            render(); // ペンアイコンの色を変えるためにリスト再描画
-        }
-        
-        exitDrawMode();
-        player.playVideo(); // 保存したら再生再開
-    }
-    // ==========================================
-
     function playIndex(i) {
         if (i < 0 || i >= currentData.length) return;
-        currentIndex = i; const d = currentData[i]; player.seekTo(d.startTime, true); player.playVideo();
+        currentIndex = i; const d = currentData[i]; 
+        if(typeof player.seekTo === 'function') player.seekTo(d.startTime, true); 
+        if(typeof player.playVideo === 'function') player.playVideo();
         
         document.getElementById('ov-h-sets').innerText = d.hSets; 
         document.getElementById('ov-a-sets').innerText = d.aSets;
@@ -757,11 +702,9 @@
         document.getElementById('ov-h-score').innerText = parseInt(s[0]) || 0; 
         document.getElementById('ov-a-score').innerText = parseInt(s[1]) || 0;
         
-        // 描画データがあれば、再生開始時に画面にフワッと表示する
         resizeCanvas();
         if (matchDrawings[d.id] && matchDrawings[d.id].length > 0) {
-            drawingLines = matchDrawings[d.id];
-            renderDrawing();
+            drawingLines = matchDrawings[d.id]; renderDrawing();
         } else {
             clearCanvasVisuals();
         }
@@ -774,19 +717,13 @@
     function playNext() { if (currentIndex < currentData.length - 1) playIndex(currentIndex + 1); }
     function playPrev() { if (currentIndex > 0) playIndex(currentIndex - 1); }
 
-    function toggleOverlay() { 
-        document.querySelectorAll('.vid-ui').forEach(el => { el.style.display = (el.style.display === 'none') ? 'flex' : 'none'; });
-    }
+    function toggleOverlay() { document.querySelectorAll('.vid-ui').forEach(el => { el.style.display = (el.style.display === 'none') ? 'flex' : 'none'; }); }
 
     function onPlayerStateChange(e) { 
-        // 動画が再生状態（1）になったら、数秒後にお絵かきをフワッと消すなどの処理も可能
-        // 今回は「再生されるとお絵かきが消える」仕様にして視界をクリアに保つ
         if (e.data == 1) {
             if (!isDrawingMode) clearCanvasVisuals(); 
             if (document.getElementById('autoNext').checked) startTracking();
-        } else {
-            clearInterval(checkInterval);
-        }
+        } else { clearInterval(checkInterval); }
     }
     
     function startTracking() {
@@ -802,9 +739,7 @@
 
     window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-        const key = e.key.toLowerCase();
-        if (key === 'f') playNext();
-        else if (key === 'd') playPrev();
+        const key = e.key.toLowerCase(); if (key === 'f') playNext(); else if (key === 'd') playPrev();
     });
 </script>
 </body>
