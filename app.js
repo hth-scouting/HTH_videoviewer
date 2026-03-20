@@ -2,10 +2,24 @@ const SUPABASE_URL = 'https://mqkoahmpuqjttlpubeoo.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xa29haG1wdXFqdHRscHViZW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDUyMDQsImV4cCI6MjA4OTQ4MTIwNH0.iIsfV5Cf_rPApNACbMvFVCiPZrLVDeGOYRB4op-0KCI';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// 【修正】LINEのURL破壊対策：安全なパラメータ取得
+function getSafeURLParams() {
+    const params = new URLSearchParams(window.location.search);
+    let q = params.get('q');
+    const href = window.location.href;
+    if (!q) {
+        if (href.includes('q=#')) q = '#' + href.split('q=#')[1].split('&')[0];
+        else if (href.includes('q=%23')) q = '#' + href.split('q=%23')[1].split('&')[0];
+    }
+    return { match: params.get('match'), t: params.get('t'), q: q ? decodeURIComponent(q) : null };
+}
+
+const urlParams = getSafeURLParams();
+window.initLinkData = { t: urlParams.t, q: urlParams.q };
+
 let player, allPlays = [], rallies = [], matchMap = {}, playerMaster = {}, allMatchData = [], currentMode = 'rally', currentIndex = -1, checkInterval;
 let currentMatchDVW = "", currentCategory = "All", matchComments = {}, matchLikes = {}, matchDrawings = {}, likedPlaysSession = new Set();
 const starterTags = ["#MB","#OH","#OP","#S","#L","#Good","#Bad","#System","#Transition","#BlockDefense","#Javi"];
-window.initLinkData = { t: null, q: null };
 
 function onYouTubeIframeAPIReady() { 
     player = new YT.Player('player', { 
@@ -63,15 +77,14 @@ function fetchMatchList() {
     ]).then(([txtData, dbRes]) => {
         allMatchData = []; let cats = new Set(["All"]);
         
-        // 【修正点】DB Data (New) を先（上）に入れる
+        // DB Data
         if(dbRes && dbRes.data) {
             dbRes.data.forEach(m => {
                 allMatchData.push({ cat: m.category, dvw: m.dvw_url, vid: m.youtube_id, display_name: m.dvw_filename });
                 cats.add(m.category);
             });
         }
-
-        // TXT Data (Legacy) を後（下）に入れる
+        // TXT Data
         if(txtData) {
             txtData.split('\n').forEach(line => {
                 const p = line.split(',').map(s => s.trim()); 
@@ -81,12 +94,9 @@ function fetchMatchList() {
 
         renderCategoryTabs(Array.from(cats)); updateMatchDropdown();
         
-        const params = new URLSearchParams(window.location.search);
-        const mParam = params.get('match');
+        const mParam = window.initLinkData.match || urlParams.match;
         if (mParam && matchMap[mParam]) { 
             document.getElementById('matchSelect').value = mParam; 
-            window.initLinkData.t = params.get('t'); 
-            window.initLinkData.q = params.get('q'); 
             onMatchChange(mParam); 
         } else if (allMatchData.length > 0) { 
             onMatchChange(allMatchData[0].dvw); 
@@ -154,18 +164,19 @@ async function parseDVW(text) {
             }
         }
     });
+    
     updateFilters(); await loadCloudData(); 
     
-    // 【復活】URLパラメータの `q` があれば検索窓にセットする
+    // URLからのプレイリスト読み込み適用
     if (window.initLinkData.q) { 
         document.getElementById('searchFilter').value = window.initLinkData.q; 
         document.getElementById('searchArea').classList.add('show'); 
         document.getElementById('searchArrow').innerText = '▲'; 
     }
-    
+
     render();
 
-    // 【復活】時間指定（t）かキーワード指定（q）があれば、プレイリストの頭から自動再生
+    // プレイごとの単体共有（t）か、プレイリスト共有（q）での自動再生
     if (window.initLinkData.t) { 
         setTimeout(() => { 
             const t = parseFloat(window.initLinkData.t); let targetIdx = 0, minDiff = Infinity; 
@@ -177,7 +188,8 @@ async function parseDVW(text) {
         setTimeout(() => { playIndex(0); }, 1000);
     }
     
-    window.initLinkData = { t: null, q: null };
+    // 一度処理したらリセットする
+    window.initLinkData = { t: null, q: null, match: null };
 }
 
 function updateFilters() {
@@ -197,12 +209,36 @@ function setMode(m) { currentMode = m; document.querySelectorAll('.mode-tab').fo
 
 let currentData = [];
 function render() {
-    const list = document.getElementById('instanceList'); list.innerHTML = ''; if (currentMode === 'stats') { renderDualTables(); return; }
-    let data = (currentMode === 'rally') ? rallies : allPlays;
-    if (currentMode === 'rally') { const teamF = document.getElementById('teamFilterRally').value; if(teamF) data = data.filter(d => d.side === teamF); }
-    else { const teamF = document.getElementById('teamFilterPlayer').value, pF = document.getElementById('playerFilter').value, sF = document.getElementById('skillFilter').value, eF = document.getElementById('effectFilter').value; if (!teamF) { list.innerHTML = '<div style="padding:20px; color:#888;">Please select a team</div>'; return; } data = data.filter(d => d.side === teamF && (!pF || d.pName === pF) && (!sF || d.skill === sF) && (!eF || d.effect === eF)); }
-    const q = document.getElementById('searchFilter').value.toLowerCase().trim(); if (q) data = data.filter(d => `${d.pName} ${d.skill} ${(matchComments[d.id]||[]).join(' ')}`.toLowerCase().includes(q));
+    const list = document.getElementById('instanceList'); list.innerHTML = ''; 
+    if (currentMode === 'stats') { renderDualTables(); return; }
+    
+    let data = [];
+    const q = document.getElementById('searchFilter').value.toLowerCase().trim();
+
+    // 【修正】検索キーワードがある場合は、タブ状態を無視して「全プレイ」から探す（グローバル検索）
+    if (q) {
+        data = allPlays.filter(d => `${d.pName} ${d.skill} ${(matchComments[d.id]||[]).join(' ')}`.toLowerCase().includes(q));
+    } else {
+        // キーワードがない通常時は、これまでのタブルールに従う
+        if (currentMode === 'rally') { 
+            data = rallies;
+            const teamF = document.getElementById('teamFilterRally').value; 
+            if(teamF) data = data.filter(d => d.side === teamF); 
+        } else { 
+            data = allPlays;
+            const teamF = document.getElementById('teamFilterPlayer').value; 
+            if (!teamF) { list.innerHTML = '<div style="padding:20px; color:#888;">Please select a team</div>'; return; } 
+            const pF = document.getElementById('playerFilter').value, sF = document.getElementById('skillFilter').value, eF = document.getElementById('effectFilter').value; 
+            data = data.filter(d => d.side === teamF && (!pF || d.pName === pF) && (!sF || d.skill === sF) && (!eF || d.effect === eF)); 
+        }
+    }
+
     currentData = data;
+    
+    if (currentData.length === 0) {
+        list.innerHTML = `<div style="padding:20px; color:#888;">No plays found.</div>`; return;
+    }
+
     let lastSet = -1;
     currentData.forEach((d, i) => {
         if (d.setNum !== lastSet) { list.innerHTML += `<div class="stats-section-title" style="border:none; text-align:center; background:#eee; font-size:0.7rem;">SET ${d.setNum}</div>`; lastSet = d.setNum; }
@@ -295,7 +331,7 @@ function shareLine(playId, startTime) { const link = getLink(startTime); window.
 function copyPlaylistLink() { const q = document.getElementById('searchFilter').value.trim(); const u = new URL(getSafeBaseUrl()); u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); navigator.clipboard.writeText(u.toString()).then(() => alert("Playlist link copied!")); }
 function sharePlaylist() { const q = document.getElementById('searchFilter').value.trim(); const u = new URL(getSafeBaseUrl()); u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【HTH Playlist】\n" + u.toString())}`, '_blank'); }
 
-// 【完全維持】TABLE (v0.8.4 style with jumpToStat)
+// TABLE
 function renderDualTables() { const list = document.getElementById('instanceList'); list.innerHTML = ''; ["*", "a"].forEach(side => { const team = side === "*" ? document.getElementById('ov-h-code').innerText : document.getElementById('ov-a-code').innerText; list.innerHTML += `<div class="stats-section-title">${team} Statistics</div><div class="stats-container"><table class="stats-table" id="t-${side}"></table></div>`; buildTable(side, `t-${side}`); }); }
 function buildTable(side, targetId) {
     const ps = []; const seen = new Set();
