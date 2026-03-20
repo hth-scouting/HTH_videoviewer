@@ -14,7 +14,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>HTH Pro Scouting v0.8.8</title>
+    <title>HTH Pro Scouting v0.8.9</title>
     <style>
         :root { 
             --primary: #007bff; --primary-hover: #0056b3; 
@@ -133,13 +133,23 @@
         .s-item:last-child { border-bottom: none; }
         .s-item:hover, .s-item.active { background: var(--primary); color: #fff; }
 
-        /* PC Table Compact Fix */
+        /* PC Table Compact Fix (v0.8.4 style restored) */
         .stats-section-title { font-weight: 900; padding: 15px 0 5px; border-bottom: 2px solid #333; margin-top: 20px; }
         .stats-container { width: 100%; overflow-x: auto; margin-bottom: 20px; background: #fff; border-radius: 8px; border: 1px solid #eee; }
-        .stats-table { width: auto; border-collapse: collapse; font-size: 0.6rem; margin: 0 auto; min-width: 400px; }
-        .stats-table th, .stats-table td { border: 1px solid #eee; padding: 4px 3px; text-align: center; }
+        .stats-table { width: auto; border-collapse: collapse; font-size: 0.65rem; margin: 0 auto; min-width: 400px; }
+        .stats-table th, .stats-table td { border: 1px solid #eee; padding: 5px 4px; text-align: center; }
         .stats-table th { background: #f8f9fa; font-weight: bold; }
         .click-num { color: var(--primary); font-weight: bold; cursor: pointer; text-decoration: underline; }
+
+        /* Match Uploader Modal */
+        #add-match-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 300; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .add-match-content { background: #fff; color: #333; padding: 25px; border-radius: 12px; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .add-match-content h3 { margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; color: var(--primary); }
+        .fm-group { margin-bottom: 15px; }
+        .fm-group label { display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; color: #555; }
+        .fm-group input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 0.9rem; }
+        .add-btn-submit { width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .add-btn-submit:hover { background: var(--primary-hover); }
 
         #shortcut-btn { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); color: #fff; border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer; z-index: 50; font-weight: bold; font-size: 0.8rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         #shortcut-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
@@ -195,6 +205,8 @@
     </div>
 
     <div class="filter-card" id="filterArea">
+        <button onclick="document.getElementById('add-match-modal').style.display='flex'" style="width:100%; margin-bottom:15px; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">➕ Add New Match</button>
+        
         <span class="filter-label">1. Category</span>
         <div id="catTabs" class="cat-tabs"></div>
         <span class="filter-label">2. Match</span>
@@ -215,6 +227,17 @@
     <div id="instanceList"></div>
 </div>
 
+<div id="add-match-modal" onclick="this.style.display='none'">
+    <div class="add-match-content" onclick="event.stopPropagation()">
+        <h3>➕ Add New Match</h3>
+        <div class="fm-group"><label>Category (e.g., V.LEAGUE)</label><input type="text" id="am-cat" placeholder="Category Name"></div>
+        <div class="fm-group"><label>YouTube URL</label><input type="text" id="am-yt" placeholder="https://youtu.be/..."></div>
+        <div class="fm-group"><label>DVW File</label><input type="file" id="am-file" accept=".dvw"></div>
+        <button class="add-btn-submit" id="am-submit-btn" onclick="submitNewMatch()">Upload & Save</button>
+        <button class="add-btn-submit" style="background:#ccc; color:#333; margin-top:8px;" onclick="document.getElementById('add-match-modal').style.display='none'">Cancel</button>
+    </div>
+</div>
+
 <button id="shortcut-btn" onclick="toggleShortcuts()">⌨️ Shortcuts</button>
 <div id="shortcut-modal" onclick="toggleShortcuts()"><div class="modal-content" onclick="event.stopPropagation()"><h3>Keyboard Shortcuts</h3><ul><li><span>Next / Prev</span> <kbd>F</kbd> / <kbd>D</kbd></li><li><span>Repeat</span> <kbd>R</kbd></li><li><span>-2s / +2s</span> <kbd>←</kbd> / <kbd>→</kbd></li><li><span>Draw On/Save</span> <kbd>P</kbd></li><li><span>Focus Note</span> <kbd>C</kbd></li><li><span>Submit</span> <kbd>Enter</kbd></li><li><span>Select Tag</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd></li></ul><button class="close-modal-btn" onclick="toggleShortcuts()">Close</button></div></div>
 
@@ -231,14 +254,70 @@
     function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height:'100%', width:'100%', playerVars:{'playsinline':1,'rel':0,'modestbranding':1}, events:{'onReady':()=>{initTelestrator();fetchMatchList();},'onStateChange':onPlayerStateChange}}); }
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag);
 
+    // Hybrid Uploader & Fetch Logic
+    async function submitNewMatch() {
+        const cat = document.getElementById('am-cat').value.trim();
+        const ytUrl = document.getElementById('am-yt').value.trim();
+        const fileInput = document.getElementById('am-file');
+        
+        if(!cat || !ytUrl || !fileInput.files.length) return alert("Please fill all fields.");
+
+        let ytId = ytUrl;
+        try {
+            if(ytUrl.includes('v=')) ytId = ytUrl.split('v=')[1].split('&')[0];
+            else if(ytUrl.includes('youtu.be/')) ytId = ytUrl.split('youtu.be/')[1].split('?')[0];
+        } catch(e) {}
+
+        const file = fileInput.files[0];
+        const fileName = Date.now() + "_" + file.name;
+        const btn = document.getElementById('am-submit-btn');
+        btn.innerText = "Uploading..."; btn.disabled = true;
+
+        try {
+            const { error: uploadError } = await supabaseClient.storage.from('dvw_files').upload(fileName, file);
+            if(uploadError) throw uploadError;
+
+            const { data: urlData } = supabaseClient.storage.from('dvw_files').getPublicUrl(fileName);
+            const publicUrl = urlData.publicUrl;
+
+            const { error: dbError } = await supabaseClient.from('matches').insert([{ category: cat, dvw_filename: fileName, dvw_url: publicUrl, youtube_id: ytId }]);
+            if(dbError) throw dbError;
+
+            alert("Match added successfully!");
+            document.getElementById('add-match-modal').style.display = 'none';
+            document.getElementById('am-cat').value = ''; document.getElementById('am-yt').value = ''; document.getElementById('am-file').value = '';
+            fetchMatchList(); 
+        } catch(e) {
+            console.error(e); alert("Failed to add match: " + e.message);
+        } finally {
+            btn.innerText = "Upload & Save"; btn.disabled = false;
+        }
+    }
+
     function fetchMatchList() {
-        fetch('list.txt').then(res => res.text()).then(data => {
+        Promise.all([
+            fetch('list.txt').then(res => res.ok ? res.text() : "").catch(()=>""),
+            supabaseClient.from('matches').select('*').order('created_at', { ascending: false })
+        ]).then(([txtData, dbRes]) => {
             allMatchData = []; let cats = new Set(["All"]);
-            data.split('\n').forEach(line => {
-                const p = line.split(',').map(s => s.trim()); if (p.length < 3) return;
-                allMatchData.push({ cat: p[0], dvw: p[1], vid: p[2] }); cats.add(p[0]);
-            });
+            
+            // 1. TXT Data (Legacy)
+            if(txtData) {
+                txtData.split('\n').forEach(line => {
+                    const p = line.split(',').map(s => s.trim()); 
+                    if (p.length >= 3) { allMatchData.push({ cat: p[0], dvw: p[1], vid: p[2] }); cats.add(p[0]); }
+                });
+            }
+            // 2. DB Data (New)
+            if(dbRes && dbRes.data) {
+                dbRes.data.forEach(m => {
+                    allMatchData.push({ cat: m.category, dvw: m.dvw_url, vid: m.youtube_id, display_name: m.dvw_filename });
+                    cats.add(m.category);
+                });
+            }
+
             renderCategoryTabs(Array.from(cats)); updateMatchDropdown();
+            
             const params = new URLSearchParams(window.location.search);
             const mParam = params.get('match');
             if (mParam && matchMap[mParam]) { document.getElementById('matchSelect').value = mParam; window.initLinkData.t = params.get('t'); window.initLinkData.q = params.get('q'); onMatchChange(mParam); }
@@ -259,7 +338,10 @@
         const select = document.getElementById('matchSelect'); select.innerHTML = '<option value="">Select Match...</option>';
         matchMap = {};
         allMatchData.filter(m => currentCategory === "All" || m.cat === currentCategory).forEach(m => {
-            matchMap[m.dvw] = m.vid; select.add(new Option(m.dvw.replace('.dvw',''), m.dvw));
+            matchMap[m.dvw] = m.vid; 
+            let name = m.display_name ? m.display_name : m.dvw.replace('.dvw','');
+            if(m.display_name && name.includes('_')) name = name.substring(name.indexOf('_') + 1); // clean timestamp prefix
+            select.add(new Option(name, m.dvw));
         });
     }
 
@@ -363,72 +445,32 @@
         });
     }
 
-    // --- Custom Auto-Suggest Logic ---
     function handleSuggestInput(e, playId) {
-        const val = e.target.value;
-        const cursorStart = e.target.selectionStart;
-        const textBeforeCursor = val.substring(0, cursorStart);
-        const words = textBeforeCursor.split(/\s+/);
-        const currentWord = words[words.length - 1];
-        const suggestBox = document.getElementById(`suggest-${playId}`);
-        
+        const val = e.target.value; const cursorStart = e.target.selectionStart; const textBeforeCursor = val.substring(0, cursorStart);
+        const words = textBeforeCursor.split(/\s+/); const currentWord = words[words.length - 1]; const suggestBox = document.getElementById(`suggest-${playId}`);
         if (currentWord.length > 0) {
             const searchStr = currentWord.replace(/^#/, '').toLowerCase();
             const matches = starterTags.filter(t => t.toLowerCase().includes(searchStr) || t.toLowerCase().replace(/^#/, '').includes(searchStr));
-            
             if (matches.length > 0) {
                 suggestBox.innerHTML = matches.map((m, idx) => `<div class="s-item ${idx === 0 ? 'active' : ''}" onclick="event.stopPropagation(); selectSuggest(${playId}, '${m}')">${m}</div>`).join('');
-                suggestBox.style.display = 'block';
-                suggestBox.dataset.activeIdx = 0;
-                suggestBox.dataset.word = currentWord;
-                return;
+                suggestBox.style.display = 'block'; suggestBox.dataset.activeIdx = 0; suggestBox.dataset.word = currentWord; return;
             }
         }
         suggestBox.style.display = 'none';
     }
 
     function selectSuggest(playId, tag) {
-        const input = document.getElementById(`c-input-${playId}`);
-        const suggestBox = document.getElementById(`suggest-${playId}`);
-        const currentWord = suggestBox.dataset.word;
-        
-        const val = input.value;
-        const cursorStart = input.selectionStart;
-        const textBeforeCursor = val.substring(0, cursorStart);
-        const textAfterCursor = val.substring(cursorStart);
-        
+        const input = document.getElementById(`c-input-${playId}`); const suggestBox = document.getElementById(`suggest-${playId}`);
+        const currentWord = suggestBox.dataset.word; const val = input.value; const cursorStart = input.selectionStart;
+        const textBeforeCursor = val.substring(0, cursorStart); const textAfterCursor = val.substring(cursorStart);
         const newTextBefore = textBeforeCursor.substring(0, textBeforeCursor.length - currentWord.length) + tag + ' ';
-        input.value = newTextBefore + textAfterCursor;
-        input.focus();
-        input.selectionStart = input.selectionEnd = newTextBefore.length;
-        
-        suggestBox.style.display = 'none';
+        input.value = newTextBefore + textAfterCursor; input.focus(); input.selectionStart = input.selectionEnd = newTextBefore.length; suggestBox.style.display = 'none';
     }
 
-    function updateSuggestHighlight(suggestBox, index) {
-        const items = suggestBox.querySelectorAll('.s-item');
-        items.forEach(el => el.classList.remove('active'));
-        if(items[index]) items[index].classList.add('active');
-        suggestBox.dataset.activeIdx = index;
-    }
-    // ---------------------------------
-
-    function toggleTagPopup(playId) { 
-        const alreadyShow = document.getElementById(`tags-${playId}`).classList.contains('show');
-        hideAllTagPopups();
-        if(!alreadyShow) document.getElementById(`tags-${playId}`).classList.add('show'); 
-    }
-    function hideAllTagPopups() { 
-        document.querySelectorAll('.tag-popup').forEach(p => p.classList.remove('show')); 
-        document.querySelectorAll('.auto-suggest-box').forEach(p => p.style.display = 'none');
-    }
-    function applyTag(playId, tag) { 
-        const input = document.getElementById(`c-input-${playId}`); 
-        input.value = (input.value.trim() + " " + tag).trim() + " "; 
-        input.focus(); 
-        hideAllTagPopups(); 
-    }
-
+    function updateSuggestHighlight(suggestBox, index) { const items = suggestBox.querySelectorAll('.s-item'); items.forEach(el => el.classList.remove('active')); if(items[index]) items[index].classList.add('active'); suggestBox.dataset.activeIdx = index; }
+    function toggleTagPopup(playId) { const alreadyShow = document.getElementById(`tags-${playId}`).classList.contains('show'); hideAllTagPopups(); if(!alreadyShow) document.getElementById(`tags-${playId}`).classList.add('show'); }
+    function hideAllTagPopups() { document.querySelectorAll('.tag-popup').forEach(p => p.classList.remove('show')); document.querySelectorAll('.auto-suggest-box').forEach(p => p.style.display = 'none'); }
+    function applyTag(playId, tag) { const input = document.getElementById(`c-input-${playId}`); input.value = (input.value.trim() + " " + tag).trim() + " "; input.focus(); hideAllTagPopups(); }
     function toggleActions(event, index, forceShow = false) { if(event) event.stopPropagation(); const actionsDiv = document.getElementById(`actions-${index}`); if(actionsDiv) { if(forceShow) actionsDiv.classList.add('show'); else actionsDiv.classList.toggle('show'); } }
 
     const canvas = document.getElementById('telestratorCanvas'); const ctx = canvas.getContext('2d');
@@ -448,22 +490,65 @@
     async function addLike(playId) { if (likedPlaysSession.has(playId)) return; likedPlaysSession.add(playId); matchLikes[playId] = (matchLikes[playId] || 0) + 1; render(); await supabaseClient.from('likes').insert([{ match_dvw: currentMatchDVW, play_id: playId }]); }
     async function addComment(playId) { const input = document.getElementById(`c-input-${playId}`); const text = input.value.trim(); if (!text) return; if (!matchComments[playId]) matchComments[playId] = []; matchComments[playId].push(text); input.value = ""; render(); await supabaseClient.from('comments').insert([{ match_dvw: currentMatchDVW, play_id: playId, comment_text: text }]); }
 
-    function getLink(startTime) { const u = new URL(window.location.href); u.searchParams.set('match', currentMatchDVW); u.searchParams.set('t', Math.floor(startTime)); return u.toString(); }
+    // LINE / LINK URL BUILDER FIX
+    function getSafeBaseUrl() {
+        return window.location.origin + window.location.pathname;
+    }
+    function getLink(startTime) { 
+        const u = new URL(getSafeBaseUrl()); 
+        u.searchParams.set('match', currentMatchDVW); 
+        u.searchParams.set('t', Math.floor(startTime)); 
+        return u.toString(); 
+    }
     function copyLink(startTime) { navigator.clipboard.writeText(getLink(startTime)).then(() => alert("Link copied!")); }
-    function shareLine(playId, startTime) { window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【HTH Analysis】Check this!\n" + getLink(startTime))}`, '_blank'); }
-    function copyPlaylistLink() { const q = document.getElementById('searchFilter').value.trim(); const u = new URL(window.location.href); u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); navigator.clipboard.writeText(u.toString()).then(() => alert("Playlist link copied!")); }
-    function sharePlaylist() { const q = document.getElementById('searchFilter').value.trim(); const u = new URL(window.location.href); u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【HTH Playlist】\n" + u.toString())}`, '_blank'); }
+    function shareLine(playId, startTime) { 
+        const link = getLink(startTime);
+        window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【HTH Analysis】Check this play!\n\n" + link)}`, '_blank'); 
+    }
+    function copyPlaylistLink() { 
+        const q = document.getElementById('searchFilter').value.trim(); const u = new URL(getSafeBaseUrl()); 
+        u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); 
+        navigator.clipboard.writeText(u.toString()).then(() => alert("Playlist link copied!")); 
+    }
+    function sharePlaylist() { 
+        const q = document.getElementById('searchFilter').value.trim(); const u = new URL(getSafeBaseUrl()); 
+        u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); 
+        window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【HTH Playlist】\n" + u.toString())}`, '_blank'); 
+    }
 
-    function renderDualTables() { const list = document.getElementById('instanceList'); list.innerHTML = ''; ["*", "a"].forEach(side => { const team = side === "*" ? document.getElementById('ov-h-code').innerText : document.getElementById('ov-a-code').innerText; list.innerHTML += `<div class="stats-section-title">${team}</div><div class="stats-container"><table class="stats-table" id="t-${side}"></table></div>`; buildTable(side, `t-${side}`); }); }
+    // TABLE RESTORE (v0.8.4 style with jumpToStat)
+    function renderDualTables() { const list = document.getElementById('instanceList'); list.innerHTML = ''; ["*", "a"].forEach(side => { const team = side === "*" ? document.getElementById('ov-h-code').innerText : document.getElementById('ov-a-code').innerText; list.innerHTML += `<div class="stats-section-title">${team} Statistics</div><div class="stats-container"><table class="stats-table" id="t-${side}"></table></div>`; buildTable(side, `t-${side}`); }); }
     function buildTable(side, targetId) {
-        const ps = []; const seen = new Set(); allPlays.filter(p => p.side === side).forEach(p => { if (!seen.has(p.pName)) { ps.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } });
-        ps.sort((a,b) => a.num - b.num); let html = `<tr><th>Player</th><th>Serve</th><th>Rec</th><th>Atk</th></tr>`;
+        const ps = []; const seen = new Set();
+        allPlays.filter(p => p.side === side).forEach(p => { if (!seen.has(p.pName)) { ps.push({ name: p.pName, num: p.pNum }); seen.add(p.pName); } });
+        ps.sort((a,b) => a.num - b.num);
+        let html = `<tr><th rowspan="2">Player</th><th colspan="3">Serve</th><th colspan="4">Rec</th><th colspan="4">Attack</th></tr><tr><th>Tot</th><th>Ace</th><th>Err</th><th>Tot</th><th>Err</th><th>#+%</th><th>#%</th><th>Tot</th><th>Kill</th><th>Err</th><th>%</th></tr>`;
         ps.forEach(p => {
             const pl = allPlays.filter(play => play.pName === p.name && play.side === side);
-            const sAce = pl.filter(d => d.skill === 'S' && d.effect === '#').length, rErr = pl.filter(d => d.skill === 'R' && d.effect === '=').length, aKill = pl.filter(d => d.skill === 'A' && d.effect === '#').length;
-            html += `<tr><td>#${p.num} ${p.name.split(' ')[0]}</td><td>Ace: ${sAce}</td><td>Err: ${rErr}</td><td>Kill: ${aKill}</td></tr>`;
+            const s = pl.filter(d => d.skill === 'S'), r = pl.filter(d => d.skill === 'R'), a = pl.filter(d => d.skill === 'A');
+            const sAce = s.filter(d => d.effect === '#').length, sErr = s.filter(d => d.effect === '=').length; 
+            const rErr = r.filter(d => d.effect === '=').length, rPerf = r.filter(d => d.effect === '#').length, rPos = r.filter(d => d.effect === '+').length;
+            const aKill = a.filter(d => d.effect === '#').length, aLoss = a.filter(d => d.effect === '=' || d.effect === '/').length;
+            const short = p.name.split(' ')[0], esc = p.name.replace(/'/g, "\\'");
+            html += `<tr><td class="p-cell">#${p.num} ${short}</td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','S','')">${s.length}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','S','#')">${sAce}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','S','=')">${sErr}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','R','')">${r.length}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','R','=')">${rErr}</span></td>
+                <td>${r.length?Math.round((rPerf+rPos)/r.length*100):0}%</td>
+                <td>${r.length?Math.round(rPerf/r.length*100):0}%</td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','A','')">${a.length}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','A','#')">${aKill}</span></td>
+                <td><span class="click-num" onclick="jumpToStat('${side}','${esc}','A','loss')">${aLoss}</span></td>
+                <td>${a.length?((aKill/a.length)*100).toFixed(1):'0.0'}%</td></tr>`;
         });
         document.getElementById(targetId).innerHTML = html;
+    }
+    function jumpToStat(side, pName, skill, eff) { 
+        setMode('player'); document.getElementById('teamFilterPlayer').value = side; onTeamChangePlayer(); 
+        document.getElementById('playerFilter').value = pName; document.getElementById('skillFilter').value = skill;
+        document.getElementById('effectFilter').value = eff; render(); if (currentData.length > 0) playIndex(0); 
     }
 
     function playIndex(i) {
@@ -480,10 +565,8 @@
     function onPlayerStateChange(e) { if (e.data == 1 && document.getElementById('autoNext').checked) startTracking(); else clearInterval(checkInterval); }
     function startTracking() { clearInterval(checkInterval); checkInterval = setInterval(() => { if (currentIndex >= 0 && currentData[currentIndex]) { const now = player.getCurrentTime(), d = currentData[currentIndex]; let limit = (currentMode === 'player') ? d.endTime : (d.rallyEndTime || (d.startTime + 6.0)); if (now > limit && currentIndex < currentData.length - 1) playNext(); } }, 500); }
 
-    // Enhanced Keyboard Shortcuts with Auto-Suggest Nav
     window.addEventListener('keydown', (e) => {
         const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA';
-        
         if (isInput && e.target.classList.contains('comment-input')) {
             const playId = e.target.id.split('c-input-')[1];
             const suggestBox = document.getElementById(`suggest-${playId}`);
@@ -492,35 +575,18 @@
             if (isSuggestOpen) {
                 let activeIdx = parseInt(suggestBox.dataset.activeIdx) || 0;
                 const items = suggestBox.querySelectorAll('.s-item');
-                
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    activeIdx = (activeIdx + 1) % items.length;
-                    updateSuggestHighlight(suggestBox, activeIdx);
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    activeIdx = (activeIdx - 1 + items.length) % items.length;
-                    updateSuggestHighlight(suggestBox, activeIdx);
-                } else if (e.key === 'Enter' || e.key === 'Tab') {
-                    e.preventDefault();
-                    if (items[activeIdx]) items[activeIdx].click();
-                } else if (e.key === 'Escape') {
-                    suggestBox.style.display = 'none';
-                }
-                
-                // Block these keys from doing other things when suggestion box is open
+                if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % items.length; updateSuggestHighlight(suggestBox, activeIdx); } 
+                else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + items.length) % items.length; updateSuggestHighlight(suggestBox, activeIdx); } 
+                else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); if (items[activeIdx]) items[activeIdx].click(); } 
+                else if (e.key === 'Escape') { suggestBox.style.display = 'none'; }
                 if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(e.key)) return;
             } else {
-                if (e.key === 'Enter') {
-                    if (playId) addComment(playId);
-                    return;
-                }
+                if (e.key === 'Enter') { if (playId) addComment(playId); return; }
             }
-            return; // Ignore general shortcuts while typing
+            return;
         }
 
         if (isInput) return;
-
         const key = e.key.toLowerCase();
         if (key === 'f') playNext(); else if (key === 'd') playPrev(); else if (key === 'r') { player.seekTo(currentData[currentIndex].startTime, true); player.playVideo(); }
         else if (e.key === 'ArrowLeft') { player.seekTo(player.getCurrentTime() - 2, true); e.preventDefault(); }
