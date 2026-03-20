@@ -172,6 +172,39 @@
             .card-main { padding-right: 10px; flex-direction: column; align-items: flex-start; }
             .top-right-actions { position: relative; top: 0; right: 0; margin-top: 10px; width: 100%; justify-content: flex-end; }
             .draw-trigger-btn, #shortcut-btn { display: none !important; }
+        
+        /* =========================================
+           スマホ横画面（ランドスケープ）専用レイアウト
+           ========================================= */
+        @media (max-width: 950px) and (orientation: landscape) {
+            body { 
+                flex-direction: row; /* 縦並びを解除して、PCのように横並びにする */
+            }
+            #video-side { 
+                width: 60%; /* 左の60%を動画エリアに */
+                height: 100vh; /* 高さを画面いっぱいに */
+                padding-top: 0; /* 縦画面用のアスペクト比固定を解除 */
+                flex: none; 
+            }
+            #control-side { 
+                width: 40%; /* 右の40%を操作パネルに */
+                height: 100vh; 
+                flex: none; 
+                padding: 10px; 
+                overflow-y: auto; /* 右側だけ独立してスクロール可能に */
+            }
+            
+            /* 横画面は高さが狭いので、邪魔なUIをさらに極小化・非表示 */
+            #score-overlay { 
+                transform: scale(0.7); 
+                transform-origin: top left; 
+            }
+            .video-nav-btn { 
+                width: 40px; height: 40px; font-size: 1rem; /* ナビボタンを小さく */
+            }
+            /* 入力エリアを少しコンパクトに */
+            .action-row { flex-wrap: wrap; }
+            .comment-input { padding: 6px; font-size: 0.8rem; }
         }
     </style>
 </head>
