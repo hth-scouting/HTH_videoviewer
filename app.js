@@ -2,7 +2,6 @@ const SUPABASE_URL = 'https://mqkoahmpuqjttlpubeoo.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xa29haG1wdXFqdHRscHViZW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDUyMDQsImV4cCI6MjA4OTQ4MTIwNH0.iIsfV5Cf_rPApNACbMvFVCiPZrLVDeGOYRB4op-0KCI';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// 【修正】LINEのURL破壊対策：安全なパラメータ取得
 function getSafeURLParams() {
     const params = new URLSearchParams(window.location.search);
     let q = params.get('q');
@@ -30,7 +29,6 @@ function onYouTubeIframeAPIReady() {
 }
 const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag);
 
-// Hybrid Uploader
 async function submitNewMatch() {
     const cat = document.getElementById('am-cat').value.trim();
     const ytUrl = document.getElementById('am-yt').value.trim();
@@ -77,14 +75,12 @@ function fetchMatchList() {
     ]).then(([txtData, dbRes]) => {
         allMatchData = []; let cats = new Set(["All"]);
         
-        // DB Data
         if(dbRes && dbRes.data) {
             dbRes.data.forEach(m => {
                 allMatchData.push({ cat: m.category, dvw: m.dvw_url, vid: m.youtube_id, display_name: m.dvw_filename });
                 cats.add(m.category);
             });
         }
-        // TXT Data
         if(txtData) {
             txtData.split('\n').forEach(line => {
                 const p = line.split(',').map(s => s.trim()); 
@@ -146,6 +142,60 @@ async function loadCloudData() {
     matchDrawings = {}; (dRes.data || []).forEach(r => { if (!matchDrawings[r.play_id]) { try { matchDrawings[r.play_id] = JSON.parse(r.drawing_data); } catch(e){} } });
 }
 
+// 【NEW】通知エリアの描画機能
+function renderNotifications() {
+    let notifArea = document.getElementById('notif-area');
+    if (!notifArea) {
+        notifArea = document.createElement('div');
+        notifArea.id = 'notif-area';
+        notifArea.style.cssText = 'background: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px; padding: 12px; margin-bottom: 15px; display: none;';
+        
+        const filterArea = document.getElementById('filterArea');
+        filterArea.parentNode.insertBefore(notifArea, filterArea);
+    }
+
+    const commentedPlays = allPlays.filter(p => matchComments[p.id] && matchComments[p.id].length > 0);
+    
+    if (commentedPlays.length === 0) {
+        notifArea.style.display = 'none';
+        return;
+    }
+
+    notifArea.style.display = 'block';
+    
+    let html = `<div style="font-size: 0.75rem; font-weight: bold; color: var(--primary); margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
+        💬 Commented Plays <span style="background: var(--primary); color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.6rem;">${commentedPlays.length}</span>
+    </div>`;
+    html += `<div style="display: flex; gap: 6px; flex-wrap: wrap; max-height: 90px; overflow-y: auto;">`;
+    
+    commentedPlays.forEach(p => {
+        const shortName = p.pName.split(' ')[0];
+        html += `<button onclick="jumpToPlayId(${p.id})" style="background: #fff; border: 1px solid #90caf9; border-radius: 12px; padding: 4px 8px; font-size: 0.75rem; color: var(--primary); cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap;">
+            Set${p.setNum} [${p.score}] ${shortName}
+        </button>`;
+    });
+    
+    html += `</div>`;
+    notifArea.innerHTML = html;
+}
+
+// 【NEW】バッジをクリックした時に、そのプレイへジャンプする魔法の機能
+function jumpToPlayId(id) {
+    const searchInput = document.getElementById('searchFilter');
+    searchInput.value = `id:${id}`; // 特殊コマンドをセット
+    
+    const searchArea = document.getElementById('searchArea');
+    if (!searchArea.classList.contains('show')) {
+        toggleSearchArea(); // 検索窓をパカッと開く
+    }
+    
+    render();
+    if(currentData.length > 0) {
+        playIndex(0);
+        toggleActions(null, 0, true); // コメント欄を開いた状態にする
+    }
+}
+
 async function parseDVW(text) {
     allPlays = []; rallies = []; playerMaster = {}; const lines = text.split('\n'); let currentSection = "", runningScore = "00-00", hSets = 0, aSets = 0, teamCount = 0, tempRally = null;
     lines.forEach(line => {
@@ -165,9 +215,10 @@ async function parseDVW(text) {
         }
     });
     
-    updateFilters(); await loadCloudData(); 
+    updateFilters(); 
+    await loadCloudData(); 
+    renderNotifications(); // 【追加】データロード後に通知エリアを描画
     
-    // URLからのプレイリスト読み込み適用
     if (window.initLinkData.q) { 
         document.getElementById('searchFilter').value = window.initLinkData.q; 
         document.getElementById('searchArea').classList.add('show'); 
@@ -176,7 +227,6 @@ async function parseDVW(text) {
 
     render();
 
-    // プレイごとの単体共有（t）か、プレイリスト共有（q）での自動再生
     if (window.initLinkData.t) { 
         setTimeout(() => { 
             const t = parseFloat(window.initLinkData.t); let targetIdx = 0, minDiff = Infinity; 
@@ -188,7 +238,6 @@ async function parseDVW(text) {
         setTimeout(() => { playIndex(0); }, 1000);
     }
     
-    // 一度処理したらリセットする
     window.initLinkData = { t: null, q: null, match: null };
 }
 
@@ -215,11 +264,13 @@ function render() {
     let data = [];
     const q = document.getElementById('searchFilter').value.toLowerCase().trim();
 
-    // 【修正】検索キーワードがある場合は、タブ状態を無視して「全プレイ」から探す（グローバル検索）
-    if (q) {
+    // 【NEW】特殊コマンド `id:123` を検知して強制抽出
+    if (q.startsWith('id:')) {
+        const targetId = parseInt(q.replace('id:', '').trim());
+        data = allPlays.filter(d => d.id === targetId);
+    } else if (q) {
         data = allPlays.filter(d => `${d.pName} ${d.skill} ${(matchComments[d.id]||[]).join(' ')}`.toLowerCase().includes(q));
     } else {
-        // キーワードがない通常時は、これまでのタブルールに従う
         if (currentMode === 'rally') { 
             data = rallies;
             const teamF = document.getElementById('teamFilterRally').value; 
@@ -248,6 +299,10 @@ function render() {
         const commentsHTML = (matchComments[d.id] || []).map(c => `<div class="comment-item">・${c}</div>`).join('');
         const hasDraw = (matchDrawings[d.id] && matchDrawings[d.id].length > 0) ? 'style="background:#ffebee; color:#d32f2f; border: 1px solid #ffcdd2;"' : '';
         
+        const commentCount = (matchComments[d.id] || []).length;
+        const noteBtnStyle = commentCount > 0 ? 'background:#e3f2fd; color:var(--primary); border:1px solid #bbdefb;' : '';
+        const noteBtnText = commentCount > 0 ? `💬 Note (${commentCount})` : '💬 Note';
+
         btn.innerHTML = `
             <div class="card-main" onclick="playIndex(${i})">
                 <div class="score-box">${d.score}</div>
@@ -256,7 +311,7 @@ function render() {
             <div class="top-right-actions">
                 <button class="action-sm-btn" ${liked} onclick="event.stopPropagation(); addLike(${d.id})">👍 ${likes}</button>
                 <button class="action-sm-btn draw-trigger-btn" ${hasDraw} onclick="event.stopPropagation(); enterDrawMode(${d.id})">✏️ Draw</button>
-                <button class="action-sm-btn" onclick="toggleActions(event, ${i})">💬 Note</button>
+                <button class="action-sm-btn" style="${noteBtnStyle}" onclick="toggleActions(event, ${i})">${noteBtnText}</button>
             </div>
             <div class="card-actions" id="actions-${i}">
                 <div class="comments-display" id="c-disp-${d.id}">${commentsHTML}</div>
@@ -321,7 +376,21 @@ function clearCanvas() { drawingLines = []; renderDrawing(); }
 async function saveDrawing() { matchDrawings[activePlayIdForDraw] = JSON.parse(JSON.stringify(drawingLines)); render(); exitDrawMode(); player.playVideo(); await supabaseClient.from('drawings').delete().match({ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw }); await supabaseClient.from('drawings').insert([{ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw, drawing_data: JSON.stringify(matchDrawings[activePlayIdForDraw]) }]); }
 
 async function addLike(playId) { if (likedPlaysSession.has(playId)) return; likedPlaysSession.add(playId); matchLikes[playId] = (matchLikes[playId] || 0) + 1; render(); await supabaseClient.from('likes').insert([{ match_dvw: currentMatchDVW, play_id: playId }]); }
-async function addComment(playId) { const input = document.getElementById(`c-input-${playId}`); const text = input.value.trim(); if (!text) return; if (!matchComments[playId]) matchComments[playId] = []; matchComments[playId].push(text); input.value = ""; render(); await supabaseClient.from('comments').insert([{ match_dvw: currentMatchDVW, play_id: playId, comment_text: text }]); }
+
+async function addComment(playId) { 
+    const input = document.getElementById(`c-input-${playId}`); 
+    const text = input.value.trim(); 
+    if (!text) return; 
+    
+    if (!matchComments[playId]) matchComments[playId] = []; 
+    matchComments[playId].push(text); 
+    input.value = ""; 
+    
+    renderNotifications(); // 【追加】コメント送信後、すぐ上部のダッシュボードにも反映させる
+    render(); 
+    
+    await supabaseClient.from('comments').insert([{ match_dvw: currentMatchDVW, play_id: playId, comment_text: text }]); 
+}
 
 // LINE / LINK URL BUILDER
 function getSafeBaseUrl() { return window.location.origin + window.location.pathname; }
