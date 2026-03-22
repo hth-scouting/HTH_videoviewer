@@ -142,7 +142,6 @@ async function loadCloudData() {
     matchDrawings = {}; (dRes.data || []).forEach(r => { if (!matchDrawings[r.play_id]) { try { matchDrawings[r.play_id] = JSON.parse(r.drawing_data); } catch(e){} } });
 }
 
-// 【NEW】通知エリアの描画機能
 function renderNotifications() {
     let notifArea = document.getElementById('notif-area');
     if (!notifArea) {
@@ -179,23 +178,23 @@ function renderNotifications() {
     notifArea.innerHTML = html;
 }
 
-// 【NEW】バッジをクリックした時に、そのプレイへジャンプする魔法の機能
 function jumpToPlayId(id) {
     const searchInput = document.getElementById('searchFilter');
-    searchInput.value = `id:${id}`; // 特殊コマンドをセット
+    searchInput.value = `id:${id}`;
     
     const searchArea = document.getElementById('searchArea');
     if (!searchArea.classList.contains('show')) {
-        toggleSearchArea(); // 検索窓をパカッと開く
+        toggleSearchArea();
     }
     
     render();
     if(currentData.length > 0) {
         playIndex(0);
-        toggleActions(null, 0, true); // コメント欄を開いた状態にする
+        toggleActions(null, 0, true);
     }
 }
 
+// 💡 修正：ラリー全体の「ホームのローテーション」「アウェイのローテーション」を自動紐付け
 async function parseDVW(text) {
     allPlays = []; rallies = []; playerMaster = {}; const lines = text.split('\n'); let currentSection = "", runningScore = "00-00", hSets = 0, aSets = 0, teamCount = 0, tempRally = null;
     lines.forEach(line => {
@@ -206,18 +205,32 @@ async function parseDVW(text) {
             const c = l.split(';'); const code = c[0]; if (!code) return;
             if (code.startsWith('**') && code.toLowerCase().includes('set')) { const last = runningScore.split('-').map(Number); if (last[0] > last[1]) hSets++; else if (last[1] > last[0]) aSets++; runningScore = "00-00"; return; }
             if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap')) { const m = code.match(/(\d{1,2})[:.](\d{1,2})/); if (m) runningScore = `${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); tempRally.wonBy = code.toLowerCase().startsWith('*p') ? '*' : 'a'; } return; }
+            
             const skillChar = code.charAt(3); if ("SRABDE".includes(skillChar)) {
                 const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                 const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
                 const playObj = { id: allPlays.length, time, startTime: time - 2.0, endTime: time + 4.0, score: runningScore, setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: code.charAt(5), pName: p.name, pNum: p.num, rot: c[8] };
-                allPlays.push(playObj); if (skillChar === 'S') { tempRally = playObj; rallies.push(playObj); }
+                
+                if (skillChar === 'S') {
+                    // サーブの瞬間に、そのラリー全体のローテーション（S1〜S6）を記録する
+                    playObj.rallyHomeRot = side === '*' ? parseInt(c[8]) : null;
+                    playObj.rallyAwayRot = side === 'a' ? parseInt(c[8]) : null;
+                    tempRally = playObj; 
+                    rallies.push(playObj);
+                } else if (tempRally) {
+                    // 相手チームのローテーション情報を、後のプレイのログから逆算して紐付ける
+                    if (side === '*' && !tempRally.rallyHomeRot && c[8]) tempRally.rallyHomeRot = parseInt(c[8]);
+                    if (side === 'a' && !tempRally.rallyAwayRot && c[8]) tempRally.rallyAwayRot = parseInt(c[8]);
+                }
+                
+                allPlays.push(playObj);
             }
         }
     });
     
     updateFilters(); 
     await loadCloudData(); 
-    renderNotifications(); // 【追加】データロード後に通知エリアを描画
+    renderNotifications(); 
     
     if (window.initLinkData.q) { 
         document.getElementById('searchFilter').value = window.initLinkData.q; 
@@ -254,18 +267,42 @@ function onTeamChangePlayer() {
     const seen = new Set(); allPlays.filter(p => p.side === team).forEach(p => { if (!seen.has(p.pName)) { ps.add(new Option(`#${p.pNum} ${p.pName}`, p.pName)); seen.add(p.pName); } }); render();
 }
 
-function setMode(m) { currentMode = m; document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active')); document.getElementById('btn-' + m).classList.add('active'); document.getElementById('filterArea').style.display = (m === 'stats') ? 'none' : 'block'; document.getElementById('rally-filters').style.display = (m === 'rally') ? 'block' : 'none'; document.getElementById('player-filters').style.display = (m === 'player') ? 'block' : 'none'; render(); }
+// 💡 修正：タブ切り替え処理に rotation を追加
+function setMode(m) { 
+    currentMode = m; 
+    document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active')); 
+    if(document.getElementById('btn-' + m)) document.getElementById('btn-' + m).classList.add('active'); 
+    
+    // TableとRotationタブの時はフィルターエリアを隠す
+    document.getElementById('filterArea').style.display = (m === 'stats' || m === 'rotation') ? 'none' : 'block'; 
+    document.getElementById('rally-filters').style.display = (m === 'rally') ? 'block' : 'none'; 
+    document.getElementById('player-filters').style.display = (m === 'player') ? 'block' : 'none'; 
+    render(); 
+}
 
 let currentData = [];
 function render() {
     const list = document.getElementById('instanceList'); list.innerHTML = ''; 
     if (currentMode === 'stats') { renderDualTables(); return; }
+    if (currentMode === 'rotation') { renderRotationTables(); return; } // 💡 ローテーション描画への分岐
     
     let data = [];
     const q = document.getElementById('searchFilter').value.toLowerCase().trim();
 
-    // 【NEW】特殊コマンド `id:123` を検知して強制抽出
-    if (q.startsWith('id:')) {
+    // 💡 修正：特殊コマンド `rot:*,SO,1` でローテーションのラリーを強制抽出
+    if (q.startsWith('rot:')) {
+        const parts = q.split(','); 
+        const tSide = parts[0].replace('rot:', '').trim();
+        const phase = parts[1];
+        const rot = parseInt(parts[2]);
+        
+        if (phase === 'SO') {
+            const opp = tSide === '*' ? 'a' : '*'; // 相手がサーブを打っているラリーを探す
+            data = rallies.filter(d => d.side === opp && (tSide === '*' ? d.rallyHomeRot : d.rallyAwayRot) === rot);
+        } else if (phase === 'BP') {
+            data = rallies.filter(d => d.side === tSide && (tSide === '*' ? d.rallyHomeRot : d.rallyAwayRot) === rot); // 自分がサーブを打っているラリー
+        }
+    } else if (q.startsWith('id:')) {
         const targetId = parseInt(q.replace('id:', '').trim());
         data = allPlays.filter(d => d.id === targetId);
     } else if (q) {
@@ -333,6 +370,68 @@ function render() {
     });
 }
 
+// 💡 NEW：各チームの「ローテーション表（SO / BP）」を描画する機能
+function renderRotationTables() {
+    const list = document.getElementById('instanceList'); list.innerHTML = ''; 
+    ["*", "a"].forEach(side => { 
+        const team = side === "*" ? document.getElementById('ov-h-code').innerText : document.getElementById('ov-a-code').innerText; 
+        list.innerHTML += `<div class="stats-section-title">${team} Rotation Phase</div>
+                           <div class="stats-container"><table class="stats-table" id="t-rot-${side}"></table></div>`; 
+        buildRotationTable(side, `t-rot-${side}`); 
+    });
+}
+
+function buildRotationTable(side, targetId) {
+    let html = `<tr><th rowspan="2">Rot</th><th colspan="3">Side Out Phase</th><th colspan="5">Break Phase</th></tr>
+                <tr><th>Tot</th><th>Won</th><th>SO %</th><th>Tot</th><th>Ace</th><th>Err</th><th>Won</th><th>BP %</th></tr>`;
+    
+    for (let r = 1; r <= 6; r++) {
+        // Side Out Phase (相手サーブ時、自分たちのローテーションが r のラリー)
+        const oppSide = side === '*' ? 'a' : '*';
+        const soRallies = rallies.filter(d => d.side === oppSide && (side === '*' ? d.rallyHomeRot : d.rallyAwayRot) === r);
+        const soTot = soRallies.length;
+        const soWon = soRallies.filter(d => d.wonBy === side).length; // 自分たちが得点してSO成功
+        const soPct = soTot ? Math.round((soWon / soTot) * 100) : 0;
+        const soColor = soPct >= 65 ? '#d32f2f' : (soPct < 50 ? '#1976d2' : '#333'); // 色付けで弱点を可視化
+
+        // Break Phase (自分たちサーブ時、自分たちのローテーションが r のラリー)
+        const bpRallies = rallies.filter(d => d.side === side && (side === '*' ? d.rallyHomeRot : d.rallyAwayRot) === r);
+        const bpTot = bpRallies.length;
+        const bpAce = bpRallies.filter(d => d.effect === '#').length;
+        const bpErr = bpRallies.filter(d => d.effect === '=').length;
+        const bpWon = bpRallies.filter(d => d.wonBy === side).length; // 自分たちが得点してBP成功
+        const bpPct = bpTot ? Math.round((bpWon / bpTot) * 100) : 0;
+        const bpColor = bpPct >= 40 ? '#d32f2f' : (bpPct < 25 ? '#1976d2' : '#333');
+
+        html += `<tr>
+            <td class="p-cell" style="font-weight:bold; background:#f0f7ff;">P${r}</td>
+            <td><span class="click-num" onclick="jumpToRotationRallies('${side}', ${r}, 'SO')">${soTot}</span></td>
+            <td>${soWon}</td>
+            <td style="font-weight:bold; color:${soColor}">${soPct}%</td>
+            <td><span class="click-num" onclick="jumpToRotationRallies('${side}', ${r}, 'BP')">${bpTot}</span></td>
+            <td>${bpAce}</td>
+            <td>${bpErr}</td>
+            <td>${bpWon}</td>
+            <td style="font-weight:bold; color:${bpColor}">${bpPct}%</td>
+        </tr>`;
+    }
+    document.getElementById(targetId).innerHTML = html;
+}
+
+// 💡 NEW：表の数字をクリックした時に、そのローテーションのラリーだけを抽出する魔法
+function jumpToRotationRallies(side, rNum, phase) {
+    document.getElementById('searchFilter').value = `rot:${side},${phase},${rNum}`;
+    
+    const searchArea = document.getElementById('searchArea');
+    if (!searchArea.classList.contains('show')) {
+        toggleSearchArea(); // 検索窓をパカッと開く
+    }
+    
+    setMode('rally');
+    if(currentData.length > 0) playIndex(0);
+}
+
+
 function handleSuggestInput(e, playId) {
     const val = e.target.value; const cursorStart = e.target.selectionStart; const textBeforeCursor = val.substring(0, cursorStart);
     const words = textBeforeCursor.split(/\s+/); const currentWord = words[words.length - 1]; const suggestBox = document.getElementById(`suggest-${playId}`);
@@ -386,7 +485,7 @@ async function addComment(playId) {
     matchComments[playId].push(text); 
     input.value = ""; 
     
-    renderNotifications(); // 【追加】コメント送信後、すぐ上部のダッシュボードにも反映させる
+    renderNotifications(); 
     render(); 
     
     await supabaseClient.from('comments').insert([{ match_dvw: currentMatchDVW, play_id: playId, comment_text: text }]); 
