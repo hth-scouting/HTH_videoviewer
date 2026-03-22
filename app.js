@@ -178,6 +178,7 @@ function jumpToPlayId(id) {
     if(currentData.length > 0) { playIndex(0); toggleActions(null, 0, true); }
 }
 
+// 💡 抜本的修正：DVWの奥底（c[14]とc[15]）からローテーションを確実に引っこ抜く！
 async function parseDVW(text) {
     allPlays = []; rallies = []; playerMaster = {}; 
     const lines = text.split('\n'); 
@@ -198,9 +199,9 @@ async function parseDVW(text) {
         if (currentSection === "[3SCOUT]") {
             const c = l.split(';'); const code = c[0]; if (!code) return;
             
+            // 一部ソフト用のフォールバック（*zコードの抽出）
             const hMatch = code.match(/^\*z(\d)/i);
             if (hMatch) currentHomeRot = parseInt(hMatch[1]);
-            
             const aMatch = code.match(/^az(\d)/i);
             if (aMatch) currentAwayRot = parseInt(aMatch[1]);
 
@@ -221,21 +222,23 @@ async function parseDVW(text) {
                 const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                 const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
                 
+                // 💡 核心部：配列の14番目(Home)と15番目(Away)から直接ローテーションを取得
+                let rH = parseInt(c[14]); if (isNaN(rH)) rH = currentHomeRot; else currentHomeRot = rH;
+                let rA = parseInt(c[15]); if (isNaN(rA)) rA = currentAwayRot; else currentAwayRot = rA;
+
                 const playObj = { 
                     id: allPlays.length, time, startTime: time - 2.0, endTime: time + 4.0, score: runningScore, 
                     setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: code.charAt(5), 
                     pName: p.name, pNum: p.num, 
-                    rot: (side === '*' ? currentHomeRot : currentAwayRot) || "?", 
-                    rallyHomeRot: currentHomeRot, rallyAwayRot: currentAwayRot 
+                    rot: (side === '*' ? rH : rA) || "?", 
+                    rallyHomeRot: rH, rallyAwayRot: rA 
                 };
                 
+                // サーブが打たれたら、そのラリー全体に「その瞬間の両チームのローテ」を記録
                 if (skillChar === 'S') {
                     tempRally = playObj; 
                     rallies.push(playObj);
                 } else if (tempRally) {
-                    if (!tempRally.rallyHomeRot && currentHomeRot) tempRally.rallyHomeRot = currentHomeRot;
-                    if (!tempRally.rallyAwayRot && currentAwayRot) tempRally.rallyAwayRot = currentAwayRot;
-                    
                     playObj.rallyHomeRot = tempRally.rallyHomeRot;
                     playObj.rallyAwayRot = tempRally.rallyAwayRot;
                 }
@@ -304,11 +307,10 @@ function render() {
     let data = [];
     const q = document.getElementById('searchFilter').value.toLowerCase().trim();
 
-    // 💡 修正箇所：検索ワードが toLowerCase() されているため、小文字の 'so' と 'bp' で判定する！
     if (q.startsWith('rot:')) {
         const parts = q.split(','); 
         const tSide = parts[0].replace('rot:', '').trim();
-        const phase = parts[1]; // ここは 'so' か 'bp' になっている
+        const phase = parts[1]; // so 又は bp
         const rot = parseInt(parts[2]);
         
         if (phase === 'so') {
@@ -355,6 +357,7 @@ function render() {
         const noteBtnStyle = commentCount > 0 ? 'background:#e3f2fd; color:var(--primary); border:1px solid #bbdefb;' : '';
         const noteBtnText = commentCount > 0 ? `💬 Note (${commentCount})` : '💬 Note';
 
+        // 💡 プレイのカードにも正しいローテーション(P1~P6)が表示されるようになります
         btn.innerHTML = `
             <div class="card-main" onclick="playIndex(${i})">
                 <div class="score-box">${d.score}</div>
