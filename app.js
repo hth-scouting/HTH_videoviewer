@@ -178,12 +178,11 @@ function jumpToPlayId(id) {
     if(currentData.length > 0) { playIndex(0); toggleActions(null, 0, true); }
 }
 
-// 💡 完全修正: DVWの正確なセッター位置（*zコード）をキャッチしてローテーションを追跡
 async function parseDVW(text) {
     allPlays = []; rallies = []; playerMaster = {}; 
     const lines = text.split('\n'); 
     let currentSection = "", runningScore = "00-00", hSets = 0, aSets = 0, teamCount = 0, tempRally = null;
-    let currentHomeRot = null, currentAwayRot = null; // セッター位置（ローテーション）の追跡用
+    let currentHomeRot = null, currentAwayRot = null;
 
     lines.forEach(line => {
         const l = line.trim(); if (l.startsWith('[')) { currentSection = l; return; }
@@ -199,7 +198,6 @@ async function parseDVW(text) {
         if (currentSection === "[3SCOUT]") {
             const c = l.split(';'); const code = c[0]; if (!code) return;
             
-            // 💡 修正: DVWの「*z3」や「aZ5」といったセッター位置コードを正確に拾って更新する
             const hMatch = code.match(/^\*z(\d)/i);
             if (hMatch) currentHomeRot = parseInt(hMatch[1]);
             
@@ -223,7 +221,6 @@ async function parseDVW(text) {
                 const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                 const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
                 
-                // 💡 修正: c[8] (アクション開始位置) へのフォールバックを廃止し、追跡した正しいローテーションを適用
                 const playObj = { 
                     id: allPlays.length, time, startTime: time - 2.0, endTime: time + 4.0, score: runningScore, 
                     setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: code.charAt(5), 
@@ -236,7 +233,6 @@ async function parseDVW(text) {
                     tempRally = playObj; 
                     rallies.push(playObj);
                 } else if (tempRally) {
-                    // ラリー内の全プレイに、サーブ開始時のローテーションを強制適用
                     if (!tempRally.rallyHomeRot && currentHomeRot) tempRally.rallyHomeRot = currentHomeRot;
                     if (!tempRally.rallyAwayRot && currentAwayRot) tempRally.rallyAwayRot = currentAwayRot;
                     
@@ -308,16 +304,17 @@ function render() {
     let data = [];
     const q = document.getElementById('searchFilter').value.toLowerCase().trim();
 
+    // 💡 修正箇所：検索ワードが toLowerCase() されているため、小文字の 'so' と 'bp' で判定する！
     if (q.startsWith('rot:')) {
         const parts = q.split(','); 
         const tSide = parts[0].replace('rot:', '').trim();
-        const phase = parts[1];
+        const phase = parts[1]; // ここは 'so' か 'bp' になっている
         const rot = parseInt(parts[2]);
         
-        if (phase === 'SO') {
-            const opp = tSide === '*' ? 'a' : '*'; // 相手がサーブを打っているラリー
+        if (phase === 'so') {
+            const opp = tSide === '*' ? 'a' : '*'; 
             data = rallies.filter(d => d.side === opp && (tSide === '*' ? d.rallyHomeRot : d.rallyAwayRot) === rot);
-        } else if (phase === 'BP') {
+        } else if (phase === 'bp') {
             data = rallies.filter(d => d.side === tSide && (tSide === '*' ? d.rallyHomeRot : d.rallyAwayRot) === rot);
         }
     } else if (q.startsWith('id:')) {
@@ -402,7 +399,6 @@ function buildRotationTable(side, targetId) {
     let html = `<tr><th rowspan="2">Rot</th><th colspan="3">Side Out Phase</th><th colspan="5">Break Phase</th></tr>
                 <tr><th>Tot</th><th>Won</th><th>SO %</th><th>Tot</th><th>Ace</th><th>Err</th><th>Won</th><th>BP %</th></tr>`;
     
-    // 💡 修正: 表示順をバレーボールのコート推移（P1 → P6 → P5 → P4 → P3 → P2）に固定
     const rotOrder = [1, 6, 5, 4, 3, 2];
     
     rotOrder.forEach(r => {
@@ -423,10 +419,10 @@ function buildRotationTable(side, targetId) {
 
         html += `<tr>
             <td class="p-cell" style="font-weight:bold; background:#f0f7ff;">P${r}</td>
-            <td><span class="click-num" onclick="jumpToRotationRallies('${side}', ${r}, 'SO')">${soTot}</span></td>
+            <td><span class="click-num" onclick="jumpToRotationRallies('${side}', ${r}, 'so')">${soTot}</span></td>
             <td>${soWon}</td>
             <td style="font-weight:bold; color:${soColor}">${soPct}%</td>
-            <td><span class="click-num" onclick="jumpToRotationRallies('${side}', ${r}, 'BP')">${bpTot}</span></td>
+            <td><span class="click-num" onclick="jumpToRotationRallies('${side}', ${r}, 'bp')">${bpTot}</span></td>
             <td>${bpAce}</td>
             <td>${bpErr}</td>
             <td>${bpWon}</td>
