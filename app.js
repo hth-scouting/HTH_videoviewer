@@ -148,20 +148,13 @@ function renderNotifications() {
         notifArea = document.createElement('div');
         notifArea.id = 'notif-area';
         notifArea.style.cssText = 'background: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px; padding: 12px; margin-bottom: 15px; display: none;';
-        
         const filterArea = document.getElementById('filterArea');
         filterArea.parentNode.insertBefore(notifArea, filterArea);
     }
-
     const commentedPlays = allPlays.filter(p => matchComments[p.id] && matchComments[p.id].length > 0);
-    
-    if (commentedPlays.length === 0) {
-        notifArea.style.display = 'none';
-        return;
-    }
+    if (commentedPlays.length === 0) { notifArea.style.display = 'none'; return; }
 
     notifArea.style.display = 'block';
-    
     let html = `<div style="font-size: 0.75rem; font-weight: bold; color: var(--primary); margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
         💬 Commented Plays <span style="background: var(--primary); color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.6rem;">${commentedPlays.length}</span>
     </div>`;
@@ -173,56 +166,71 @@ function renderNotifications() {
             Set${p.setNum} [${p.score}] ${shortName}
         </button>`;
     });
-    
     html += `</div>`;
     notifArea.innerHTML = html;
 }
 
 function jumpToPlayId(id) {
-    const searchInput = document.getElementById('searchFilter');
-    searchInput.value = `id:${id}`;
-    
+    document.getElementById('searchFilter').value = `id:${id}`;
     const searchArea = document.getElementById('searchArea');
-    if (!searchArea.classList.contains('show')) {
-        toggleSearchArea();
-    }
-    
+    if (!searchArea.classList.contains('show')) toggleSearchArea();
     render();
-    if(currentData.length > 0) {
-        playIndex(0);
-        toggleActions(null, 0, true);
-    }
+    if(currentData.length > 0) { playIndex(0); toggleActions(null, 0, true); }
 }
 
-// 💡 修正：ラリー全体の「ホームのローテーション」「アウェイのローテーション」を自動紐付け
+// 💡 修正: DVWの正確なローテーション(c[14], c[15], *z)の抽出
 async function parseDVW(text) {
-    allPlays = []; rallies = []; playerMaster = {}; const lines = text.split('\n'); let currentSection = "", runningScore = "00-00", hSets = 0, aSets = 0, teamCount = 0, tempRally = null;
+    allPlays = []; rallies = []; playerMaster = {}; 
+    const lines = text.split('\n'); 
+    let currentSection = "", runningScore = "00-00", hSets = 0, aSets = 0, teamCount = 0, tempRally = null;
+    let currentHomeRot = null, currentAwayRot = null; // ローテーション追跡用
+
     lines.forEach(line => {
         const l = line.trim(); if (l.startsWith('[')) { currentSection = l; return; }
-        if (currentSection === "[3TEAMS]") { const p = l.split(';'); if (p.length < 2) return; if (teamCount === 0) { document.getElementById('ov-h-code').innerText = p[0]; teamCount++; } else { document.getElementById('ov-a-code').innerText = p[0]; } }
-        if (currentSection === "[3PLAYERS-H]" || currentSection === "[3PLAYERS-V]") { const p = l.split(';'); const side = currentSection.includes('-H') ? '*' : 'a'; const num = parseInt(p[1]); if (!isNaN(num)) playerMaster[`${side}_${num}`] = { name: (p[9] || p[10] || `Player ${num}`).trim(), num }; }
+        if (currentSection === "[3TEAMS]") { 
+            const p = l.split(';'); if (p.length < 2) return; 
+            if (teamCount === 0) { document.getElementById('ov-h-code').innerText = p[0]; teamCount++; } 
+            else { document.getElementById('ov-a-code').innerText = p[0]; } 
+        }
+        if (currentSection === "[3PLAYERS-H]" || currentSection === "[3PLAYERS-V]") { 
+            const p = l.split(';'); const side = currentSection.includes('-H') ? '*' : 'a'; const num = parseInt(p[1]); 
+            if (!isNaN(num)) playerMaster[`${side}_${num}`] = { name: (p[9] || p[10] || `Player ${num}`).trim(), num }; 
+        }
         if (currentSection === "[3SCOUT]") {
             const c = l.split(';'); const code = c[0]; if (!code) return;
+            
+            // DataVolleyが記録するセッター位置（*z3, az5 など）をキャッチして更新
+            if (code.startsWith('*z')) { const z = parseInt(code.charAt(2)); if(!isNaN(z)) currentHomeRot = z; }
+            if (code.startsWith('az')) { const z = parseInt(code.charAt(2)); if(!isNaN(z)) currentAwayRot = z; }
+
             if (code.startsWith('**') && code.toLowerCase().includes('set')) { const last = runningScore.split('-').map(Number); if (last[0] > last[1]) hSets++; else if (last[1] > last[0]) aSets++; runningScore = "00-00"; return; }
             if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap')) { const m = code.match(/(\d{1,2})[:.](\d{1,2})/); if (m) runningScore = `${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); tempRally.wonBy = code.toLowerCase().startsWith('*p') ? '*' : 'a'; } return; }
             
-            const skillChar = code.charAt(3); if ("SRABDE".includes(skillChar)) {
+            const skillChar = code.charAt(3); 
+            if ("SRABDE".includes(skillChar)) {
                 const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                 const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
-                const playObj = { id: allPlays.length, time, startTime: time - 2.0, endTime: time + 4.0, score: runningScore, setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: code.charAt(5), pName: p.name, pNum: p.num, rot: c[8] };
+                
+                // DVW列から直接セッター位置を取得。無い場合は追跡したzコードを採用
+                let rH = parseInt(c[14]); if (isNaN(rH)) rH = currentHomeRot;
+                let rA = parseInt(c[15]); if (isNaN(rA)) rA = currentAwayRot;
+
+                const playObj = { 
+                    id: allPlays.length, time, startTime: time - 2.0, endTime: time + 4.0, score: runningScore, 
+                    setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: code.charAt(5), 
+                    pName: p.name, pNum: p.num, 
+                    rot: (side === '*' ? rH : rA) || c[8], // 表示用。見つからなければ旧方式をフォールバック表示
+                    rallyHomeRot: rH, rallyAwayRot: rA 
+                };
                 
                 if (skillChar === 'S') {
-                    // サーブの瞬間に、そのラリー全体のローテーション（S1〜S6）を記録する
-                    playObj.rallyHomeRot = side === '*' ? parseInt(c[8]) : null;
-                    playObj.rallyAwayRot = side === 'a' ? parseInt(c[8]) : null;
                     tempRally = playObj; 
                     rallies.push(playObj);
                 } else if (tempRally) {
-                    // 相手チームのローテーション情報を、後のプレイのログから逆算して紐付ける
-                    if (side === '*' && !tempRally.rallyHomeRot && c[8]) tempRally.rallyHomeRot = parseInt(c[8]);
-                    if (side === 'a' && !tempRally.rallyAwayRot && c[8]) tempRally.rallyAwayRot = parseInt(c[8]);
+                    // 同じラリー内のすべてのプレイに、サーブ開始時のローテーションを強制継承
+                    playObj.rallyHomeRot = tempRally.rallyHomeRot;
+                    playObj.rallyAwayRot = tempRally.rallyAwayRot;
                 }
-                
                 allPlays.push(playObj);
             }
         }
@@ -250,7 +258,6 @@ async function parseDVW(text) {
     } else if (window.initLinkData.q && currentData.length > 0) {
         setTimeout(() => { playIndex(0); }, 1000);
     }
-    
     window.initLinkData = { t: null, q: null, match: null };
 }
 
@@ -267,13 +274,11 @@ function onTeamChangePlayer() {
     const seen = new Set(); allPlays.filter(p => p.side === team).forEach(p => { if (!seen.has(p.pName)) { ps.add(new Option(`#${p.pNum} ${p.pName}`, p.pName)); seen.add(p.pName); } }); render();
 }
 
-// 💡 修正：タブ切り替え処理に rotation を追加
 function setMode(m) { 
     currentMode = m; 
     document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active')); 
     if(document.getElementById('btn-' + m)) document.getElementById('btn-' + m).classList.add('active'); 
     
-    // TableとRotationタブの時はフィルターエリアを隠す
     document.getElementById('filterArea').style.display = (m === 'stats' || m === 'rotation') ? 'none' : 'block'; 
     document.getElementById('rally-filters').style.display = (m === 'rally') ? 'block' : 'none'; 
     document.getElementById('player-filters').style.display = (m === 'player') ? 'block' : 'none'; 
@@ -284,12 +289,11 @@ let currentData = [];
 function render() {
     const list = document.getElementById('instanceList'); list.innerHTML = ''; 
     if (currentMode === 'stats') { renderDualTables(); return; }
-    if (currentMode === 'rotation') { renderRotationTables(); return; } // 💡 ローテーション描画への分岐
+    if (currentMode === 'rotation') { renderRotationTables(); return; } 
     
     let data = [];
     const q = document.getElementById('searchFilter').value.toLowerCase().trim();
 
-    // 💡 修正：特殊コマンド `rot:*,SO,1` でローテーションのラリーを強制抽出
     if (q.startsWith('rot:')) {
         const parts = q.split(','); 
         const tSide = parts[0].replace('rot:', '').trim();
@@ -297,10 +301,10 @@ function render() {
         const rot = parseInt(parts[2]);
         
         if (phase === 'SO') {
-            const opp = tSide === '*' ? 'a' : '*'; // 相手がサーブを打っているラリーを探す
+            const opp = tSide === '*' ? 'a' : '*'; // 相手がサーブを打っているラリー
             data = rallies.filter(d => d.side === opp && (tSide === '*' ? d.rallyHomeRot : d.rallyAwayRot) === rot);
         } else if (phase === 'BP') {
-            data = rallies.filter(d => d.side === tSide && (tSide === '*' ? d.rallyHomeRot : d.rallyAwayRot) === rot); // 自分がサーブを打っているラリー
+            data = rallies.filter(d => d.side === tSide && (tSide === '*' ? d.rallyHomeRot : d.rallyAwayRot) === rot);
         }
     } else if (q.startsWith('id:')) {
         const targetId = parseInt(q.replace('id:', '').trim());
@@ -370,7 +374,6 @@ function render() {
     });
 }
 
-// 💡 NEW：各チームの「ローテーション表（SO / BP）」を描画する機能
 function renderRotationTables() {
     const list = document.getElementById('instanceList'); list.innerHTML = ''; 
     ["*", "a"].forEach(side => { 
@@ -385,21 +388,22 @@ function buildRotationTable(side, targetId) {
     let html = `<tr><th rowspan="2">Rot</th><th colspan="3">Side Out Phase</th><th colspan="5">Break Phase</th></tr>
                 <tr><th>Tot</th><th>Won</th><th>SO %</th><th>Tot</th><th>Ace</th><th>Err</th><th>Won</th><th>BP %</th></tr>`;
     
-    for (let r = 1; r <= 6; r++) {
-        // Side Out Phase (相手サーブ時、自分たちのローテーションが r のラリー)
+    // 💡 修正: 並び順を現場仕様の「P1 → P6 → P5 → P4 → P3 → P2」に固定！
+    const rotOrder = [1, 6, 5, 4, 3, 2];
+    
+    rotOrder.forEach(r => {
         const oppSide = side === '*' ? 'a' : '*';
         const soRallies = rallies.filter(d => d.side === oppSide && (side === '*' ? d.rallyHomeRot : d.rallyAwayRot) === r);
         const soTot = soRallies.length;
-        const soWon = soRallies.filter(d => d.wonBy === side).length; // 自分たちが得点してSO成功
+        const soWon = soRallies.filter(d => d.wonBy === side).length; 
         const soPct = soTot ? Math.round((soWon / soTot) * 100) : 0;
-        const soColor = soPct >= 65 ? '#d32f2f' : (soPct < 50 ? '#1976d2' : '#333'); // 色付けで弱点を可視化
+        const soColor = soPct >= 65 ? '#d32f2f' : (soPct < 50 ? '#1976d2' : '#333'); 
 
-        // Break Phase (自分たちサーブ時、自分たちのローテーションが r のラリー)
         const bpRallies = rallies.filter(d => d.side === side && (side === '*' ? d.rallyHomeRot : d.rallyAwayRot) === r);
         const bpTot = bpRallies.length;
         const bpAce = bpRallies.filter(d => d.effect === '#').length;
         const bpErr = bpRallies.filter(d => d.effect === '=').length;
-        const bpWon = bpRallies.filter(d => d.wonBy === side).length; // 自分たちが得点してBP成功
+        const bpWon = bpRallies.filter(d => d.wonBy === side).length; 
         const bpPct = bpTot ? Math.round((bpWon / bpTot) * 100) : 0;
         const bpColor = bpPct >= 40 ? '#d32f2f' : (bpPct < 25 ? '#1976d2' : '#333');
 
@@ -414,23 +418,17 @@ function buildRotationTable(side, targetId) {
             <td>${bpWon}</td>
             <td style="font-weight:bold; color:${bpColor}">${bpPct}%</td>
         </tr>`;
-    }
+    });
     document.getElementById(targetId).innerHTML = html;
 }
 
-// 💡 NEW：表の数字をクリックした時に、そのローテーションのラリーだけを抽出する魔法
 function jumpToRotationRallies(side, rNum, phase) {
     document.getElementById('searchFilter').value = `rot:${side},${phase},${rNum}`;
-    
     const searchArea = document.getElementById('searchArea');
-    if (!searchArea.classList.contains('show')) {
-        toggleSearchArea(); // 検索窓をパカッと開く
-    }
-    
+    if (!searchArea.classList.contains('show')) toggleSearchArea();
     setMode('rally');
     if(currentData.length > 0) playIndex(0);
 }
-
 
 function handleSuggestInput(e, playId) {
     const val = e.target.value; const cursorStart = e.target.selectionStart; const textBeforeCursor = val.substring(0, cursorStart);
@@ -475,23 +473,8 @@ function clearCanvas() { drawingLines = []; renderDrawing(); }
 async function saveDrawing() { matchDrawings[activePlayIdForDraw] = JSON.parse(JSON.stringify(drawingLines)); render(); exitDrawMode(); player.playVideo(); await supabaseClient.from('drawings').delete().match({ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw }); await supabaseClient.from('drawings').insert([{ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw, drawing_data: JSON.stringify(matchDrawings[activePlayIdForDraw]) }]); }
 
 async function addLike(playId) { if (likedPlaysSession.has(playId)) return; likedPlaysSession.add(playId); matchLikes[playId] = (matchLikes[playId] || 0) + 1; render(); await supabaseClient.from('likes').insert([{ match_dvw: currentMatchDVW, play_id: playId }]); }
+async function addComment(playId) { const input = document.getElementById(`c-input-${playId}`); const text = input.value.trim(); if (!text) return; if (!matchComments[playId]) matchComments[playId] = []; matchComments[playId].push(text); input.value = ""; renderNotifications(); render(); await supabaseClient.from('comments').insert([{ match_dvw: currentMatchDVW, play_id: playId, comment_text: text }]); }
 
-async function addComment(playId) { 
-    const input = document.getElementById(`c-input-${playId}`); 
-    const text = input.value.trim(); 
-    if (!text) return; 
-    
-    if (!matchComments[playId]) matchComments[playId] = []; 
-    matchComments[playId].push(text); 
-    input.value = ""; 
-    
-    renderNotifications(); 
-    render(); 
-    
-    await supabaseClient.from('comments').insert([{ match_dvw: currentMatchDVW, play_id: playId, comment_text: text }]); 
-}
-
-// LINE / LINK URL BUILDER
 function getSafeBaseUrl() { return window.location.origin + window.location.pathname; }
 function getLink(startTime) { const u = new URL(getSafeBaseUrl()); u.searchParams.set('match', currentMatchDVW); u.searchParams.set('t', Math.floor(startTime)); return u.toString(); }
 function copyLink(startTime) { navigator.clipboard.writeText(getLink(startTime)).then(() => alert("Link copied!")); }
@@ -499,7 +482,6 @@ function shareLine(playId, startTime) { const link = getLink(startTime); window.
 function copyPlaylistLink() { const q = document.getElementById('searchFilter').value.trim(); const u = new URL(getSafeBaseUrl()); u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); navigator.clipboard.writeText(u.toString()).then(() => alert("Playlist link copied!")); }
 function sharePlaylist() { const q = document.getElementById('searchFilter').value.trim(); const u = new URL(getSafeBaseUrl()); u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【HTH Playlist】\n" + u.toString())}`, '_blank'); }
 
-// TABLE
 function renderDualTables() { const list = document.getElementById('instanceList'); list.innerHTML = ''; ["*", "a"].forEach(side => { const team = side === "*" ? document.getElementById('ov-h-code').innerText : document.getElementById('ov-a-code').innerText; list.innerHTML += `<div class="stats-section-title">${team} Statistics</div><div class="stats-container"><table class="stats-table" id="t-${side}"></table></div>`; buildTable(side, `t-${side}`); }); }
 function buildTable(side, targetId) {
     const ps = []; const seen = new Set();
@@ -528,11 +510,7 @@ function buildTable(side, targetId) {
     });
     document.getElementById(targetId).innerHTML = html;
 }
-function jumpToStat(side, pName, skill, eff) { 
-    setMode('player'); document.getElementById('teamFilterPlayer').value = side; onTeamChangePlayer(); 
-    document.getElementById('playerFilter').value = pName; document.getElementById('skillFilter').value = skill;
-    document.getElementById('effectFilter').value = eff; render(); if (currentData.length > 0) playIndex(0); 
-}
+function jumpToStat(side, pName, skill, eff) { setMode('player'); document.getElementById('teamFilterPlayer').value = side; onTeamChangePlayer(); document.getElementById('playerFilter').value = pName; document.getElementById('skillFilter').value = skill; document.getElementById('effectFilter').value = eff; render(); if (currentData.length > 0) playIndex(0); }
 
 function playIndex(i) {
     if (i < 0 || i >= currentData.length) return; currentIndex = i; const d = currentData[i]; player.seekTo(d.startTime, true); player.playVideo();
@@ -568,7 +546,6 @@ window.addEventListener('keydown', (e) => {
         }
         return;
     }
-
     if (isInput) return;
     const key = e.key.toLowerCase();
     if (key === 'f') playNext(); else if (key === 'd') playPrev(); else if (key === 'r') { player.seekTo(currentData[currentIndex].startTime, true); player.playVideo(); }
