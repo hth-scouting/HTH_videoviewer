@@ -21,15 +21,14 @@
             --home-accent: #f06292; --away-accent: #64b5f6; 
             --score-bg: rgba(255, 255, 255, 0.95); --line-green: #06C755; 
             --bg-light: #f8f9fa; --text-main: #333; --text-muted: #666;
-            --header-bg: #1e1e2f; /* ヘッダーのダークカラー */
+            --header-bg: #1e1e2f; 
         }
         body, html { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         
-        /* 💡 全体を縦並び（ヘッダーとワークスペース）に変更 */
         body { display: flex; flex-direction: column; background: #eaedf1; }
 
         /* =========================================
-           グローバルヘッダー（独立した大前提の操作エリア）
+           グローバルヘッダー
            ========================================= */
         #global-header {
             background: var(--header-bg); color: white; display: flex; align-items: center; justify-content: space-between;
@@ -39,10 +38,10 @@
         .brand span { background: var(--primary); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
         
         .header-tools { display: flex; align-items: center; gap: 15px; }
-        .header-tools .cat-tabs { margin-bottom: 0; gap: 6px; }
-        .header-tools .cat-tab { background: transparent; border: 1px solid #555; color: #aaa; padding: 6px 12px; }
+        .header-tools .cat-tabs { margin-bottom: 0; gap: 6px; display: flex;}
+        .header-tools .cat-tab { background: transparent; border: 1px solid #555; color: #aaa; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .header-tools .cat-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
-        .header-tools select { width: 250px; margin-bottom: 0; padding: 8px 12px; border: none; background: #333; color: white; border-radius: 6px; font-weight: bold; }
+        .header-tools select { width: 250px; margin-bottom: 0; padding: 8px 12px; border: none; background: #333; color: white; border-radius: 6px; font-weight: bold; outline: none; }
         .add-match-btn { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .add-match-btn:hover { background: var(--primary-hover); }
 
@@ -89,7 +88,6 @@
         .nav-prev { left: 20px; }
         .nav-next { right: 20px; }
 
-        /* サイドバー（分析に特化してスッキリ！） */
         #control-side { flex: 1; padding: 15px 20px; overflow-y: auto; background: #fff; border-left: 1px solid #ddd; box-sizing: border-box; display: flex; flex-direction: column; }
         
         .mode-tabs { display: flex; gap: 6px; margin-bottom: 15px; background: var(--bg-light); padding: 4px; border-radius: 8px; }
@@ -99,7 +97,6 @@
         .filter-card { background: var(--bg-light); border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
         .filter-label { font-size: 0.7rem; color: #888; font-weight: 700; display: block; margin-bottom: 6px; letter-spacing: 0.5px; }
         select, .search-input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ced4da; font-size: 0.9rem; margin-bottom: 10px; background: #fff; box-sizing: border-box; }
-        .cat-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
 
         .toggle-search-btn { 
             width: 100%; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 8px; 
@@ -195,13 +192,13 @@
             .brand { font-size: 0.9rem; }
         }
 
-/* =========================================
+        /* =========================================
            🚨 スマホ縦画面（ポートレート）の極限最適化
            ========================================= */
         @media (max-width: 768px) and (orientation: portrait) {
             body { flex-direction: column; }
             
-            /* 💡 ヘッダーを「極薄1行」に圧縮し、スペースを極限まで節約 */
+            /* ヘッダーを「極薄1行」に圧縮し、スペースを極限まで節約 */
             #global-header { flex-direction: row; align-items: center; justify-content: space-between; padding: 5px 10px; }
             .brand { font-size: 0.9rem; flex-shrink: 0; }
             .brand span { display: none; } /* スマホでは Scouting の文字を消してさらに短縮 */
@@ -210,7 +207,7 @@
             .header-tools .cat-tabs { display: none; }
             .header-tools select { width: 100%; max-width: 180px; font-size: 0.8rem; padding: 6px; margin: 0; }
             
-            /* 💡 邪魔な「試合追加ボタン」はスマホでは完全に非表示にする！ */
+            /* 邪魔な「試合追加ボタン」はスマホでは完全に非表示にする！ */
             .add-match-btn { display: none; }
 
             #main-workspace { flex-direction: column; }
@@ -226,6 +223,7 @@
             .top-right-actions { position: relative; top: 0; right: 0; margin-top: 10px; width: 100%; justify-content: flex-end; }
             .draw-trigger-btn, #shortcut-btn { display: none !important; }
         }
+    </style>
 </head>
 <body onclick="hideAllTagPopups()">
 
