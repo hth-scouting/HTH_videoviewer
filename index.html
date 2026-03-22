@@ -14,16 +14,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>HTH Pro Scouting v0.8.13</title>
+    <title>HTH Pro Scouting v0.8.18</title>
     <style>
         :root { 
             --primary: #007bff; --primary-hover: #0056b3; 
             --home-accent: #f06292; --away-accent: #64b5f6; 
             --score-bg: rgba(255, 255, 255, 0.95); --line-green: #06C755; 
             --bg-light: #f8f9fa; --text-main: #333; --text-muted: #666;
+            --header-bg: #1e1e2f; /* ヘッダーのダークカラー */
         }
         body, html { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { display: flex; background: #eaedf1; }
+        
+        /* 💡 全体を縦並び（ヘッダーとワークスペース）に変更 */
+        body { display: flex; flex-direction: column; background: #eaedf1; }
+
+        /* =========================================
+           グローバルヘッダー（独立した大前提の操作エリア）
+           ========================================= */
+        #global-header {
+            background: var(--header-bg); color: white; display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0;
+        }
+        .brand { font-weight: 900; font-size: 1.1rem; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; color: #fff; }
+        .brand span { background: var(--primary); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+        
+        .header-tools { display: flex; align-items: center; gap: 15px; }
+        .header-tools .cat-tabs { margin-bottom: 0; gap: 6px; }
+        .header-tools .cat-tab { background: transparent; border: 1px solid #555; color: #aaa; padding: 6px 12px; }
+        .header-tools .cat-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .header-tools select { width: 250px; margin-bottom: 0; padding: 8px 12px; border: none; background: #333; color: white; border-radius: 6px; font-weight: bold; }
+        .add-match-btn { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .add-match-btn:hover { background: var(--primary-hover); }
+
+        /* =========================================
+           メインワークスペース（動画 ＋ 分析パネル）
+           ========================================= */
+        #main-workspace { display: flex; flex: 1; overflow: hidden; }
 
         #video-side { flex: 3.5; background: #000; position: relative; }
         #player-box { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; }
@@ -63,21 +89,17 @@
         .nav-prev { left: 20px; }
         .nav-next { right: 20px; }
 
+        /* サイドバー（分析に特化してスッキリ！） */
         #control-side { flex: 1; padding: 15px 20px; overflow-y: auto; background: #fff; border-left: 1px solid #ddd; box-sizing: border-box; display: flex; flex-direction: column; }
         
-        /* 💡 修正：タブを上下2段にして5ボタン配置に対応 */
-        .mode-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; background: var(--bg-light); padding: 4px; border-radius: 8px; }
-        .mode-tab { flex: 1 1 calc(30% - 6px); padding: 10px 5px; border: none; background: transparent; font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 0.8rem; color: var(--text-muted); transition: 0.2s; text-align: center; }
+        .mode-tabs { display: flex; gap: 6px; margin-bottom: 15px; background: var(--bg-light); padding: 4px; border-radius: 8px; }
+        .mode-tab { flex: 1; padding: 10px 5px; border: none; background: transparent; font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 0.8rem; color: var(--text-muted); transition: 0.2s; text-align: center; }
         .mode-tab.active { background: #fff; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .mode-tab.add-match-tab { background: var(--primary); color: white; flex: 1 1 35%; }
 
         .filter-card { background: var(--bg-light); border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
         .filter-label { font-size: 0.7rem; color: #888; font-weight: 700; display: block; margin-bottom: 6px; letter-spacing: 0.5px; }
         select, .search-input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ced4da; font-size: 0.9rem; margin-bottom: 10px; background: #fff; box-sizing: border-box; }
-
-        .cat-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
-        .cat-tab { padding: 6px 12px; border-radius: 20px; border: 1px solid #ddd; background: #fff; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .cat-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .cat-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
 
         .toggle-search-btn { 
             width: 100%; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 8px; 
@@ -158,20 +180,40 @@
         .modal-content kbd { background: #444; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; color: #fff; }
         .close-modal-btn { width: 100%; padding: 10px; background: #444; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
 
+        /* =========================================
+           スマホ横画面（ランドスケープ）用レスポンシブ
+           ========================================= */
         @media (max-width: 950px) and (orientation: landscape) {
-            body { flex-direction: row; }
-            #video-side { width: 60%; height: 100vh; padding-top: 0; flex: none; }
-            #control-side { width: 40%; height: 100vh; flex: none; padding: 10px; overflow-y: auto; }
+            #main-workspace { flex-direction: row; }
+            #video-side { width: 60%; height: auto; flex: none; }
+            #control-side { width: 40%; height: auto; flex: none; padding: 10px; }
             #score-overlay { transform: scale(0.7); transform-origin: top left; }
             .video-nav-btn { width: 40px; height: 40px; font-size: 1rem; }
             .action-row { flex-wrap: wrap; }
             .comment-input { padding: 6px; font-size: 0.8rem; }
+            .header-tools select { width: 180px; font-size: 0.8rem; padding: 6px; }
+            .brand { font-size: 0.9rem; }
         }
 
+        /* =========================================
+           🚨 スマホ縦画面（ポートレート）の極限最適化
+           ========================================= */
         @media (max-width: 768px) and (orientation: portrait) {
             body { flex-direction: column; }
-            #video-side { width: 100%; height: 0; padding-top: 56.25%; flex: none; }
-            #control-side { width: 100%; flex: 1; }
+            
+            /* ヘッダーを2段に折りたたみ、スペースを節約 */
+            #global-header { flex-direction: column; align-items: stretch; padding: 8px 10px; gap: 8px; }
+            .brand { justify-content: center; font-size: 1rem; }
+            .header-tools { flex-wrap: wrap; justify-content: space-between; gap: 6px; }
+            .header-tools .cat-tabs { display: none; } /* 縦画面ではカテゴリタブを隠す（プルダウンだけで選べるため） */
+            .header-tools select { flex: 1; width: auto; font-size: 0.8rem; padding: 8px; }
+            .add-match-btn { padding: 8px 12px; font-size: 0.8rem; }
+
+            #main-workspace { flex-direction: column; }
+            /* 動画は16:9の比率を絶対死守！ */
+            #video-side { width: 100%; height: auto; aspect-ratio: 16 / 9; flex: none; }
+            #control-side { width: 100%; flex: 1; padding: 10px; }
+            
             #score-overlay { top: 5px !important; left: 5px !important; width: 60px !important; border-radius: 4px !important; }
             .ov-team-box { font-size: 0.4rem !important; padding-left: 2px !important; }
             .ov-sets-box, .ov-points-box { font-size: 0.5rem !important; width: 15px !important; }
@@ -185,53 +227,61 @@
 </head>
 <body onclick="hideAllTagPopups()">
 
-<div id="video-side">
-    <div id="player-box" onclick="toggleOverlay()">
-        <div id="player"></div>
-        <div id="score-overlay" class="vid-ui">
-            <div class="score-row home"><div class="sticky-bar"></div><div class="ov-team-box" id="ov-h-code">---</div><div class="ov-sets-box" id="ov-h-sets">0</div><div class="ov-points-box" id="ov-h-score">0</div></div>
-            <div class="score-row away"><div class="sticky-bar"></div><div class="ov-team-box" id="ov-a-code">---</div><div class="ov-sets-box" id="ov-a-sets">0</div><div class="ov-points-box" id="ov-a-score">0</div></div>
-        </div>
-        <button class="video-nav-btn nav-prev vid-ui" onclick="event.stopPropagation(); playPrev()">◀</button>
-        <button class="video-nav-btn nav-next vid-ui" onclick="event.stopPropagation(); playNext()">▶</button>
-    </div>
-    <canvas id="telestratorCanvas"></canvas>
-    <div id="draw-toolbar">
-        <span style="color:white; font-size:0.85rem; font-weight:bold;">✏️ Drawing Mode</span>
-        <button class="draw-btn" onclick="clearCanvas()">Clear</button>
-        <button class="draw-btn cancel" onclick="exitDrawMode()">Cancel</button>
-        <button class="draw-btn save" onclick="saveDrawing()">Save (P)</button>
-    </div>
-</div>
-
-<div id="control-side">
-    <div class="mode-tabs">
-        <button class="mode-tab active" id="btn-rally" onclick="setMode('rally')">Rallies</button>
-        <button class="mode-tab" id="btn-player" onclick="setMode('player')">Individual</button>
-        <button class="mode-tab" id="btn-stats" onclick="setMode('stats')">Table</button>
-        <button class="mode-tab" id="btn-rotation" onclick="setMode('rotation')">Rotation</button>
-        <button class="mode-tab add-match-tab" onclick="document.getElementById('add-match-modal').style.display='flex'">➕ Add Match</button>
-    </div>
-
-    <div class="filter-card" id="filterArea">
-        <span class="filter-label">1. Category</span>
+<header id="global-header">
+    <div class="brand">HTH Pro <span>Scouting</span></div>
+    <div class="header-tools">
         <div id="catTabs" class="cat-tabs"></div>
-        <span class="filter-label">2. Match</span>
-        <select id="matchSelect" onchange="onMatchChange(this.value)"><option value="">Select Match...</option></select>
-        <div id="rally-filters"><span class="filter-label">3. Server Team</span><select id="teamFilterRally" onchange="render()"><option value="">Both Teams</option></select></div>
-        <div id="player-filters" style="display:none;">
-            <span class="filter-label">3. Select Team & Player</span>
-            <div style="display:flex; gap:8px;"><select id="teamFilterPlayer" onchange="onTeamChangePlayer()"><option value="">Team</option></select><select id="playerFilter" onchange="render()"><option value="">Player</option></select></div>
-            <div style="display:flex; gap:8px;"><div style="flex:1"><span class="filter-label">4. Skill</span><select id="skillFilter" onchange="render()"><option value="">All</option><option value="S">Serve</option><option value="R">Rec</option><option value="E">Set</option><option value="A">Attack</option><option value="B">Block</option><option value="D">Dig</option></select></div><div style="flex:1"><span class="filter-label">5. Effect</span><select id="effectFilter" onchange="render()"><option value="">All</option><option value="#">Win (#)</option><option value="=">Error (=)</option><option value="+">Pos (+)</option><option value="-">Poor (-)</option><option value="!">Neutral (!)</option></select></div></div>
-        </div>
-        <button class="toggle-search-btn" onclick="toggleSearchArea()"><span>🔍 Search Comments / Tags</span><span id="searchArrow">▼</span></button>
-        <div class="search-container" id="searchArea">
-            <input type="text" id="searchFilter" class="search-input" oninput="render()" placeholder="Keyword (e.g. #MB, #Good)">
-            <div style="display:flex; gap:8px;"><button class="action-sm-btn" style="flex:1; background:#6c757d; color:white;" onclick="copyPlaylistLink()">Copy URL</button><button class="action-sm-btn" style="flex:1; background:var(--line-green); color:white;" onclick="sharePlaylist()">Share LINE</button></div>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem; color:var(--text-muted); margin-top:12px;"><input type="checkbox" id="autoNext" checked style="width:auto; margin:0;"><label for="autoNext" style="cursor:pointer; font-weight:bold;">Auto-Skip</label></div>
+        <select id="matchSelect" onchange="onMatchChange(this.value)">
+            <option value="">Select Match...</option>
+        </select>
+        <button class="add-match-btn" onclick="document.getElementById('add-match-modal').style.display='flex'">➕ Add Match</button>
     </div>
-    <div id="instanceList"></div>
+</header>
+
+<div id="main-workspace">
+    <div id="video-side">
+        <div id="player-box" onclick="toggleOverlay()">
+            <div id="player"></div>
+            <div id="score-overlay" class="vid-ui">
+                <div class="score-row home"><div class="sticky-bar"></div><div class="ov-team-box" id="ov-h-code">---</div><div class="ov-sets-box" id="ov-h-sets">0</div><div class="ov-points-box" id="ov-h-score">0</div></div>
+                <div class="score-row away"><div class="sticky-bar"></div><div class="ov-team-box" id="ov-a-code">---</div><div class="ov-sets-box" id="ov-a-sets">0</div><div class="ov-points-box" id="ov-a-score">0</div></div>
+            </div>
+            <button class="video-nav-btn nav-prev vid-ui" onclick="event.stopPropagation(); playPrev()">◀</button>
+            <button class="video-nav-btn nav-next vid-ui" onclick="event.stopPropagation(); playNext()">▶</button>
+        </div>
+        <canvas id="telestratorCanvas"></canvas>
+        <div id="draw-toolbar">
+            <span style="color:white; font-size:0.85rem; font-weight:bold;">✏️ Drawing Mode</span>
+            <button class="draw-btn" onclick="clearCanvas()">Clear</button>
+            <button class="draw-btn cancel" onclick="exitDrawMode()">Cancel</button>
+            <button class="draw-btn save" onclick="saveDrawing()">Save (P)</button>
+        </div>
+    </div>
+
+    <div id="control-side">
+        <div class="mode-tabs">
+            <button class="mode-tab active" id="btn-rally" onclick="setMode('rally')">Rallies</button>
+            <button class="mode-tab" id="btn-player" onclick="setMode('player')">Individual</button>
+            <button class="mode-tab" id="btn-stats" onclick="setMode('stats')">Table</button>
+            <button class="mode-tab" id="btn-rotation" onclick="setMode('rotation')">Rotation</button>
+        </div>
+
+        <div class="filter-card" id="filterArea">
+            <div id="rally-filters"><span class="filter-label">1. Server Team</span><select id="teamFilterRally" onchange="render()"><option value="">Both Teams</option></select></div>
+            <div id="player-filters" style="display:none;">
+                <span class="filter-label">1. Select Team & Player</span>
+                <div style="display:flex; gap:8px;"><select id="teamFilterPlayer" onchange="onTeamChangePlayer()"><option value="">Team</option></select><select id="playerFilter" onchange="render()"><option value="">Player</option></select></div>
+                <div style="display:flex; gap:8px;"><div style="flex:1"><span class="filter-label">2. Skill</span><select id="skillFilter" onchange="render()"><option value="">All</option><option value="S">Serve</option><option value="R">Rec</option><option value="E">Set</option><option value="A">Attack</option><option value="B">Block</option><option value="D">Dig</option></select></div><div style="flex:1"><span class="filter-label">3. Effect</span><select id="effectFilter" onchange="render()"><option value="">All</option><option value="#">Win (#)</option><option value="=">Error (=)</option><option value="+">Pos (+)</option><option value="-">Poor (-)</option><option value="!">Neutral (!)</option></select></div></div>
+            </div>
+            <button class="toggle-search-btn" onclick="toggleSearchArea()"><span>🔍 Search Comments / Tags</span><span id="searchArrow">▼</span></button>
+            <div class="search-container" id="searchArea">
+                <input type="text" id="searchFilter" class="search-input" oninput="render()" placeholder="Keyword (e.g. #MB, #Good)">
+                <div style="display:flex; gap:8px;"><button class="action-sm-btn" style="flex:1; background:#6c757d; color:white;" onclick="copyPlaylistLink()">Copy URL</button><button class="action-sm-btn" style="flex:1; background:var(--line-green); color:white;" onclick="sharePlaylist()">Share LINE</button></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem; color:var(--text-muted); margin-top:12px;"><input type="checkbox" id="autoNext" checked style="width:auto; margin:0;"><label for="autoNext" style="cursor:pointer; font-weight:bold;">Auto-Skip</label></div>
+        </div>
+        <div id="instanceList"></div>
+    </div>
 </div>
 
 <div id="add-match-modal" onclick="this.style.display='none'">
