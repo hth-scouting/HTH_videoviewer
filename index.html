@@ -14,7 +14,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>HTH Pro Scouting v0.8.10</title>
+    <title>HTH Pro Scouting v0.8.13</title>
     <style>
         :root { 
             --primary: #007bff; --primary-hover: #0056b3; 
@@ -65,9 +65,11 @@
 
         #control-side { flex: 1; padding: 15px 20px; overflow-y: auto; background: #fff; border-left: 1px solid #ddd; box-sizing: border-box; display: flex; flex-direction: column; }
         
-        .mode-tabs { display: flex; gap: 6px; margin-bottom: 15px; background: var(--bg-light); padding: 4px; border-radius: 8px; }
-        .mode-tab { flex: 1; padding: 10px 5px; border: none; background: transparent; font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 0.8rem; color: var(--text-muted); transition: 0.2s; }
+        /* 💡 修正：タブを上下2段にして5ボタン配置に対応 */
+        .mode-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; background: var(--bg-light); padding: 4px; border-radius: 8px; }
+        .mode-tab { flex: 1 1 calc(30% - 6px); padding: 10px 5px; border: none; background: transparent; font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 0.8rem; color: var(--text-muted); transition: 0.2s; text-align: center; }
         .mode-tab.active { background: #fff; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .mode-tab.add-match-tab { background: var(--primary); color: white; flex: 1 1 35%; }
 
         .filter-card { background: var(--bg-light); border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
         .filter-label { font-size: 0.7rem; color: #888; font-weight: 700; display: block; margin-bottom: 6px; letter-spacing: 0.5px; }
@@ -113,7 +115,6 @@
         .copy-link-btn { background: #6c757d; flex: 1; }
         .line-btn { background: var(--line-green); flex: 1; }
 
-        /* Mobile Tag Popup Styles */
         .tag-popup {
             position: absolute; bottom: 45px; left: 0; background: #fff; border: 1px solid #ccc; 
             border-radius: 8px; display: none; flex-wrap: wrap; gap: 5px; padding: 8px; 
@@ -123,7 +124,6 @@
         .tag-chip { background: #f0f0f0; border: 1px solid #ddd; padding: 4px 10px; border-radius: 15px; font-size: 0.75rem; cursor: pointer; font-weight: bold; color: var(--primary); }
         .tag-chip:hover { background: var(--primary); color: white; }
 
-        /* Custom Auto-Suggest Dropdown */
         .auto-suggest-box {
             position: absolute; bottom: 100%; left: 45px; background: #fff; border: 1px solid #ccc;
             border-radius: 6px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); display: none;
@@ -133,15 +133,13 @@
         .s-item:last-child { border-bottom: none; }
         .s-item:hover, .s-item.active { background: var(--primary); color: #fff; }
 
-        /* PC Table Compact Fix (v0.8.4 style restored) */
-        .stats-section-title { font-weight: 900; padding: 15px 0 5px; border-bottom: 2px solid #333; margin-top: 20px; }
+        .stats-section-title { font-weight: 900; padding: 15px 0 5px; border-bottom: 2px solid #333; margin-top: 20px; text-transform: uppercase; }
         .stats-container { width: 100%; overflow-x: auto; margin-bottom: 20px; background: #fff; border-radius: 8px; border: 1px solid #eee; }
         .stats-table { width: auto; border-collapse: collapse; font-size: 0.65rem; margin: 0 auto; min-width: 400px; }
         .stats-table th, .stats-table td { border: 1px solid #eee; padding: 5px 4px; text-align: center; }
         .stats-table th { background: #f8f9fa; font-weight: bold; }
         .click-num { color: var(--primary); font-weight: bold; cursor: pointer; text-decoration: underline; }
 
-        /* Match Uploader Modal */
         #add-match-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 300; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
         .add-match-content { background: #fff; color: #333; padding: 25px; border-radius: 12px; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .add-match-content h3 { margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; color: var(--primary); }
@@ -160,7 +158,17 @@
         .modal-content kbd { background: #444; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; color: #fff; }
         .close-modal-btn { width: 100%; padding: 10px; background: #444; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
 
-        @media (max-width: 768px) {
+        @media (max-width: 950px) and (orientation: landscape) {
+            body { flex-direction: row; }
+            #video-side { width: 60%; height: 100vh; padding-top: 0; flex: none; }
+            #control-side { width: 40%; height: 100vh; flex: none; padding: 10px; overflow-y: auto; }
+            #score-overlay { transform: scale(0.7); transform-origin: top left; }
+            .video-nav-btn { width: 40px; height: 40px; font-size: 1rem; }
+            .action-row { flex-wrap: wrap; }
+            .comment-input { padding: 6px; font-size: 0.8rem; }
+        }
+
+        @media (max-width: 768px) and (orientation: portrait) {
             body { flex-direction: column; }
             #video-side { width: 100%; height: 0; padding-top: 56.25%; flex: none; }
             #control-side { width: 100%; flex: 1; }
@@ -172,39 +180,6 @@
             .card-main { padding-right: 10px; flex-direction: column; align-items: flex-start; }
             .top-right-actions { position: relative; top: 0; right: 0; margin-top: 10px; width: 100%; justify-content: flex-end; }
             .draw-trigger-btn, #shortcut-btn { display: none !important; }
-        
-        /* =========================================
-           スマホ横画面（ランドスケープ）専用レイアウト
-           ========================================= */
-        @media (max-width: 950px) and (orientation: landscape) {
-            body { 
-                flex-direction: row; /* 縦並びを解除して、PCのように横並びにする */
-            }
-            #video-side { 
-                width: 60%; /* 左の60%を動画エリアに */
-                height: 100vh; /* 高さを画面いっぱいに */
-                padding-top: 0; /* 縦画面用のアスペクト比固定を解除 */
-                flex: none; 
-            }
-            #control-side { 
-                width: 40%; /* 右の40%を操作パネルに */
-                height: 100vh; 
-                flex: none; 
-                padding: 10px; 
-                overflow-y: auto; /* 右側だけ独立してスクロール可能に */
-            }
-            
-            /* 横画面は高さが狭いので、邪魔なUIをさらに極小化・非表示 */
-            #score-overlay { 
-                transform: scale(0.7); 
-                transform-origin: top left; 
-            }
-            .video-nav-btn { 
-                width: 40px; height: 40px; font-size: 1rem; /* ナビボタンを小さく */
-            }
-            /* 入力エリアを少しコンパクトに */
-            .action-row { flex-wrap: wrap; }
-            .comment-input { padding: 6px; font-size: 0.8rem; }
         }
     </style>
 </head>
@@ -234,11 +209,11 @@
         <button class="mode-tab active" id="btn-rally" onclick="setMode('rally')">Rallies</button>
         <button class="mode-tab" id="btn-player" onclick="setMode('player')">Individual</button>
         <button class="mode-tab" id="btn-stats" onclick="setMode('stats')">Table</button>
+        <button class="mode-tab" id="btn-rotation" onclick="setMode('rotation')">Rotation</button>
+        <button class="mode-tab add-match-tab" onclick="document.getElementById('add-match-modal').style.display='flex'">➕ Add Match</button>
     </div>
 
     <div class="filter-card" id="filterArea">
-        <button onclick="document.getElementById('add-match-modal').style.display='flex'" style="width:100%; margin-bottom:15px; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">➕ Add New Match</button>
-        
         <span class="filter-label">1. Category</span>
         <div id="catTabs" class="cat-tabs"></div>
         <span class="filter-label">2. Match</span>
