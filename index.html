@@ -14,7 +14,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>HTH Pro Scouting v0.8.18</title>
+    <title>SyncScout v0.8.18</title>
     <style>
         :root { 
             --primary: #007bff; --primary-hover: #0056b3; 
@@ -34,8 +34,9 @@
             background: var(--header-bg); color: white; display: flex; align-items: center; justify-content: space-between;
             padding: 8px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0;
         }
-        .brand { font-weight: 900; font-size: 1.1rem; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; color: #fff; }
-        .brand span { background: var(--primary); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+        /* 💡 ロゴデザインをスッキリと力強く変更 */
+        .brand { font-weight: 900; font-size: 1.2rem; letter-spacing: 0px; display: flex; align-items: center; color: #fff; }
+        .brand span { color: var(--primary); } /* "Sync" の部分だけ青くする等のアレンジも可能 */
         
         .header-tools { display: flex; align-items: center; gap: 15px; }
         .header-tools .cat-tabs { margin-bottom: 0; gap: 6px; display: flex;}
@@ -189,7 +190,7 @@
             .action-row { flex-wrap: wrap; }
             .comment-input { padding: 6px; font-size: 0.8rem; }
             .header-tools select { width: 180px; font-size: 0.8rem; padding: 6px; }
-            .brand { font-size: 0.9rem; }
+            .brand { font-size: 1rem; } /* 少し小さく */
         }
 
         /* =========================================
@@ -198,16 +199,15 @@
         @media (max-width: 768px) and (orientation: portrait) {
             body { flex-direction: column; }
             
-            /* ヘッダーを「極薄1行」に圧縮し、スペースを極限まで節約 */
+            /* ヘッダーを「極薄1行」に圧縮 */
             #global-header { flex-direction: row; align-items: center; justify-content: space-between; padding: 5px 10px; }
-            .brand { font-size: 0.9rem; flex-shrink: 0; }
-            .brand span { display: none; } /* スマホでは Scouting の文字を消してさらに短縮 */
+            .brand { font-size: 1rem; flex-shrink: 0; }
             
             .header-tools { flex: 1; display: flex; justify-content: flex-end; }
             .header-tools .cat-tabs { display: none; }
             .header-tools select { width: 100%; max-width: 180px; font-size: 0.8rem; padding: 6px; margin: 0; }
             
-            /* 邪魔な「試合追加ボタン」はスマホでは完全に非表示にする！ */
+            /* スマホでは試合追加ボタンを非表示 */
             .add-match-btn { display: none; }
 
             #main-workspace { flex-direction: column; }
@@ -228,7 +228,7 @@
 <body onclick="hideAllTagPopups()">
 
 <header id="global-header">
-    <div class="brand">HTH Pro <span>Scouting</span></div>
+    <div class="brand">SyncScout</div>
     <div class="header-tools">
         <div id="catTabs" class="cat-tabs"></div>
         <select id="matchSelect" onchange="onMatchChange(this.value)">
