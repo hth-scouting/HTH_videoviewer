@@ -174,10 +174,7 @@ function jumpToPlayId(id) {
     document.getElementById('searchFilter').value = `id:${id}`;
     const searchArea = document.getElementById('searchArea');
     if (!searchArea.classList.contains('show')) toggleSearchArea();
-    
-    // 💡 テーブル等を開いている場合はリストに戻す予防措置
     if (currentMode === 'stats' || currentMode === 'rotation') setMode('rally');
-    
     render();
     if(currentData.length > 0) { playIndex(0); toggleActions(null, 0, true); }
 }
@@ -239,6 +236,9 @@ async function parseDVW(text) {
                     tempRally = playObj; 
                     rallies.push(playObj);
                 } else if (tempRally) {
+                    if (!tempRally.rallyHomeRot && rH) tempRally.rallyHomeRot = rH;
+                    if (!tempRally.rallyAwayRot && rA) tempRally.rallyAwayRot = rA;
+                    
                     playObj.rallyHomeRot = tempRally.rallyHomeRot;
                     playObj.rallyAwayRot = tempRally.rallyAwayRot;
                 }
@@ -490,9 +490,9 @@ async function addComment(playId) { const input = document.getElementById(`c-inp
 function getSafeBaseUrl() { return window.location.origin + window.location.pathname; }
 function getLink(startTime) { const u = new URL(getSafeBaseUrl()); u.searchParams.set('match', currentMatchDVW); u.searchParams.set('t', Math.floor(startTime)); return u.toString(); }
 function copyLink(startTime) { navigator.clipboard.writeText(getLink(startTime)).then(() => alert("Link copied!")); }
-function shareLine(playId, startTime) { const link = getLink(startTime); window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【HTH Analysis】Check this play!\n\n" + link)}`, '_blank'); }
+function shareLine(playId, startTime) { const link = getLink(startTime); window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【SyncScout Analysis】Check this play!\n\n" + link)}`, '_blank'); }
 function copyPlaylistLink() { const q = document.getElementById('searchFilter').value.trim(); const u = new URL(getSafeBaseUrl()); u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); navigator.clipboard.writeText(u.toString()).then(() => alert("Playlist link copied!")); }
-function sharePlaylist() { const q = document.getElementById('searchFilter').value.trim(); const u = new URL(getSafeBaseUrl()); u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【HTH Playlist】\n" + u.toString())}`, '_blank'); }
+function sharePlaylist() { const q = document.getElementById('searchFilter').value.trim(); const u = new URL(getSafeBaseUrl()); u.searchParams.set('match', currentMatchDVW); if(q) u.searchParams.set('q',q); window.open(`https://line.me/R/msg/text/?${encodeURIComponent("【SyncScout Playlist】\n" + u.toString())}`, '_blank'); }
 
 function renderDualTables() { const list = document.getElementById('instanceList'); list.innerHTML = ''; ["*", "a"].forEach(side => { const team = side === "*" ? document.getElementById('ov-h-code').innerText : document.getElementById('ov-a-code').innerText; list.innerHTML += `<div class="stats-section-title">${team} Statistics</div><div class="stats-container"><table class="stats-table" id="t-${side}"></table></div>`; buildTable(side, `t-${side}`); }); }
 function buildTable(side, targetId) {
@@ -523,18 +523,15 @@ function buildTable(side, targetId) {
     document.getElementById(targetId).innerHTML = html;
 }
 
-// 💡 修正箇所：Tableタブからのジャンプ時に、検索窓に残っているコマンドを綺麗に空っぽにする！
 function jumpToStat(side, pName, skill, eff) { 
     document.getElementById('searchFilter').value = ''; 
     document.getElementById('searchArea').classList.remove('show'); 
-    
     setMode('player'); 
     document.getElementById('teamFilterPlayer').value = side; 
     onTeamChangePlayer(); 
     document.getElementById('playerFilter').value = pName; 
     document.getElementById('skillFilter').value = skill; 
     document.getElementById('effectFilter').value = eff; 
-    
     render(); 
     if (currentData.length > 0) playIndex(0); 
 }
