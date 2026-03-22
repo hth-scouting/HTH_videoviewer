@@ -195,22 +195,25 @@
             .brand { font-size: 0.9rem; }
         }
 
-        /* =========================================
+/* =========================================
            🚨 スマホ縦画面（ポートレート）の極限最適化
            ========================================= */
         @media (max-width: 768px) and (orientation: portrait) {
             body { flex-direction: column; }
             
-            /* ヘッダーを2段に折りたたみ、スペースを節約 */
-            #global-header { flex-direction: column; align-items: stretch; padding: 8px 10px; gap: 8px; }
-            .brand { justify-content: center; font-size: 1rem; }
-            .header-tools { flex-wrap: wrap; justify-content: space-between; gap: 6px; }
-            .header-tools .cat-tabs { display: none; } /* 縦画面ではカテゴリタブを隠す（プルダウンだけで選べるため） */
-            .header-tools select { flex: 1; width: auto; font-size: 0.8rem; padding: 8px; }
-            .add-match-btn { padding: 8px 12px; font-size: 0.8rem; }
+            /* 💡 ヘッダーを「極薄1行」に圧縮し、スペースを極限まで節約 */
+            #global-header { flex-direction: row; align-items: center; justify-content: space-between; padding: 5px 10px; }
+            .brand { font-size: 0.9rem; flex-shrink: 0; }
+            .brand span { display: none; } /* スマホでは Scouting の文字を消してさらに短縮 */
+            
+            .header-tools { flex: 1; display: flex; justify-content: flex-end; }
+            .header-tools .cat-tabs { display: none; }
+            .header-tools select { width: 100%; max-width: 180px; font-size: 0.8rem; padding: 6px; margin: 0; }
+            
+            /* 💡 邪魔な「試合追加ボタン」はスマホでは完全に非表示にする！ */
+            .add-match-btn { display: none; }
 
             #main-workspace { flex-direction: column; }
-            /* 動画は16:9の比率を絶対死守！ */
             #video-side { width: 100%; height: auto; aspect-ratio: 16 / 9; flex: none; }
             #control-side { width: 100%; flex: 1; padding: 10px; }
             
@@ -223,7 +226,6 @@
             .top-right-actions { position: relative; top: 0; right: 0; margin-top: 10px; width: 100%; justify-content: flex-end; }
             .draw-trigger-btn, #shortcut-btn { display: none !important; }
         }
-    </style>
 </head>
 <body onclick="hideAllTagPopups()">
 
