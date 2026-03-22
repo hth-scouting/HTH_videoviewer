@@ -174,11 +174,14 @@ function jumpToPlayId(id) {
     document.getElementById('searchFilter').value = `id:${id}`;
     const searchArea = document.getElementById('searchArea');
     if (!searchArea.classList.contains('show')) toggleSearchArea();
+    
+    // 💡 テーブル等を開いている場合はリストに戻す予防措置
+    if (currentMode === 'stats' || currentMode === 'rotation') setMode('rally');
+    
     render();
     if(currentData.length > 0) { playIndex(0); toggleActions(null, 0, true); }
 }
 
-// 💡 抜本的修正：DVWの奥底（c[14]とc[15]）からローテーションを確実に引っこ抜く！
 async function parseDVW(text) {
     allPlays = []; rallies = []; playerMaster = {}; 
     const lines = text.split('\n'); 
@@ -199,7 +202,6 @@ async function parseDVW(text) {
         if (currentSection === "[3SCOUT]") {
             const c = l.split(';'); const code = c[0]; if (!code) return;
             
-            // 一部ソフト用のフォールバック（*zコードの抽出）
             const hMatch = code.match(/^\*z(\d)/i);
             if (hMatch) currentHomeRot = parseInt(hMatch[1]);
             const aMatch = code.match(/^az(\d)/i);
@@ -222,7 +224,6 @@ async function parseDVW(text) {
                 const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                 const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
                 
-                // 💡 核心部：配列の14番目(Home)と15番目(Away)から直接ローテーションを取得
                 let rH = parseInt(c[14]); if (isNaN(rH)) rH = currentHomeRot; else currentHomeRot = rH;
                 let rA = parseInt(c[15]); if (isNaN(rA)) rA = currentAwayRot; else currentAwayRot = rA;
 
@@ -234,7 +235,6 @@ async function parseDVW(text) {
                     rallyHomeRot: rH, rallyAwayRot: rA 
                 };
                 
-                // サーブが打たれたら、そのラリー全体に「その瞬間の両チームのローテ」を記録
                 if (skillChar === 'S') {
                     tempRally = playObj; 
                     rallies.push(playObj);
@@ -310,7 +310,7 @@ function render() {
     if (q.startsWith('rot:')) {
         const parts = q.split(','); 
         const tSide = parts[0].replace('rot:', '').trim();
-        const phase = parts[1]; // so 又は bp
+        const phase = parts[1]; 
         const rot = parseInt(parts[2]);
         
         if (phase === 'so') {
@@ -357,7 +357,6 @@ function render() {
         const noteBtnStyle = commentCount > 0 ? 'background:#e3f2fd; color:var(--primary); border:1px solid #bbdefb;' : '';
         const noteBtnText = commentCount > 0 ? `💬 Note (${commentCount})` : '💬 Note';
 
-        // 💡 プレイのカードにも正しいローテーション(P1~P6)が表示されるようになります
         btn.innerHTML = `
             <div class="card-main" onclick="playIndex(${i})">
                 <div class="score-box">${d.score}</div>
@@ -523,7 +522,22 @@ function buildTable(side, targetId) {
     });
     document.getElementById(targetId).innerHTML = html;
 }
-function jumpToStat(side, pName, skill, eff) { setMode('player'); document.getElementById('teamFilterPlayer').value = side; onTeamChangePlayer(); document.getElementById('playerFilter').value = pName; document.getElementById('skillFilter').value = skill; document.getElementById('effectFilter').value = eff; render(); if (currentData.length > 0) playIndex(0); }
+
+// 💡 修正箇所：Tableタブからのジャンプ時に、検索窓に残っているコマンドを綺麗に空っぽにする！
+function jumpToStat(side, pName, skill, eff) { 
+    document.getElementById('searchFilter').value = ''; 
+    document.getElementById('searchArea').classList.remove('show'); 
+    
+    setMode('player'); 
+    document.getElementById('teamFilterPlayer').value = side; 
+    onTeamChangePlayer(); 
+    document.getElementById('playerFilter').value = pName; 
+    document.getElementById('skillFilter').value = skill; 
+    document.getElementById('effectFilter').value = eff; 
+    
+    render(); 
+    if (currentData.length > 0) playIndex(0); 
+}
 
 function playIndex(i) {
     if (i < 0 || i >= currentData.length) return; currentIndex = i; const d = currentData[i]; player.seekTo(d.startTime, true); player.playVideo();
