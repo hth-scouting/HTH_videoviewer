@@ -178,12 +178,12 @@ function jumpToPlayId(id) {
     if(currentData.length > 0) { playIndex(0); toggleActions(null, 0, true); }
 }
 
-// 💡 修正: DVWの正確なローテーション(c[14], c[15], *z)の抽出
+// 💡 完全修正: DVWの正確なセッター位置（*zコード）をキャッチしてローテーションを追跡
 async function parseDVW(text) {
     allPlays = []; rallies = []; playerMaster = {}; 
     const lines = text.split('\n'); 
     let currentSection = "", runningScore = "00-00", hSets = 0, aSets = 0, teamCount = 0, tempRally = null;
-    let currentHomeRot = null, currentAwayRot = null; // ローテーション追跡用
+    let currentHomeRot = null, currentAwayRot = null; // セッター位置（ローテーション）の追跡用
 
     lines.forEach(line => {
         const l = line.trim(); if (l.startsWith('[')) { currentSection = l; return; }
@@ -199,38 +199,51 @@ async function parseDVW(text) {
         if (currentSection === "[3SCOUT]") {
             const c = l.split(';'); const code = c[0]; if (!code) return;
             
-            // DataVolleyが記録するセッター位置（*z3, az5 など）をキャッチして更新
-            if (code.startsWith('*z')) { const z = parseInt(code.charAt(2)); if(!isNaN(z)) currentHomeRot = z; }
-            if (code.startsWith('az')) { const z = parseInt(code.charAt(2)); if(!isNaN(z)) currentAwayRot = z; }
+            // 💡 修正: DVWの「*z3」や「aZ5」といったセッター位置コードを正確に拾って更新する
+            const hMatch = code.match(/^\*z(\d)/i);
+            if (hMatch) currentHomeRot = parseInt(hMatch[1]);
+            
+            const aMatch = code.match(/^az(\d)/i);
+            if (aMatch) currentAwayRot = parseInt(aMatch[1]);
 
-            if (code.startsWith('**') && code.toLowerCase().includes('set')) { const last = runningScore.split('-').map(Number); if (last[0] > last[1]) hSets++; else if (last[1] > last[0]) aSets++; runningScore = "00-00"; return; }
-            if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap')) { const m = code.match(/(\d{1,2})[:.](\d{1,2})/); if (m) runningScore = `${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); tempRally.wonBy = code.toLowerCase().startsWith('*p') ? '*' : 'a'; } return; }
+            if (code.startsWith('**') && code.toLowerCase().includes('set')) { 
+                const last = runningScore.split('-').map(Number); 
+                if (last[0] > last[1]) hSets++; else if (last[1] > last[0]) aSets++; 
+                runningScore = "00-00"; return; 
+            }
+            if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap')) { 
+                const m = code.match(/(\d{1,2})[:.](\d{1,2})/); 
+                if (m) runningScore = `${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; 
+                if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); tempRally.wonBy = code.toLowerCase().startsWith('*p') ? '*' : 'a'; } 
+                return; 
+            }
             
             const skillChar = code.charAt(3); 
             if ("SRABDE".includes(skillChar)) {
                 const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                 const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
                 
-                // DVW列から直接セッター位置を取得。無い場合は追跡したzコードを採用
-                let rH = parseInt(c[14]); if (isNaN(rH)) rH = currentHomeRot;
-                let rA = parseInt(c[15]); if (isNaN(rA)) rA = currentAwayRot;
-
+                // 💡 修正: c[8] (アクション開始位置) へのフォールバックを廃止し、追跡した正しいローテーションを適用
                 const playObj = { 
                     id: allPlays.length, time, startTime: time - 2.0, endTime: time + 4.0, score: runningScore, 
                     setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: code.charAt(5), 
                     pName: p.name, pNum: p.num, 
-                    rot: (side === '*' ? rH : rA) || c[8], // 表示用。見つからなければ旧方式をフォールバック表示
-                    rallyHomeRot: rH, rallyAwayRot: rA 
+                    rot: (side === '*' ? currentHomeRot : currentAwayRot) || "?", 
+                    rallyHomeRot: currentHomeRot, rallyAwayRot: currentAwayRot 
                 };
                 
                 if (skillChar === 'S') {
                     tempRally = playObj; 
                     rallies.push(playObj);
                 } else if (tempRally) {
-                    // 同じラリー内のすべてのプレイに、サーブ開始時のローテーションを強制継承
+                    // ラリー内の全プレイに、サーブ開始時のローテーションを強制適用
+                    if (!tempRally.rallyHomeRot && currentHomeRot) tempRally.rallyHomeRot = currentHomeRot;
+                    if (!tempRally.rallyAwayRot && currentAwayRot) tempRally.rallyAwayRot = currentAwayRot;
+                    
                     playObj.rallyHomeRot = tempRally.rallyHomeRot;
                     playObj.rallyAwayRot = tempRally.rallyAwayRot;
                 }
+                
                 allPlays.push(playObj);
             }
         }
@@ -258,6 +271,7 @@ async function parseDVW(text) {
     } else if (window.initLinkData.q && currentData.length > 0) {
         setTimeout(() => { playIndex(0); }, 1000);
     }
+    
     window.initLinkData = { t: null, q: null, match: null };
 }
 
@@ -388,7 +402,7 @@ function buildRotationTable(side, targetId) {
     let html = `<tr><th rowspan="2">Rot</th><th colspan="3">Side Out Phase</th><th colspan="5">Break Phase</th></tr>
                 <tr><th>Tot</th><th>Won</th><th>SO %</th><th>Tot</th><th>Ace</th><th>Err</th><th>Won</th><th>BP %</th></tr>`;
     
-    // 💡 修正: 並び順を現場仕様の「P1 → P6 → P5 → P4 → P3 → P2」に固定！
+    // 💡 修正: 表示順をバレーボールのコート推移（P1 → P6 → P5 → P4 → P3 → P2）に固定
     const rotOrder = [1, 6, 5, 4, 3, 2];
     
     rotOrder.forEach(r => {
