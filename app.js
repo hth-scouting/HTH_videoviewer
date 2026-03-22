@@ -179,6 +179,7 @@ function jumpToPlayId(id) {
     if(currentData.length > 0) { playIndex(0); toggleActions(null, 0, true); }
 }
 
+// 💡 修正：昨日動いていた「完璧なローテーション抽出ロジック（v0.8.17）」を完全に復元しました！
 async function parseDVW(text) {
     allPlays = []; rallies = []; playerMaster = {}; 
     const lines = text.split('\n'); 
@@ -201,7 +202,7 @@ async function parseDVW(text) {
             
             const hMatch = code.match(/^\*z(\d)/i);
             if (hMatch) currentHomeRot = parseInt(hMatch[1]);
-            const aMatch = code.match(/^az(\d)/i);
+            const aMatch = code.match(/^[av]z(\d)/i);
             if (aMatch) currentAwayRot = parseInt(aMatch[1]);
 
             if (code.startsWith('**') && code.toLowerCase().includes('set')) { 
@@ -209,7 +210,7 @@ async function parseDVW(text) {
                 if (last[0] > last[1]) hSets++; else if (last[1] > last[0]) aSets++; 
                 runningScore = "00-00"; return; 
             }
-            if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap')) { 
+            if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap') || code.toLowerCase().startsWith('vp')) { 
                 const m = code.match(/(\d{1,2})[:.](\d{1,2})/); 
                 if (m) runningScore = `${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; 
                 if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); tempRally.wonBy = code.toLowerCase().startsWith('*p') ? '*' : 'a'; } 
@@ -221,6 +222,7 @@ async function parseDVW(text) {
                 const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                 const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
                 
+                // 💡 復活させた核心コード：列の14番目(Home)と15番目(Away)からローテーションを取得
                 let rH = parseInt(c[14]); if (isNaN(rH)) rH = currentHomeRot; else currentHomeRot = rH;
                 let rA = parseInt(c[15]); if (isNaN(rA)) rA = currentAwayRot; else currentAwayRot = rA;
 
@@ -236,9 +238,6 @@ async function parseDVW(text) {
                     tempRally = playObj; 
                     rallies.push(playObj);
                 } else if (tempRally) {
-                    if (!tempRally.rallyHomeRot && rH) tempRally.rallyHomeRot = rH;
-                    if (!tempRally.rallyAwayRot && rA) tempRally.rallyAwayRot = rA;
-                    
                     playObj.rallyHomeRot = tempRally.rallyHomeRot;
                     playObj.rallyAwayRot = tempRally.rallyAwayRot;
                 }
