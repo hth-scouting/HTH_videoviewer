@@ -179,7 +179,7 @@ function jumpToPlayId(id) {
     if(currentData.length > 0) { playIndex(0); toggleActions(null, 0, true); }
 }
 
-// 💡 修正：昨日動いていた「完璧なローテーション抽出ロジック（v0.8.17）」を完全に復元しました！
+// 💡 DataVolleyとVolleyStationのどちらの仕様でも絶対にローテーションを逃さない最強ロジック
 async function parseDVW(text) {
     allPlays = []; rallies = []; playerMaster = {}; 
     const lines = text.split('\n'); 
@@ -200,10 +200,17 @@ async function parseDVW(text) {
         if (currentSection === "[3SCOUT]") {
             const c = l.split(';'); const code = c[0]; if (!code) return;
             
+            // 1. Zコード（セッター位置明示）から抽出
             const hMatch = code.match(/^\*z(\d)/i);
             if (hMatch) currentHomeRot = parseInt(hMatch[1]);
             const aMatch = code.match(/^[av]z(\d)/i);
             if (aMatch) currentAwayRot = parseInt(aMatch[1]);
+
+            // 2. DataVolley標準の「c[14], c[15]」から抽出（※1〜6の正しい数字の時のみ信頼する）
+            let rH = parseInt(c[14]);
+            if (!isNaN(rH) && rH >= 1 && rH <= 6) currentHomeRot = rH;
+            let rA = parseInt(c[15]);
+            if (!isNaN(rA) && rA >= 1 && rA <= 6) currentAwayRot = rA;
 
             if (code.startsWith('**') && code.toLowerCase().includes('set')) { 
                 const last = runningScore.split('-').map(Number); 
@@ -222,22 +229,21 @@ async function parseDVW(text) {
                 const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                 const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
                 
-                // 💡 復活させた核心コード：列の14番目(Home)と15番目(Away)からローテーションを取得
-                let rH = parseInt(c[14]); if (isNaN(rH)) rH = currentHomeRot; else currentHomeRot = rH;
-                let rA = parseInt(c[15]); if (isNaN(rA)) rA = currentAwayRot; else currentAwayRot = rA;
-
                 const playObj = { 
                     id: allPlays.length, time, startTime: time - 2.0, endTime: time + 4.0, score: runningScore, 
                     setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: code.charAt(5), 
                     pName: p.name, pNum: p.num, 
-                    rot: (side === '*' ? rH : rA) || "?", 
-                    rallyHomeRot: rH, rallyAwayRot: rA 
+                    rot: (side === '*' ? currentHomeRot : currentAwayRot) || "?", 
+                    rallyHomeRot: currentHomeRot, rallyAwayRot: currentAwayRot 
                 };
                 
                 if (skillChar === 'S') {
                     tempRally = playObj; 
                     rallies.push(playObj);
                 } else if (tempRally) {
+                    if (!tempRally.rallyHomeRot && currentHomeRot) tempRally.rallyHomeRot = currentHomeRot;
+                    if (!tempRally.rallyAwayRot && currentAwayRot) tempRally.rallyAwayRot = currentAwayRot;
+                    
                     playObj.rallyHomeRot = tempRally.rallyHomeRot;
                     playObj.rallyAwayRot = tempRally.rallyAwayRot;
                 }
