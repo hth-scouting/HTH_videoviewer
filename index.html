@@ -14,7 +14,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>SyncScout v0.8.22</title>
+    <title>SyncScout v0.8.26</title>
     <style>
         :root { 
             --primary: #007bff; --primary-hover: #0056b3; 
@@ -41,6 +41,10 @@
         .header-tools .cat-tabs { margin-bottom: 0; gap: 6px; display: flex;}
         .header-tools .cat-tab { background: transparent; border: 1px solid #555; color: #aaa; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .header-tools .cat-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        /* 💡 スマホ専用のカテゴリプルダウン（PCでは非表示） */
+        #catSelectMobile { display: none; }
+        
         .header-tools select { width: 250px; margin-bottom: 0; padding: 8px 12px; border: none; background: #333; color: white; border-radius: 6px; font-weight: bold; outline: none; }
         .add-match-btn { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .add-match-btn:hover { background: var(--primary-hover); }
@@ -189,13 +193,26 @@
             .brand { font-size: 1rem; }
         }
 
+        /* 💡 スマホ縦画面：カテゴリプルダウンと試合プルダウンを1行に美しく並べる */
         @media (max-width: 768px) and (orientation: portrait) {
             body { flex-direction: column; }
-            #global-header { flex-direction: row; align-items: center; justify-content: space-between; padding: 5px 10px; }
-            .brand { font-size: 1rem; flex-shrink: 0; }
-            .header-tools { flex: 1; display: flex; justify-content: flex-end; }
-            .header-tools .cat-tabs { display: none; }
-            .header-tools select { width: 100%; max-width: 180px; font-size: 0.8rem; padding: 6px; margin: 0; }
+            #global-header { flex-direction: row; align-items: center; justify-content: space-between; padding: 5px 8px; gap: 5px; }
+            .brand { font-size: 0.9rem; flex-shrink: 0; }
+            
+            .header-tools { flex: 1; display: flex; justify-content: flex-end; align-items: center; }
+            .header-tools .cat-tabs { display: none; } /* タブは隠す */
+            
+            /* 💡 スマホ専用カテゴリプルダウンを表示！ */
+            #catSelectMobile { 
+                display: block; 
+                width: 35%; max-width: 110px; 
+                font-size: 0.75rem; padding: 6px 4px; margin-right: 4px; 
+                border: 1px solid #555; background: #222; color: #fff; border-radius: 4px;
+            }
+            .header-tools select#matchSelect { 
+                flex: 1; width: auto; max-width: none; 
+                font-size: 0.8rem; padding: 6px; margin: 0; 
+            }
             .add-match-btn { display: none; }
 
             #main-workspace { flex-direction: column; }
@@ -219,6 +236,8 @@
     <div class="brand">SyncScout</div>
     <div class="header-tools">
         <div id="catTabs" class="cat-tabs"></div>
+        <select id="catSelectMobile" onchange="changeCategoryMobile(this.value)"></select>
+        
         <select id="matchSelect" onchange="onMatchChange(this.value)">
             <option value="">Select Match...</option>
         </select>
@@ -286,7 +305,7 @@
 <button id="shortcut-btn" onclick="toggleShortcuts()">⌨️ Shortcuts</button>
 <div id="shortcut-modal" onclick="toggleShortcuts()"><div class="modal-content" onclick="event.stopPropagation()"><h3>Keyboard Shortcuts</h3><ul><li><span>Next / Prev</span> <kbd>F</kbd> / <kbd>D</kbd></li><li><span>Repeat</span> <kbd>R</kbd></li><li><span>-2s / +2s</span> <kbd>←</kbd> / <kbd>→</kbd></li><li><span>Draw On/Save</span> <kbd>P</kbd></li><li><span>Focus Note</span> <kbd>C</kbd></li><li><span>Submit</span> <kbd>Enter</kbd></li><li><span>Select Tag</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd></li></ul><button class="close-modal-btn" onclick="toggleShortcuts()">Close</button></div></div>
 
-<script src="app.js?v=0.8.22"></script>
+<script src="app.js?v=0.8.26"></script>
 
 </body>
 </html>
