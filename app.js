@@ -101,13 +101,33 @@ function fetchMatchList() {
     });
 }
 
+// 💡 スマホ専用のプルダウンにもカテゴリ一覧を流し込む
 function renderCategoryTabs(cats) {
     const div = document.getElementById('catTabs'); div.innerHTML = '';
+    const mobSelect = document.getElementById('catSelectMobile'); if(mobSelect) mobSelect.innerHTML = '';
+    
     cats.forEach(c => {
+        // PC用のタブ
         const btn = document.createElement('button'); btn.className = `cat-tab ${c === currentCategory ? 'active' : ''}`;
         btn.innerText = c; btn.onclick = () => { currentCategory = c; renderCategoryTabs(cats); updateMatchDropdown(); };
         div.appendChild(btn);
+        
+        // スマホ用の選択肢
+        if(mobSelect) {
+            const opt = new Option(c, c);
+            if(c === currentCategory) opt.selected = true;
+            mobSelect.add(opt);
+        }
     });
+}
+
+// 💡 スマホでカテゴリを選んだときの処理
+function changeCategoryMobile(val) {
+    currentCategory = val;
+    // タブの見た目も裏側で同期させる
+    const cats = Array.from(document.getElementById('catSelectMobile').options).map(o => o.value);
+    renderCategoryTabs(cats);
+    updateMatchDropdown();
 }
 
 function updateMatchDropdown() {
@@ -179,7 +199,6 @@ function jumpToPlayId(id) {
     if(currentData.length > 0) { playIndex(0); toggleActions(null, 0, true); }
 }
 
-// 💡 ユーザー様の神ツッコミに基づく、最もシンプルで完璧なローテーションロジック
 async function parseDVW(text) {
     allPlays = []; rallies = []; playerMaster = {}; 
     const lines = text.split('\n'); 
@@ -217,7 +236,6 @@ async function parseDVW(text) {
                 const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                 const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
                 
-                // 💡 ここがすべての正解！余計な推測をせず c[9] と c[10] を素直に読むだけ
                 let rH = parseInt(c[9]); if (!isNaN(rH)) currentHomeRot = rH; else rH = currentHomeRot;
                 let rA = parseInt(c[10]); if (!isNaN(rA)) currentAwayRot = rA; else rA = currentAwayRot;
 
