@@ -174,14 +174,12 @@ function jumpToPlayId(id) {
     document.getElementById('searchFilter').value = `id:${id}`;
     const searchArea = document.getElementById('searchArea');
     if (!searchArea.classList.contains('show')) toggleSearchArea();
-    
     if (currentMode === 'stats' || currentMode === 'rotation') setMode('rally');
-    
     render();
     if(currentData.length > 0) { playIndex(0); toggleActions(null, 0, true); }
 }
 
-// 💡 ご提示いただいた「確実に動く過去バージョン」の解析ロジックを完全復元
+// 💡 ユーザー様の神ツッコミに基づく、最もシンプルで完璧なローテーションロジック
 async function parseDVW(text) {
     allPlays = []; rallies = []; playerMaster = {}; 
     const lines = text.split('\n'); 
@@ -201,18 +199,13 @@ async function parseDVW(text) {
         }
         if (currentSection === "[3SCOUT]") {
             const c = l.split(';'); const code = c[0]; if (!code) return;
-            
-            const hMatch = code.match(/^\*z(\d)/i);
-            if (hMatch) currentHomeRot = parseInt(hMatch[1]);
-            const aMatch = code.match(/^az(\d)/i);
-            if (aMatch) currentAwayRot = parseInt(aMatch[1]);
 
             if (code.startsWith('**') && code.toLowerCase().includes('set')) { 
                 const last = runningScore.split('-').map(Number); 
                 if (last[0] > last[1]) hSets++; else if (last[1] > last[0]) aSets++; 
                 runningScore = "00-00"; return; 
             }
-            if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap')) { 
+            if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap') || code.toLowerCase().startsWith('vp')) { 
                 const m = code.match(/(\d{1,2})[:.](\d{1,2})/); 
                 if (m) runningScore = `${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; 
                 if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); tempRally.wonBy = code.toLowerCase().startsWith('*p') ? '*' : 'a'; } 
@@ -224,8 +217,9 @@ async function parseDVW(text) {
                 const side = code.charAt(0), num = parseInt(code.substring(1,3)), time = parseFloat(c[12]);
                 const p = playerMaster[`${side}_${num}`] || { name: `Player ${num}`, num };
                 
-                let rH = parseInt(c[14]); if (isNaN(rH)) rH = currentHomeRot; else currentHomeRot = rH;
-                let rA = parseInt(c[15]); if (isNaN(rA)) rA = currentAwayRot; else currentAwayRot = rA;
+                // 💡 ここがすべての正解！余計な推測をせず c[9] と c[10] を素直に読むだけ
+                let rH = parseInt(c[9]); if (!isNaN(rH)) currentHomeRot = rH; else rH = currentHomeRot;
+                let rA = parseInt(c[10]); if (!isNaN(rA)) currentAwayRot = rA; else rA = currentAwayRot;
 
                 const playObj = { 
                     id: allPlays.length, time, startTime: time - 2.0, endTime: time + 4.0, score: runningScore, 
