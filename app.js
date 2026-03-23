@@ -101,18 +101,15 @@ function fetchMatchList() {
     });
 }
 
-// 💡 スマホ専用のプルダウンにもカテゴリ一覧を流し込む
 function renderCategoryTabs(cats) {
     const div = document.getElementById('catTabs'); div.innerHTML = '';
     const mobSelect = document.getElementById('catSelectMobile'); if(mobSelect) mobSelect.innerHTML = '';
     
     cats.forEach(c => {
-        // PC用のタブ
         const btn = document.createElement('button'); btn.className = `cat-tab ${c === currentCategory ? 'active' : ''}`;
         btn.innerText = c; btn.onclick = () => { currentCategory = c; renderCategoryTabs(cats); updateMatchDropdown(); };
         div.appendChild(btn);
         
-        // スマホ用の選択肢
         if(mobSelect) {
             const opt = new Option(c, c);
             if(c === currentCategory) opt.selected = true;
@@ -121,10 +118,8 @@ function renderCategoryTabs(cats) {
     });
 }
 
-// 💡 スマホでカテゴリを選んだときの処理
 function changeCategoryMobile(val) {
     currentCategory = val;
-    // タブの見た目も裏側で同期させる
     const cats = Array.from(document.getElementById('catSelectMobile').options).map(o => o.value);
     renderCategoryTabs(cats);
     updateMatchDropdown();
@@ -204,6 +199,9 @@ async function parseDVW(text) {
     const lines = text.split('\n'); 
     let currentSection = "", runningScore = "00-00", hSets = 0, aSets = 0, teamCount = 0, tempRally = null;
     let currentHomeRot = null, currentAwayRot = null;
+    
+    // 💡 練習動画判定用：このファイルの中に「ポイントコード」がいくつあるかを数える
+    let pointCodeCount = 0;
 
     lines.forEach(line => {
         const l = line.trim(); if (l.startsWith('[')) { currentSection = l; return; }
@@ -228,6 +226,9 @@ async function parseDVW(text) {
                 const m = code.match(/(\d{1,2})[:.](\d{1,2})/); 
                 if (m) runningScore = `${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; 
                 if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); tempRally.wonBy = code.toLowerCase().startsWith('*p') ? '*' : 'a'; } 
+                
+                // 💡 ポイントを検知したらカウントを増やす
+                pointCodeCount++;
                 return; 
             }
             
@@ -259,6 +260,13 @@ async function parseDVW(text) {
             }
         }
     });
+    
+    // 💡 ファイル全体の読み込みが終わった後、ポイントコードの有無でAuto-Skipを賢く制御！
+    const autoNextCb = document.getElementById('autoNext');
+    if (autoNextCb) {
+        // ポイントが1つでもあればON（試合）、ゼロならOFF（練習）
+        autoNextCb.checked = (pointCodeCount > 0);
+    }
     
     updateFilters(); 
     await loadCloudData(); 
