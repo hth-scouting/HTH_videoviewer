@@ -105,6 +105,9 @@ function renderCategoryTabs(cats) {
     const div = document.getElementById('catTabs'); div.innerHTML = '';
     const mobSelect = document.getElementById('catSelectMobile'); if(mobSelect) mobSelect.innerHTML = '';
     
+    // 💡 Add Matchモーダル用のデータリストをクリア
+    const datalist = document.getElementById('existing-cats'); if(datalist) datalist.innerHTML = '';
+
     cats.forEach(c => {
         const btn = document.createElement('button'); btn.className = `cat-tab ${c === currentCategory ? 'active' : ''}`;
         btn.innerText = c; btn.onclick = () => { currentCategory = c; renderCategoryTabs(cats); updateMatchDropdown(); };
@@ -114,6 +117,13 @@ function renderCategoryTabs(cats) {
             const opt = new Option(c, c);
             if(c === currentCategory) opt.selected = true;
             mobSelect.add(opt);
+        }
+
+        // 💡 "All" 以外のカテゴリを、入力候補（datalist）に追加する
+        if(datalist && c !== "All") {
+            const dOpt = document.createElement('option');
+            dOpt.value = c;
+            datalist.appendChild(dOpt);
         }
     });
 }
@@ -199,8 +209,6 @@ async function parseDVW(text) {
     const lines = text.split('\n'); 
     let currentSection = "", runningScore = "00-00", hSets = 0, aSets = 0, teamCount = 0, tempRally = null;
     let currentHomeRot = null, currentAwayRot = null;
-    
-    // 💡 練習動画判定用：このファイルの中に「ポイントコード」がいくつあるかを数える
     let pointCodeCount = 0;
 
     lines.forEach(line => {
@@ -226,8 +234,6 @@ async function parseDVW(text) {
                 const m = code.match(/(\d{1,2})[:.](\d{1,2})/); 
                 if (m) runningScore = `${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; 
                 if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); tempRally.wonBy = code.toLowerCase().startsWith('*p') ? '*' : 'a'; } 
-                
-                // 💡 ポイントを検知したらカウントを増やす
                 pointCodeCount++;
                 return; 
             }
@@ -261,10 +267,8 @@ async function parseDVW(text) {
         }
     });
     
-    // 💡 ファイル全体の読み込みが終わった後、ポイントコードの有無でAuto-Skipを賢く制御！
     const autoNextCb = document.getElementById('autoNext');
     if (autoNextCb) {
-        // ポイントが1つでもあればON（試合）、ゼロならOFF（練習）
         autoNextCb.checked = (pointCodeCount > 0);
     }
     
