@@ -14,7 +14,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>SyncScout v0.8.26</title>
+    <title>SyncScout v0.8.28</title>
     <style>
         :root { 
             --primary: #007bff; --primary-hover: #0056b3; 
@@ -42,7 +42,6 @@
         .header-tools .cat-tab { background: transparent; border: 1px solid #555; color: #aaa; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .header-tools .cat-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
         
-        /* 💡 スマホ専用のカテゴリプルダウン（PCでは非表示） */
         #catSelectMobile { display: none; }
         
         .header-tools select { width: 250px; margin-bottom: 0; padding: 8px 12px; border: none; background: #333; color: white; border-radius: 6px; font-weight: bold; outline: none; }
@@ -193,16 +192,14 @@
             .brand { font-size: 1rem; }
         }
 
-        /* 💡 スマホ縦画面：カテゴリプルダウンと試合プルダウンを1行に美しく並べる */
         @media (max-width: 768px) and (orientation: portrait) {
             body { flex-direction: column; }
             #global-header { flex-direction: row; align-items: center; justify-content: space-between; padding: 5px 8px; gap: 5px; }
             .brand { font-size: 0.9rem; flex-shrink: 0; }
             
             .header-tools { flex: 1; display: flex; justify-content: flex-end; align-items: center; }
-            .header-tools .cat-tabs { display: none; } /* タブは隠す */
+            .header-tools .cat-tabs { display: none; } 
             
-            /* 💡 スマホ専用カテゴリプルダウンを表示！ */
             #catSelectMobile { 
                 display: block; 
                 width: 35%; max-width: 110px; 
@@ -294,7 +291,13 @@
 <div id="add-match-modal" onclick="this.style.display='none'">
     <div class="add-match-content" onclick="event.stopPropagation()">
         <h3>➕ Add New Match</h3>
-        <div class="fm-group"><label>Category (e.g., V.LEAGUE)</label><input type="text" id="am-cat" placeholder="Category Name"></div>
+        
+        <div class="fm-group">
+            <label>Category</label>
+            <input type="text" id="am-cat" list="existing-cats" placeholder="Select or type new category" autocomplete="off">
+            <datalist id="existing-cats"></datalist>
+        </div>
+
         <div class="fm-group"><label>YouTube URL</label><input type="text" id="am-yt" placeholder="https://youtu.be/..."></div>
         <div class="fm-group"><label>DVW File</label><input type="file" id="am-file" accept=".dvw"></div>
         <button class="add-btn-submit" id="am-submit-btn" onclick="submitNewMatch()">Upload & Save</button>
@@ -305,7 +308,7 @@
 <button id="shortcut-btn" onclick="toggleShortcuts()">⌨️ Shortcuts</button>
 <div id="shortcut-modal" onclick="toggleShortcuts()"><div class="modal-content" onclick="event.stopPropagation()"><h3>Keyboard Shortcuts</h3><ul><li><span>Next / Prev</span> <kbd>F</kbd> / <kbd>D</kbd></li><li><span>Repeat</span> <kbd>R</kbd></li><li><span>-2s / +2s</span> <kbd>←</kbd> / <kbd>→</kbd></li><li><span>Draw On/Save</span> <kbd>P</kbd></li><li><span>Focus Note</span> <kbd>C</kbd></li><li><span>Submit</span> <kbd>Enter</kbd></li><li><span>Select Tag</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd></li></ul><button class="close-modal-btn" onclick="toggleShortcuts()">Close</button></div></div>
 
-<script src="app.js?v=0.8.26"></script>
+<script src="app.js?v=0.8.28"></script>
 
 </body>
 </html>
