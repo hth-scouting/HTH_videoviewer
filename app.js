@@ -104,8 +104,6 @@ function fetchMatchList() {
 function renderCategoryTabs(cats) {
     const div = document.getElementById('catTabs'); div.innerHTML = '';
     const mobSelect = document.getElementById('catSelectMobile'); if(mobSelect) mobSelect.innerHTML = '';
-    
-    // 💡 Add Matchモーダル用のデータリストをクリア
     const datalist = document.getElementById('existing-cats'); if(datalist) datalist.innerHTML = '';
 
     cats.forEach(c => {
@@ -119,7 +117,6 @@ function renderCategoryTabs(cats) {
             mobSelect.add(opt);
         }
 
-        // 💡 "All" 以外のカテゴリを、入力候補（datalist）に追加する
         if(datalist && c !== "All") {
             const dOpt = document.createElement('option');
             dOpt.value = c;
@@ -230,11 +227,33 @@ async function parseDVW(text) {
                 if (last[0] > last[1]) hSets++; else if (last[1] > last[0]) aSets++; 
                 runningScore = "00-00"; return; 
             }
-            if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap') || code.toLowerCase().startsWith('vp')) { 
+            
+            // 💡 ポイント判定ロジックの完全改修：文字コードに依存せず「スコアの変動」で勝者を確定させる
+            if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap') || code.toLowerCase().startsWith('vp') || code.toLowerCase().match(/^[a-z\*]p/)) { 
                 const m = code.match(/(\d{1,2})[:.](\d{1,2})/); 
-                if (m) runningScore = `${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; 
-                if (tempRally) { tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); tempRally.wonBy = code.toLowerCase().startsWith('*p') ? '*' : 'a'; } 
-                pointCodeCount++;
+                if (m) {
+                    const oldH = parseInt(runningScore.split('-')[0]) || 0;
+                    const oldA = parseInt(runningScore.split('-')[1]) || 0;
+                    const newH = parseInt(m[1]) || 0;
+                    const newA = parseInt(m[2]) || 0;
+                    
+                    runningScore = `${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; 
+                    
+                    if (tempRally) { 
+                        tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); 
+                        
+                        // 点数が増えた方のチームを勝者（wonBy）として強制的に上書き
+                        if (newH > oldH) {
+                            tempRally.wonBy = '*';  // ホームの点数が増えたらホームの勝ち
+                        } else if (newA > oldA) {
+                            tempRally.wonBy = 'a';  // アウェイの点数が増えたらアウェイの勝ち
+                        } else {
+                            // 変動がない場合の予備処理
+                            tempRally.wonBy = code.toLowerCase().startsWith('*') ? '*' : 'a'; 
+                        }
+                    } 
+                    pointCodeCount++;
+                }
                 return; 
             }
             
@@ -268,9 +287,7 @@ async function parseDVW(text) {
     });
     
     const autoNextCb = document.getElementById('autoNext');
-    if (autoNextCb) {
-        autoNextCb.checked = (pointCodeCount > 0);
-    }
+    if (autoNextCb) autoNextCb.checked = (pointCodeCount > 0);
     
     updateFilters(); 
     await loadCloudData(); 
