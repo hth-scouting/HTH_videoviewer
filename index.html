@@ -14,7 +14,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
-    <title>SyncScout v0.8.31</title>
+    <title>SyncScout v0.8.32</title>
     <style>
         :root { 
             --primary: #007bff; --primary-hover: #0056b3; 
@@ -66,7 +66,6 @@
             gap: 12px; align-items: center; box-shadow: 0 8px 16px rgba(0,0,0,0.3); backdrop-filter: blur(5px);
         }
         
-        /* 💡 新設：お絵かきツール選択ボタンのスタイル */
         #draw-tools { display: flex; gap: 4px; margin-right: 10px; background: rgba(255,255,255,0.2); padding: 4px; border-radius: 20px; }
         .tool-btn { background: transparent; border: none; font-size: 1.1rem; cursor: pointer; padding: 4px 10px; border-radius: 15px; transition: 0.2s; opacity: 0.6; }
         .tool-btn.active { background: rgba(255,255,255,0.9); opacity: 1; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
@@ -134,7 +133,10 @@
         .card-actions.show { display: flex; }
         
         .comments-display { font-size: 0.75rem; color: #333; max-height: 90px; overflow-y: auto; background: #f8f9fa; border-radius: 4px; padding: 4px; }
-        .comment-item { padding: 4px; border-bottom: 1px solid #eee; word-break: break-all; }
+        .comment-item { padding: 4px; border-bottom: 1px solid #eee; word-break: break-all; display: flex; justify-content: space-between; align-items: center; }
+        /* 💡 新設：コメント削除ボタンのスタイル */
+        .del-comment { color: #aaa; cursor: pointer; font-size: 0.8rem; padding: 0 4px; transition: 0.2s; }
+        .del-comment:hover { color: #d32f2f; }
 
         .action-row { display: flex; gap: 5px; position: relative; }
         .comment-input { flex: 1; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-size: 0.9rem; box-sizing: border-box; }
@@ -201,24 +203,16 @@
 
         @media (max-width: 768px) and (orientation: portrait) {
             body { flex-direction: column; }
-            
             #global-header { flex-direction: column; align-items: stretch; padding: 8px 10px; gap: 8px; }
             .brand { font-size: 1rem; flex-shrink: 0; text-align: center; }
-            
             .header-tools { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
             .header-tools .cat-tabs { display: none; } 
-            
-            #catSelectMobile { 
-                display: block; flex: 1; max-width: 40%; font-size: 0.85rem; padding: 10px 8px; margin: 0; 
-                border: 1px solid #555; background: #222; color: #fff; border-radius: 6px;
-            }
+            #catSelectMobile { display: block; flex: 1; max-width: 40%; font-size: 0.85rem; padding: 10px 8px; margin: 0; border: 1px solid #555; background: #222; color: #fff; border-radius: 6px; }
             .header-tools select#matchSelect { flex: 1.5; width: auto; max-width: none; font-size: 0.85rem; padding: 10px 8px; margin: 0; border-radius: 6px; }
             .add-match-btn { display: none; }
-
             #main-workspace { flex-direction: column; }
             #video-side { width: 100%; height: auto; aspect-ratio: 16 / 9; flex: none; }
             #control-side { width: 100%; flex: 1; padding: 10px; }
-            
             #score-overlay { top: 5px !important; left: 5px !important; width: 60px !important; border-radius: 4px !important; }
             .ov-team-box { font-size: 0.4rem !important; padding-left: 2px !important; }
             .ov-sets-box, .ov-points-box { font-size: 0.5rem !important; width: 15px !important; }
@@ -227,8 +221,6 @@
             .card-main { padding-right: 10px; flex-direction: column; align-items: flex-start; }
             .top-right-actions { position: relative; top: 0; right: 0; margin-top: 10px; width: 100%; justify-content: flex-end; }
             .draw-trigger-btn, #shortcut-btn { display: none !important; }
-            
-            /* スマホ用にお絵かきツールバーを調整 */
             #draw-toolbar { top: 5px; padding: 5px 10px; gap: 8px; }
             #draw-tools { margin-right: 5px; }
             .tool-btn { font-size: 1rem; padding: 4px 6px; }
@@ -270,6 +262,8 @@
                 <button class="tool-btn" onclick="setDrawTool('circle')" id="tool-circle">◯</button>
                 <button class="tool-btn" onclick="setDrawTool('rect')" id="tool-rect">⬜</button>
             </div>
+            
+            <button class="draw-btn" onclick="undoDrawing()">↩️ Undo</button>
             
             <button class="draw-btn" onclick="clearCanvas()">Clear</button>
             <button class="draw-btn cancel" onclick="exitDrawMode()">Cancel</button>
@@ -319,9 +313,9 @@
 </div>
 
 <button id="shortcut-btn" onclick="toggleShortcuts()">⌨️ Shortcuts</button>
-<div id="shortcut-modal" onclick="toggleShortcuts()"><div class="modal-content" onclick="event.stopPropagation()"><h3>Keyboard Shortcuts</h3><ul><li><span>Next / Prev</span> <kbd>F</kbd> / <kbd>D</kbd></li><li><span>Repeat</span> <kbd>R</kbd></li><li><span>-2s / +2s</span> <kbd>←</kbd> / <kbd>→</kbd></li><li><span>Draw On/Save</span> <kbd>P</kbd></li><li><span>Focus Note</span> <kbd>C</kbd></li><li><span>Submit</span> <kbd>Enter</kbd></li><li><span>Select Tag</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd></li></ul><button class="close-modal-btn" onclick="toggleShortcuts()">Close</button></div></div>
+<div id="shortcut-modal" onclick="toggleShortcuts()"><div class="modal-content" onclick="event.stopPropagation()"><h3>Keyboard Shortcuts</h3><ul><li><span>Next / Prev</span> <kbd>F</kbd> / <kbd>D</kbd></li><li><span>Repeat</span> <kbd>R</kbd></li><li><span>-2s / +2s</span> <kbd>←</kbd> / <kbd>→</kbd></li><li><span>Draw On/Save</span> <kbd>P</kbd></li><li><span>Undo Draw</span> <kbd>Ctrl+Z</kbd></li><li><span>Focus Note</span> <kbd>C</kbd></li><li><span>Submit</span> <kbd>Enter</kbd></li><li><span>Select Tag</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd></li></ul><button class="close-modal-btn" onclick="toggleShortcuts()">Close</button></div></div>
 
-<script src="app.js?v=0.8.31"></script>
+<script src="app.js?v=0.8.32"></script>
 
 </body>
 </html>
