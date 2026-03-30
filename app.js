@@ -387,7 +387,15 @@ function render() {
         const winC = d.wonBy === '*' ? 'win-home' : (d.wonBy === 'a' ? 'win-away' : '');
         const likes = matchLikes[d.id] || 0, liked = likedPlaysSession.has(d.id) ? 'style="color:#d32f2f;"' : '';
         const btn = document.createElement('div'); btn.className = `instance-btn ${winC}`; btn.id = 'idx-'+i;
-        const commentsHTML = (matchComments[d.id] || []).map(c => `<div class="comment-item">・${c}</div>`).join('');
+        
+        // 💡 削除ボタン付きのコメントHTMLを生成
+        const commentsHTML = (matchComments[d.id] || []).map(c => `
+            <div class="comment-item">
+                <span>・${c}</span>
+                <span class="del-comment" onclick="event.stopPropagation(); deleteComment(${d.id}, '${c.replace(/'/g, "\\'")}')">✖</span>
+            </div>
+        `).join('');
+        
         const hasDraw = (matchDrawings[d.id] && matchDrawings[d.id].length > 0) ? 'style="background:#ffebee; color:#d32f2f; border: 1px solid #ffcdd2;"' : '';
         
         const commentCount = (matchComments[d.id] || []).length;
@@ -509,13 +517,11 @@ function toggleActions(event, index, forceShow = false) { if(event) event.stopPr
 
 
 /* =========================================
-   💡 お絵かき（Telestrator）機能：図形対応アップデート
+   お絵かき（Telestrator）機能
    ========================================= */
 const canvas = document.getElementById('telestratorCanvas'); 
 const ctx = canvas.getContext('2d');
 let isDrawingMode = false, isDrawing = false, drawingLines = [], activePlayIdForDraw = null;
-
-// 追加：現在のツールとドラッグ中の図形データ
 let currentDrawTool = 'freehand'; 
 let currentShape = null; 
 let currentPath = [];
@@ -565,15 +571,14 @@ function draw(e) {
     if (currentDrawTool === 'freehand') {
         currentPath.push(pos);
     } else {
-        currentShape.end = pos; // 図形の終点を現在地に更新
+        currentShape.end = pos; 
     }
-    renderDrawing(); // ドラッグ中もリアルタイムで再描画
+    renderDrawing(); 
 }
 
 function stopDrawing() { 
     if (!isDrawing) return;
     isDrawing = false; 
-    // 線や図形として成立していれば保存データに追加
     if (currentDrawTool === 'freehand' && currentPath.length > 1) {
         drawingLines.push(currentPath);
     } else if (currentShape && (currentShape.start.x !== currentShape.end.x || currentShape.start.y !== currentShape.end.y)) {
@@ -583,10 +588,8 @@ function stopDrawing() {
     renderDrawing();
 }
 
-// 過去のフリーハンド配列と、新しい図形オブジェクトを描き分けるスマート関数
 function drawItem(ctx, item, w, h) {
     if (Array.isArray(item)) { 
-        // 過去データ（フリーハンドの配列）
         if (item.length < 2) return;
         ctx.beginPath(); ctx.moveTo(item[0].x * w, item[0].y * h);
         for (let i = 1; i < item.length; i++) ctx.lineTo(item[i].x * w, item[i].y * h);
@@ -615,17 +618,10 @@ function drawItem(ctx, item, w, h) {
 function renderDrawing() { 
     ctx.clearRect(0,0,canvas.width,canvas.height); 
     ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 4; ctx.lineCap = 'round'; 
-    
-    // 確定済みのすべての図形・線を描画
     drawingLines.forEach(item => drawItem(ctx, item, canvas.width, canvas.height)); 
-    
-    // 現在ドラッグ中で未確定の図形・線を描画
     if (isDrawing) {
-        if (currentDrawTool === 'freehand' && currentPath.length > 0) {
-            drawItem(ctx, currentPath, canvas.width, canvas.height);
-        } else if (currentShape) {
-            drawItem(ctx, currentShape, canvas.width, canvas.height);
-        }
+        if (currentDrawTool === 'freehand' && currentPath.length > 0) { drawItem(ctx, currentPath, canvas.width, canvas.height); } 
+        else if (currentShape) { drawItem(ctx, currentShape, canvas.width, canvas.height); }
     }
 }
 
@@ -642,6 +638,14 @@ function exitDrawMode() {
 }
 function clearCanvas() { drawingLines = []; renderDrawing(); }
 
+// 💡 新設：直前に書いた図形・線を1つ消す
+function undoDrawing() {
+    if (drawingLines.length > 0) {
+        drawingLines.pop();
+        renderDrawing();
+    }
+}
+
 async function saveDrawing() { 
     matchDrawings[activePlayIdForDraw] = JSON.parse(JSON.stringify(drawingLines)); 
     render(); exitDrawMode(); player.playVideo(); 
@@ -651,9 +655,23 @@ async function saveDrawing() {
 
 /* ========================================= */
 
-
 async function addLike(playId) { if (likedPlaysSession.has(playId)) return; likedPlaysSession.add(playId); matchLikes[playId] = (matchLikes[playId] || 0) + 1; render(); await supabaseClient.from('likes').insert([{ match_dvw: currentMatchDVW, play_id: playId }]); }
 async function addComment(playId) { const input = document.getElementById(`c-input-${playId}`); const text = input.value.trim(); if (!text) return; if (!matchComments[playId]) matchComments[playId] = []; matchComments[playId].push(text); input.value = ""; renderNotifications(); render(); await supabaseClient.from('comments').insert([{ match_dvw: currentMatchDVW, play_id: playId, comment_text: text }]); }
+
+// 💡 新設：コメントの削除処理
+async function deleteComment(playId, text) {
+    if(!confirm("Are you sure you want to delete this comment?")) return;
+    
+    // ローカル配列から削除
+    const idx = matchComments[playId].indexOf(text);
+    if(idx > -1) matchComments[playId].splice(idx, 1);
+    
+    renderNotifications();
+    render();
+    
+    // Supabaseからも削除（テキスト一致で削除）
+    await supabaseClient.from('comments').delete().match({ match_dvw: currentMatchDVW, play_id: playId, comment_text: text });
+}
 
 function getSafeBaseUrl() { return window.location.origin + window.location.pathname; }
 function getLink(startTime) { const u = new URL(getSafeBaseUrl()); u.searchParams.set('match', currentMatchDVW); u.searchParams.set('t', Math.floor(startTime)); return u.toString(); }
@@ -719,6 +737,11 @@ function onPlayerStateChange(e) { if (e.data == 1 && document.getElementById('au
 function startTracking() { clearInterval(checkInterval); checkInterval = setInterval(() => { if (currentIndex >= 0 && currentData[currentIndex]) { const now = player.getCurrentTime(), d = currentData[currentIndex]; let limit = (currentMode === 'player') ? d.endTime : (d.rallyEndTime || (d.startTime + 6.0)); if (now > limit && currentIndex < currentData.length - 1) playNext(); } }, 500); }
 
 window.addEventListener('keydown', (e) => {
+    // 💡 新設：お絵かきモード中の Ctrl+Z (Undo)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (isDrawingMode) { undoDrawing(); e.preventDefault(); return; }
+    }
+
     const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA';
     if (isInput && e.target.classList.contains('comment-input')) {
         const playId = e.target.id.split('c-input-')[1];
