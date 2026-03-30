@@ -228,7 +228,6 @@ async function parseDVW(text) {
                 runningScore = "00-00"; return; 
             }
             
-            // 💡 ポイント判定ロジックの完全改修：文字コードに依存せず「スコアの変動」で勝者を確定させる
             if (code.toLowerCase().startsWith('*p') || code.toLowerCase().startsWith('ap') || code.toLowerCase().startsWith('vp') || code.toLowerCase().match(/^[a-z\*]p/)) { 
                 const m = code.match(/(\d{1,2})[:.](\d{1,2})/); 
                 if (m) {
@@ -241,14 +240,11 @@ async function parseDVW(text) {
                     
                     if (tempRally) { 
                         tempRally.rallyEndTime = parseFloat(c[12]) || (tempRally.startTime + 6.0); 
-                        
-                        // 点数が増えた方のチームを勝者（wonBy）として強制的に上書き
                         if (newH > oldH) {
-                            tempRally.wonBy = '*';  // ホームの点数が増えたらホームの勝ち
+                            tempRally.wonBy = '*';  
                         } else if (newA > oldA) {
-                            tempRally.wonBy = 'a';  // アウェイの点数が増えたらアウェイの勝ち
+                            tempRally.wonBy = 'a'; 
                         } else {
-                            // 変動がない場合の予備処理
                             tempRally.wonBy = code.toLowerCase().startsWith('*') ? '*' : 'a'; 
                         }
                     } 
@@ -511,19 +507,150 @@ function hideAllTagPopups() { document.querySelectorAll('.tag-popup').forEach(p 
 function applyTag(playId, tag) { const input = document.getElementById(`c-input-${playId}`); input.value = (input.value.trim() + " " + tag).trim() + " "; input.focus(); hideAllTagPopups(); }
 function toggleActions(event, index, forceShow = false) { if(event) event.stopPropagation(); const actionsDiv = document.getElementById(`actions-${index}`); if(actionsDiv) { if(forceShow) actionsDiv.classList.add('show'); else actionsDiv.classList.toggle('show'); } }
 
-const canvas = document.getElementById('telestratorCanvas'); const ctx = canvas.getContext('2d');
-let isDrawingMode = false, isDrawing = false, drawingLines = [], currentPath = [], activePlayIdForDraw = null;
-function initTelestrator() { resizeCanvas(); window.addEventListener('resize', resizeCanvas); canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('touchstart', startDrawing, {passive:false}); canvas.addEventListener('touchmove', draw, {passive:false}); canvas.addEventListener('touchend', stopDrawing); }
-function resizeCanvas() { const box = document.getElementById('player-box'); if(!box) return; canvas.width = box.offsetWidth; canvas.height = box.offsetHeight; renderDrawing(); }
-function getNormPos(e) { const rect = canvas.getBoundingClientRect(); let cX = e.clientX, cY = e.clientY; if (e.touches && e.touches.length > 0) { cX = e.touches[0].clientX; cY = e.touches[0].clientY; } return { x: (cX - rect.left) / canvas.width, y: (cY - rect.top) / canvas.height }; }
-function startDrawing(e) { if (!isDrawingMode) return; e.preventDefault(); isDrawing = true; currentPath = [getNormPos(e)]; drawingLines.push(currentPath); }
-function draw(e) { if (!isDrawing || !isDrawingMode) return; e.preventDefault(); currentPath.push(getNormPos(e)); renderDrawing(); }
-function stopDrawing() { isDrawing = false; }
-function renderDrawing() { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 4; ctx.lineCap = 'round'; drawingLines.forEach(p => { if (p.length < 2) return; ctx.beginPath(); ctx.moveTo(p[0].x*canvas.width, p[0].y*canvas.height); for (let i=1; i<p.length; i++) ctx.lineTo(p[i].x*canvas.width, p[i].y*canvas.height); ctx.stroke(); }); }
-function enterDrawMode(playId) { player.pauseVideo(); isDrawingMode = true; activePlayIdForDraw = playId; canvas.classList.add('drawing-mode'); document.getElementById('draw-toolbar').style.display = 'flex'; resizeCanvas(); drawingLines = matchDrawings[playId] ? JSON.parse(JSON.stringify(matchDrawings[playId])) : []; renderDrawing(); }
-function exitDrawMode() { isDrawingMode = false; canvas.classList.remove('drawing-mode'); document.getElementById('draw-toolbar').style.display = 'none'; ctx.clearRect(0,0,canvas.width,canvas.height); }
+
+/* =========================================
+   💡 お絵かき（Telestrator）機能：図形対応アップデート
+   ========================================= */
+const canvas = document.getElementById('telestratorCanvas'); 
+const ctx = canvas.getContext('2d');
+let isDrawingMode = false, isDrawing = false, drawingLines = [], activePlayIdForDraw = null;
+
+// 追加：現在のツールとドラッグ中の図形データ
+let currentDrawTool = 'freehand'; 
+let currentShape = null; 
+let currentPath = [];
+
+function setDrawTool(tool) {
+    currentDrawTool = tool;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tool-' + tool).classList.add('active');
+}
+
+function initTelestrator() { 
+    resizeCanvas(); window.addEventListener('resize', resizeCanvas); 
+    canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); 
+    canvas.addEventListener('mouseup', stopDrawing); 
+    canvas.addEventListener('touchstart', startDrawing, {passive:false}); 
+    canvas.addEventListener('touchmove', draw, {passive:false}); 
+    canvas.addEventListener('touchend', stopDrawing); 
+}
+
+function resizeCanvas() { 
+    const box = document.getElementById('player-box'); if(!box) return; 
+    canvas.width = box.offsetWidth; canvas.height = box.offsetHeight; 
+    renderDrawing(); 
+}
+
+function getNormPos(e) { 
+    const rect = canvas.getBoundingClientRect(); let cX = e.clientX, cY = e.clientY; 
+    if (e.touches && e.touches.length > 0) { cX = e.touches[0].clientX; cY = e.touches[0].clientY; } 
+    return { x: (cX - rect.left) / canvas.width, y: (cY - rect.top) / canvas.height }; 
+}
+
+function startDrawing(e) { 
+    if (!isDrawingMode) return; 
+    e.preventDefault(); isDrawing = true; 
+    const pos = getNormPos(e);
+    if (currentDrawTool === 'freehand') {
+        currentPath = [pos];
+    } else {
+        currentShape = { type: currentDrawTool, start: pos, end: pos };
+    }
+}
+
+function draw(e) { 
+    if (!isDrawing || !isDrawingMode) return; 
+    e.preventDefault(); 
+    const pos = getNormPos(e);
+    if (currentDrawTool === 'freehand') {
+        currentPath.push(pos);
+    } else {
+        currentShape.end = pos; // 図形の終点を現在地に更新
+    }
+    renderDrawing(); // ドラッグ中もリアルタイムで再描画
+}
+
+function stopDrawing() { 
+    if (!isDrawing) return;
+    isDrawing = false; 
+    // 線や図形として成立していれば保存データに追加
+    if (currentDrawTool === 'freehand' && currentPath.length > 1) {
+        drawingLines.push(currentPath);
+    } else if (currentShape && (currentShape.start.x !== currentShape.end.x || currentShape.start.y !== currentShape.end.y)) {
+        drawingLines.push(currentShape);
+    }
+    currentPath = []; currentShape = null;
+    renderDrawing();
+}
+
+// 過去のフリーハンド配列と、新しい図形オブジェクトを描き分けるスマート関数
+function drawItem(ctx, item, w, h) {
+    if (Array.isArray(item)) { 
+        // 過去データ（フリーハンドの配列）
+        if (item.length < 2) return;
+        ctx.beginPath(); ctx.moveTo(item[0].x * w, item[0].y * h);
+        for (let i = 1; i < item.length; i++) ctx.lineTo(item[i].x * w, item[i].y * h);
+        ctx.stroke();
+    } else if (item.type === 'arrow') {
+        const headlen = 15; 
+        const dx = item.end.x * w - item.start.x * w; const dy = item.end.y * h - item.start.y * h;
+        const angle = Math.atan2(dy, dx);
+        ctx.beginPath(); 
+        ctx.moveTo(item.start.x * w, item.start.y * h); ctx.lineTo(item.end.x * w, item.end.y * h);
+        ctx.lineTo(item.end.x * w - headlen * Math.cos(angle - Math.PI/6), item.end.y * h - headlen * Math.sin(angle - Math.PI/6));
+        ctx.moveTo(item.end.x * w, item.end.y * h);
+        ctx.lineTo(item.end.x * w - headlen * Math.cos(angle + Math.PI/6), item.end.y * h - headlen * Math.sin(angle + Math.PI/6));
+        ctx.stroke();
+    } else if (item.type === 'circle') {
+        const rx = Math.abs(item.end.x - item.start.x) * w / 2; const ry = Math.abs(item.end.y - item.start.y) * h / 2;
+        const cx = (item.start.x + item.end.x) * w / 2; const cy = (item.start.y + item.end.y) * h / 2;
+        ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI); ctx.stroke();
+    } else if (item.type === 'rect') {
+        const x = Math.min(item.start.x, item.end.x) * w; const y = Math.min(item.start.y, item.end.y) * h;
+        const width = Math.abs(item.end.x - item.start.x) * w; const height = Math.abs(item.end.y - item.start.y) * h;
+        ctx.beginPath(); ctx.rect(x, y, width, height); ctx.stroke();
+    }
+}
+
+function renderDrawing() { 
+    ctx.clearRect(0,0,canvas.width,canvas.height); 
+    ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 4; ctx.lineCap = 'round'; 
+    
+    // 確定済みのすべての図形・線を描画
+    drawingLines.forEach(item => drawItem(ctx, item, canvas.width, canvas.height)); 
+    
+    // 現在ドラッグ中で未確定の図形・線を描画
+    if (isDrawing) {
+        if (currentDrawTool === 'freehand' && currentPath.length > 0) {
+            drawItem(ctx, currentPath, canvas.width, canvas.height);
+        } else if (currentShape) {
+            drawItem(ctx, currentShape, canvas.width, canvas.height);
+        }
+    }
+}
+
+function enterDrawMode(playId) { 
+    player.pauseVideo(); isDrawingMode = true; activePlayIdForDraw = playId; 
+    canvas.classList.add('drawing-mode'); document.getElementById('draw-toolbar').style.display = 'flex'; 
+    resizeCanvas(); drawingLines = matchDrawings[playId] ? JSON.parse(JSON.stringify(matchDrawings[playId])) : []; 
+    renderDrawing(); 
+}
+function exitDrawMode() { 
+    isDrawingMode = false; canvas.classList.remove('drawing-mode'); 
+    document.getElementById('draw-toolbar').style.display = 'none'; 
+    ctx.clearRect(0,0,canvas.width,canvas.height); 
+}
 function clearCanvas() { drawingLines = []; renderDrawing(); }
-async function saveDrawing() { matchDrawings[activePlayIdForDraw] = JSON.parse(JSON.stringify(drawingLines)); render(); exitDrawMode(); player.playVideo(); await supabaseClient.from('drawings').delete().match({ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw }); await supabaseClient.from('drawings').insert([{ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw, drawing_data: JSON.stringify(matchDrawings[activePlayIdForDraw]) }]); }
+
+async function saveDrawing() { 
+    matchDrawings[activePlayIdForDraw] = JSON.parse(JSON.stringify(drawingLines)); 
+    render(); exitDrawMode(); player.playVideo(); 
+    await supabaseClient.from('drawings').delete().match({ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw }); 
+    await supabaseClient.from('drawings').insert([{ match_dvw: currentMatchDVW, play_id: activePlayIdForDraw, drawing_data: JSON.stringify(matchDrawings[activePlayIdForDraw]) }]); 
+}
+
+/* ========================================= */
+
 
 async function addLike(playId) { if (likedPlaysSession.has(playId)) return; likedPlaysSession.add(playId); matchLikes[playId] = (matchLikes[playId] || 0) + 1; render(); await supabaseClient.from('likes').insert([{ match_dvw: currentMatchDVW, play_id: playId }]); }
 async function addComment(playId) { const input = document.getElementById(`c-input-${playId}`); const text = input.value.trim(); if (!text) return; if (!matchComments[playId]) matchComments[playId] = []; matchComments[playId].push(text); input.value = ""; renderNotifications(); render(); await supabaseClient.from('comments').insert([{ match_dvw: currentMatchDVW, play_id: playId, comment_text: text }]); }
