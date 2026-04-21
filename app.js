@@ -734,7 +734,7 @@ function playIndex(i) {
     document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active')); document.getElementById('idx-' + i)?.classList.add('active');
     document.getElementById('idx-' + i)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     const scOverlay = document.getElementById('serve-code-overlay');
-    if (d.skill === 'S' && d.customCode) { scOverlay.innerText = d.customCode; scOverlay.style.display = 'block'; }
+    if (d.skill === 'S' && d.customCode) { scOverlay.innerText = d.customCode + 'km'; scOverlay.style.display = 'block'; }
     else { scOverlay.style.display = 'none'; }
 }
 function playNext() { if (currentIndex < currentData.length - 1) playIndex(currentIndex + 1); }
