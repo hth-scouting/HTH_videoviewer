@@ -261,7 +261,7 @@ async function parseDVW(text) {
                 let rH = parseInt(c[9]); if (!isNaN(rH)) currentHomeRot = rH; else rH = currentHomeRot;
                 let rA = parseInt(c[10]); if (!isNaN(rA)) currentAwayRot = rA; else rA = currentAwayRot;
 
-                const rawCustom = code.substring(16).replace(/\D/g, '');
+                const rawCustom = code.substring(12).replace(/\D/g, '');
                 const customCode = /^\d{2,3}/.test(rawCustom) ? rawCustom.match(/^\d{2,3}/)[0] : '';
 
                 const playObj = {
