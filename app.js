@@ -261,12 +261,16 @@ async function parseDVW(text) {
                 let rH = parseInt(c[9]); if (!isNaN(rH)) currentHomeRot = rH; else rH = currentHomeRot;
                 let rA = parseInt(c[10]); if (!isNaN(rA)) currentAwayRot = rA; else rA = currentAwayRot;
 
-                const playObj = { 
-                    id: allPlays.length, time, startTime: time - 2.0, endTime: time + 4.0, score: runningScore, 
-                    setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: code.charAt(5), 
-                    pName: p.name, pNum: p.num, 
-                    rot: (side === '*' ? rH : rA) || "?", 
-                    rallyHomeRot: rH, rallyAwayRot: rA 
+                const rawCustom = code.substring(6).replace(/\D/g, '');
+                const customCode = /^\d{2,3}/.test(rawCustom) ? rawCustom.match(/^\d{2,3}/)[0] : '';
+
+                const playObj = {
+                    id: allPlays.length, time, startTime: time - 2.0, endTime: time + 4.0, score: runningScore,
+                    setNum: hSets+aSets+1, hSets, aSets, side, skill: skillChar, effect: code.charAt(5),
+                    pName: p.name, pNum: p.num,
+                    rot: (side === '*' ? rH : rA) || "?",
+                    rallyHomeRot: rH, rallyAwayRot: rA,
+                    customCode: skillChar === 'S' ? customCode : ''
                 };
                 
                 if (skillChar === 'S') {
@@ -729,6 +733,9 @@ function playIndex(i) {
     resizeCanvas(); if (matchDrawings[d.id]) { drawingLines = matchDrawings[d.id]; renderDrawing(); } else { ctx.clearRect(0,0,canvas.width,canvas.height); }
     document.querySelectorAll('.instance-btn').forEach(b => b.classList.remove('active')); document.getElementById('idx-' + i)?.classList.add('active');
     document.getElementById('idx-' + i)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const scOverlay = document.getElementById('serve-code-overlay');
+    if (d.skill === 'S' && d.customCode) { scOverlay.innerText = d.customCode; scOverlay.style.display = 'block'; }
+    else { scOverlay.style.display = 'none'; }
 }
 function playNext() { if (currentIndex < currentData.length - 1) playIndex(currentIndex + 1); }
 function playPrev() { if (currentIndex > 0) playIndex(currentIndex - 1); }

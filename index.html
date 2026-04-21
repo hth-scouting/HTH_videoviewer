@@ -60,6 +60,14 @@
         #telestratorCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15; }
         #telestratorCanvas.drawing-mode { pointer-events: auto; z-index: 30; cursor: crosshair; }
 
+        #serve-code-overlay {
+            display: none; position: absolute; top: 20px; right: 20px; z-index: 12;
+            background: rgba(0, 0, 0, 0.72); color: #fff; border-radius: 10px;
+            font-family: 'Arial Black', sans-serif; font-size: 2.8rem; font-weight: 900;
+            padding: 8px 20px; letter-spacing: 2px; pointer-events: none;
+            border: 2px solid rgba(255,255,255,0.3); text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+        }
+
         #draw-toolbar {
             display: none; position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.85); padding: 8px 15px; border-radius: 30px; z-index: 40;
@@ -251,6 +259,7 @@
                 <div class="score-row home"><div class="sticky-bar"></div><div class="ov-team-box" id="ov-h-code">---</div><div class="ov-sets-box" id="ov-h-sets">0</div><div class="ov-points-box" id="ov-h-score">0</div></div>
                 <div class="score-row away"><div class="sticky-bar"></div><div class="ov-team-box" id="ov-a-code">---</div><div class="ov-sets-box" id="ov-a-sets">0</div><div class="ov-points-box" id="ov-a-score">0</div></div>
             </div>
+            <div id="serve-code-overlay"></div>
             <button class="video-nav-btn nav-prev vid-ui" onclick="event.stopPropagation(); playPrev()">◀</button>
             <button class="video-nav-btn nav-next vid-ui" onclick="event.stopPropagation(); playNext()">▶</button>
         </div>
