@@ -17,7 +17,7 @@ const urlParams = getSafeURLParams();
 window.initLinkData = { t: urlParams.t, q: urlParams.q };
 
 let player, allPlays = [], rallies = [], matchMap = {}, playerMaster = {}, allMatchData = [], currentMode = 'rally', currentIndex = -1, checkInterval;
-let currentMatchDVW = "", currentCategory = "All", matchComments = {}, matchLikes = {}, matchDrawings = {}, likedPlaysSession = new Set();
+let currentMatchDVW = "", currentCategory = "All", matchComments = {}, matchDrawings = {};
 const starterTags = ["#MB","#OH","#OP","#S","#L","#Good","#Bad","#System","#Transition","#BlockDefense","#Javi"];
 
 function onYouTubeIframeAPIReady() { 
@@ -154,13 +154,11 @@ function toggleSearchArea() { const area = document.getElementById('searchArea')
 function toggleShortcuts() { const modal = document.getElementById('shortcut-modal'); modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex'; }
 
 async function loadCloudData() {
-    const [cRes, lRes, dRes] = await Promise.all([
+    const [cRes, dRes] = await Promise.all([
         supabaseClient.from('comments').select('*').eq('match_dvw', currentMatchDVW).order('created_at', { ascending: true }),
-        supabaseClient.from('likes').select('play_id').eq('match_dvw', currentMatchDVW),
         supabaseClient.from('drawings').select('*').eq('match_dvw', currentMatchDVW).order('created_at', { ascending: false })
     ]);
     matchComments = {}; (cRes.data || []).forEach(r => { if (!matchComments[r.play_id]) matchComments[r.play_id] = []; matchComments[r.play_id].push(r.comment_text); });
-    matchLikes = {}; (lRes.data || []).forEach(r => matchLikes[r.play_id] = (matchLikes[r.play_id] || 0) + 1);
     matchDrawings = {}; (dRes.data || []).forEach(r => { if (!matchDrawings[r.play_id]) { try { matchDrawings[r.play_id] = JSON.parse(r.drawing_data); } catch(e){} } });
 }
 
@@ -389,7 +387,6 @@ function render() {
     currentData.forEach((d, i) => {
         if (d.setNum !== lastSet) { list.innerHTML += `<div class="stats-section-title" style="border:none; text-align:center; background:#eee; font-size:0.7rem;">SET ${d.setNum}</div>`; lastSet = d.setNum; }
         const winC = d.wonBy === '*' ? 'win-home' : (d.wonBy === 'a' ? 'win-away' : '');
-        const likes = matchLikes[d.id] || 0, liked = likedPlaysSession.has(d.id) ? 'style="color:#d32f2f;"' : '';
         const btn = document.createElement('div'); btn.className = `instance-btn ${winC}`; btn.id = 'idx-'+i;
         
         // 💡 削除ボタン付きのコメントHTMLを生成
@@ -412,7 +409,6 @@ function render() {
                 <div style="flex:1; line-height:1.2;"><strong>#${d.pNum} ${d.pName.split(' ')[0]}</strong><br><small style="color:var(--text-muted);">P${d.rot} | ${d.skill}${d.effect}</small></div>
             </div>
             <div class="top-right-actions">
-                <button class="action-sm-btn" ${liked} onclick="event.stopPropagation(); addLike(${d.id})">👍 ${likes}</button>
                 <button class="action-sm-btn draw-trigger-btn" ${hasDraw} onclick="event.stopPropagation(); enterDrawMode(${d.id})">✏️ Draw</button>
                 <button class="action-sm-btn" style="${noteBtnStyle}" onclick="toggleActions(event, ${i})">${noteBtnText}</button>
             </div>
@@ -659,7 +655,6 @@ async function saveDrawing() {
 
 /* ========================================= */
 
-async function addLike(playId) { if (likedPlaysSession.has(playId)) return; likedPlaysSession.add(playId); matchLikes[playId] = (matchLikes[playId] || 0) + 1; render(); await supabaseClient.from('likes').insert([{ match_dvw: currentMatchDVW, play_id: playId }]); }
 async function addComment(playId) { const input = document.getElementById(`c-input-${playId}`); const text = input.value.trim(); if (!text) return; if (!matchComments[playId]) matchComments[playId] = []; matchComments[playId].push(text); input.value = ""; renderNotifications(); render(); await supabaseClient.from('comments').insert([{ match_dvw: currentMatchDVW, play_id: playId, comment_text: text }]); }
 
 // 💡 新設：コメントの削除処理
