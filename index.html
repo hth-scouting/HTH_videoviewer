@@ -188,6 +188,19 @@
         .add-btn-submit { width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
         .add-btn-submit:hover { background: var(--primary-hover); }
 
+        .video-seek-btn {
+            position: absolute; bottom: 20px; background: rgba(0,0,0,0.55); color: white;
+            border: none; border-radius: 22px; font-size: 0.9rem; font-weight: bold;
+            padding: 10px 16px; cursor: pointer; z-index: 20; transition: 0.15s;
+            display: none; letter-spacing: 0.5px;
+        }
+        .video-seek-btn:active { background: rgba(255,255,255,0.25); }
+        .seek-back { left: 20px; }
+        .seek-fwd  { right: 20px; }
+        @media (pointer: coarse) {
+            .video-seek-btn { display: block; }
+        }
+
         #shortcut-btn { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); color: #fff; border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer; z-index: 50; font-weight: bold; font-size: 0.8rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         #shortcut-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
         .modal-content { background: #222; color: #fff; padding: 25px; border-radius: 12px; min-width: 280px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 0.9rem; border: 1px solid #444; }
@@ -262,6 +275,8 @@
             <div id="serve-code-overlay"></div>
             <button class="video-nav-btn nav-prev vid-ui" onclick="event.stopPropagation(); playPrev()">◀</button>
             <button class="video-nav-btn nav-next vid-ui" onclick="event.stopPropagation(); playNext()">▶</button>
+            <button class="video-seek-btn seek-back vid-ui" onclick="event.stopPropagation(); seekBy(-3)">&#171; 3s</button>
+            <button class="video-seek-btn seek-fwd  vid-ui" onclick="event.stopPropagation(); seekBy(3)">3s &#187;</button>
         </div>
         <canvas id="telestratorCanvas"></canvas>
         <div id="draw-toolbar">

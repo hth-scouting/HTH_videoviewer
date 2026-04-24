@@ -734,7 +734,34 @@ function playIndex(i) {
 }
 function playNext() { if (currentIndex < currentData.length - 1) playIndex(currentIndex + 1); }
 function playPrev() { if (currentIndex > 0) playIndex(currentIndex - 1); }
-function toggleOverlay() { document.querySelectorAll('.vid-ui').forEach(el => { el.style.display = (el.style.display === 'none') ? 'flex' : 'none'; }); }
+
+function seekBy(sec) {
+    player.seekTo(player.getCurrentTime() + sec, true);
+}
+
+let _swipeDx = 0, _swipeStartX = 0, _swipeStartY = 0, _swipeStartT = 0;
+document.addEventListener('DOMContentLoaded', () => {
+    const pb = document.getElementById('player-box');
+    pb.addEventListener('touchstart', (e) => {
+        if (isDrawingMode) return;
+        _swipeStartX = e.touches[0].clientX; _swipeStartY = e.touches[0].clientY;
+        _swipeStartT = Date.now(); _swipeDx = 0;
+    }, { passive: true });
+    pb.addEventListener('touchend', (e) => {
+        if (isDrawingMode) return;
+        const dx = e.changedTouches[0].clientX - _swipeStartX;
+        const dy = e.changedTouches[0].clientY - _swipeStartY;
+        const dt = Date.now() - _swipeStartT;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 400) {
+            _swipeDx = dx;
+            seekBy(dx > 0 ? -3 : 3);
+        }
+    }, { passive: true });
+});
+
+let _swipeGuard = false;
+const _origToggleOverlay = () => { document.querySelectorAll('.vid-ui').forEach(el => { el.style.display = (el.style.display === 'none') ? 'flex' : 'none'; }); };
+function toggleOverlay() { if (Math.abs(_swipeDx) > 50) { _swipeDx = 0; return; } _origToggleOverlay(); }
 function onPlayerStateChange(e) { if (e.data == 1 && document.getElementById('autoNext').checked) startTracking(); else clearInterval(checkInterval); }
 function startTracking() { clearInterval(checkInterval); checkInterval = setInterval(() => { if (currentIndex >= 0 && currentData[currentIndex]) { const now = player.getCurrentTime(), d = currentData[currentIndex]; let limit = (currentMode === 'player') ? d.endTime : (d.rallyEndTime || (d.startTime + 6.0)); if (now > limit && currentIndex < currentData.length - 1) playNext(); } }, 500); }
 
