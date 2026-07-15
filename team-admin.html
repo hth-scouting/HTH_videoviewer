@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>HTH Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f0f2f5; --surface: #fff; --text: #1a1d26; --text-secondary: #5a6072;
+  --text-muted: #8b91a0; --border: #e2e5eb; --primary: #4f6ef7; --primary-hover: #3b5de6;
+  --danger: #e53935; --success: #2e7d32;
+  --radius: 12px; --shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); }
+button { font-family: inherit; }
+html.lang-en .ja { display: none !important; }
+html.lang-ja .en { display: none !important; }
+
+.topbar {
+  background: #16192a; color: #fff; padding: 12px 16px; display: flex;
+  align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50;
+}
+.topbar-left { display: flex; align-items: center; gap: 10px; }
+.topbar h1 { margin: 0; font-size: 1.05rem; font-weight: 800; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+.topbar button.pill, .topbar a.pill {
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7); padding: 6px 12px; border-radius: 8px;
+  font-size: 0.75rem; font-weight: 600; cursor: pointer; text-decoration: none;
+}
+.topbar button.pill:hover, .topbar a.pill:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+.main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+.main h2 { margin: 0 0 4px; font-size: 1.3rem; font-weight: 800; }
+.main .sub { color: var(--text-muted); font-size: 0.85rem; margin: 0 0 20px; }
+
+.btn { padding: 9px 16px; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-outline { background: none; border: 1px solid var(--border); color: var(--text-secondary); }
+.btn-outline:hover { background: var(--bg); }
+.btn-sm { padding: 6px 11px; font-size: 0.74rem; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.toolbar input[type=text], .toolbar input[type=date] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.8rem; }
+.bulk-bar { display: none; align-items: center; gap: 8px; background: rgba(79,110,247,0.06); border: 1px solid rgba(79,110,247,0.2); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 0.8rem; }
+.bulk-bar.show { display: flex; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+th { background: var(--bg); text-align: left; padding: 10px 12px; font-weight: 700; color: var(--text-muted); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px; }
+td { padding: 10px 12px; border-top: 1px solid var(--border); vertical-align: middle; }
+tr:hover td { background: rgba(79,110,247,0.02); }
+.thumb { width: 64px; height: 36px; object-fit: cover; border-radius: 4px; background: var(--bg); }
+.match-name { font-weight: 700; cursor: pointer; }
+.match-name:hover { color: var(--primary); }
+.empty-msg { padding: 40px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+
+.fm-group { margin-bottom: 16px; max-width: 420px; }
+.fm-group label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+.fm-group input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; outline: none; }
+.fm-group input:focus { border-color: var(--primary); }
+.fm-msg { font-size: 0.8rem; min-height: 1.2em; margin-top: 6px; }
+
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 16px; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--surface); border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+.modal h2 { margin: 0 0 6px; font-size: 1.1rem; font-weight: 700; }
+.modal .modal-sub { color: var(--text-muted); font-size: 0.8rem; margin: 0 0 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+.comment-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+.comment-row:last-child { border-bottom: none; }
+
+.copy-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #16192a; color: #fff; padding: 10px 20px; border-radius: 100px; font-size: 0.82rem; font-weight: 600; display: none; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.copy-toast.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <h1>HTH <span class="en">Admin</span><span class="ja">管理者ページ</span></h1>
+  </div>
+  <div class="topbar-actions">
+    <button class="pill" onclick="toggleLang()"><span class="en">JA</span><span class="ja">EN</span></button>
+    <a class="pill" href="index.html"><span class="en">Back to viewer</span><span class="ja">ビューアーに戻る</span></a>
+  </div>
+</div>
+
+<div class="main">
+  <h2><span class="en">Matches</span><span class="ja">試合一覧</span></h2>
+  <p class="sub"><span class="en">Edit or delete matches. Click a match name to moderate comments and reset drawings.</span><span class="ja">試合の編集・削除ができます。試合名クリックでコメントの管理・描画データのリセットへ。</span></p>
+  <div class="toolbar">
+    <input type="text" id="matchSearch" placeholder="Search category / file name..." oninput="renderMatches()">
+    <input type="date" id="dateFrom" onchange="renderMatches()">
+    <span style="font-size:0.78rem;color:var(--text-muted)">-</span>
+    <input type="date" id="dateTo" onchange="renderMatches()">
+  </div>
+  <div class="bulk-bar" id="bulkBar">
+    <span id="bulkCount"></span>
+    <button class="btn btn-danger btn-sm" onclick="bulkDelete()"><span class="en">Delete</span><span class="ja">削除</span></button>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th style="width:28px"><input type="checkbox" id="selAll" onchange="toggleSelectAll(this.checked)"></th>
+        <th></th>
+        <th><span class="en">Match</span><span class="ja">試合</span></th>
+        <th><span class="en">Category</span><span class="ja">カテゴリ</span></th>
+        <th><span class="en">Date</span><span class="ja">日付</span></th>
+        <th></th>
+      </tr></thead>
+      <tbody id="matchList"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Match edit modal -->
+<div class="modal-overlay" id="editMatchModal">
+  <div class="modal" style="max-width:420px">
+    <h2><span class="en">Edit Match</span><span class="ja">試合を編集</span></h2>
+    <input type="hidden" id="emMatchId">
+    <div class="fm-group">
+      <label><span class="en">Category</span><span class="ja">カテゴリ</span></label>
+      <input type="text" id="emCategory">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeEditMatch()"><span class="en">Cancel</span><span class="ja">キャンセル</span></button>
+      <button class="btn btn-primary" onclick="submitEditMatch()"><span class="en">Save</span><span class="ja">保存</span></button>
+    </div>
+    <div class="fm-msg" id="emMsg"></div>
+  </div>
+</div>
+
+<!-- Match drilldown modal -->
+<div class="modal-overlay" id="drilldownModal">
+  <div class="modal">
+    <h2 id="ddTitle"></h2>
+    <p class="modal-sub"><span class="en">Comment moderation</span><span class="ja">コメントの管理</span></p>
+    <div id="ddComments"></div>
+    <div class="modal-actions" style="justify-content:space-between;margin-top:20px">
+      <button class="btn btn-danger btn-sm" onclick="resetDrawingsForCurrent()"><span class="en">Reset all drawings for this match</span><span class="ja">この試合の描画データを全リセット</span></button>
+      <button class="btn btn-outline" onclick="closeDrilldown()"><span class="en">Close</span><span class="ja">閉じる</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="copy-toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://mqkoahmpuqjttlpubeoo.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xa29haG1wdXFqdHRscHViZW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDUyMDQsImV4cCI6MjA4OTQ4MTIwNH0.iIsfV5Cf_rPApNACbMvFVCiPZrLVDeGOYRB4op-0KCI';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let allMatches = [];
+let selectedIds = new Set();
+let currentDrilldownMatch = null;
+
+function getLang() { return localStorage.getItem('syncscout_lang') || 'en'; }
+function applyLang() { document.documentElement.className = 'lang-' + getLang(); }
+function toggleLang() { localStorage.setItem('syncscout_lang', getLang() === 'ja' ? 'en' : 'ja'); applyLang(); }
+applyLang();
+
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function tt(en, ja) { return getLang() === 'ja' ? ja : en; }
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+
+// ---------- Matches ----------
+async function loadMatches() {
+  const { data, error } = await supabaseClient.from('matches').select('*').order('created_at', { ascending: false });
+  allMatches = error ? [] : (data || []);
+  selectedIds.clear();
+  renderMatches();
+}
+
+function matchThumb(m) {
+  return m.youtube_id ? `https://img.youtube.com/vi/${esc(m.youtube_id)}/mqdefault.jpg` : '';
+}
+
+function renderMatches() {
+  const q = (document.getElementById('matchSearch').value || '').toLowerCase();
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+
+  const filtered = allMatches.filter(m => {
+    if (q && !(`${m.category||''} ${m.dvw_filename||''}`.toLowerCase().includes(q))) return false;
+    const d = (m.created_at || '').slice(0, 10);
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
+
+  const list = document.getElementById('matchList');
+  if (filtered.length === 0) {
+    list.innerHTML = `<tr><td colspan="6"><div class="empty-msg">${tt('No matches found.', '試合が見つかりません。')}</div></td></tr>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(m => `
+    <tr>
+      <td><input type="checkbox" class="rowSel" data-id="${m.id}" ${selectedIds.has(m.id) ? 'checked' : ''} onchange="toggleRowSel('${m.id}', this.checked)"></td>
+      <td>${matchThumb(m) ? `<img class="thumb" src="${matchThumb(m)}" loading="lazy">` : ''}</td>
+      <td><span class="match-name" onclick="openDrilldown('${m.id}')">${esc(m.dvw_filename || m.dvw_url || '—')}</span></td>
+      <td>${esc(m.category || '—')}</td>
+      <td>${new Date(m.created_at).toLocaleDateString()}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openEditMatch('${m.id}')">${tt('Edit', '編集')}</button>
+        <button class="btn btn-outline btn-sm" onclick="deleteOne('${m.id}')">${tt('Delete', '削除')}</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openEditMatch(id) {
+  const m = allMatches.find(x => String(x.id) === String(id));
+  if (!m) return;
+  document.getElementById('emMatchId').value = m.id;
+  document.getElementById('emCategory').value = m.category || '';
+  document.getElementById('emMsg').textContent = '';
+  document.getElementById('editMatchModal').classList.add('show');
+}
+function closeEditMatch() { document.getElementById('editMatchModal').classList.remove('show'); }
+
+async function submitEditMatch() {
+  const id = document.getElementById('emMatchId').value;
+  const category = document.getElementById('emCategory').value.trim();
+  const msg = document.getElementById('emMsg');
+  if (!category) { msg.style.color = 'var(--danger)'; msg.textContent = tt('Please enter a category.', 'カテゴリを入力してください。'); return; }
+
+  const { error } = await supabaseClient.from('matches').update({ category }).eq('id', id);
+  if (error) { msg.style.color = 'var(--danger)'; msg.textContent = 'Error: ' + error.message; return; }
+  closeEditMatch();
+  toast(tt('Updated.', '更新しました。'));
+  await loadMatches();
+}
+
+function toggleSelectAll(checked) {
+  document.querySelectorAll('.rowSel').forEach(cb => { cb.checked = checked; toggleRowSel(cb.dataset.id, checked, false); });
+  updateBulkBar();
+}
+function toggleRowSel(id, checked, update = true) {
+  if (checked) selectedIds.add(id); else selectedIds.delete(id);
+  if (update) updateBulkBar();
+}
+function updateBulkBar() {
+  const bar = document.getElementById('bulkBar');
+  if (selectedIds.size > 0) {
+    bar.classList.add('show');
+    document.getElementById('bulkCount').textContent = tt(`${selectedIds.size} selected`, `${selectedIds.size} 件選択中`);
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+async function deleteMatchesByIds(ids) {
+  const matches = allMatches.filter(m => ids.includes(String(m.id)));
+  for (const m of matches) {
+    try {
+      if (m.dvw_url) {
+        const filePath = new URL(m.dvw_url).pathname.split('/dvw_files/')[1];
+        if (filePath) await supabaseClient.storage.from('dvw_files').remove([filePath]);
+      }
+    } catch (e) { /* ignore storage cleanup failures */ }
+    await Promise.all([
+      supabaseClient.from('comments').delete().eq('match_dvw', m.dvw_url),
+      supabaseClient.from('drawings').delete().eq('match_dvw', m.dvw_url),
+      supabaseClient.from('playlists').delete().eq('match_dvw', m.dvw_url),
+      supabaseClient.from('matches').delete().eq('id', m.id),
+    ]);
+  }
+}
+
+async function deleteOne(id) {
+  if (!confirm(tt('Delete this match permanently? This cannot be undone.', 'この試合を完全に削除しますか？元に戻せません。'))) return;
+  await deleteMatchesByIds([String(id)]);
+  toast(tt('Deleted.', '削除しました。'));
+  await loadMatches();
+}
+
+async function bulkDelete() {
+  const ids = [...selectedIds];
+  if (!confirm(tt(`Delete ${ids.length} match(es) permanently? This cannot be undone.`, `${ids.length}件の試合を完全に削除しますか？元に戻せません。`))) return;
+  await deleteMatchesByIds(ids);
+  toast(tt('Deleted.', '削除しました。'));
+  await loadMatches();
+}
+
+// ---------- Match drilldown (comments / drawings) ----------
+async function openDrilldown(matchId) {
+  const m = allMatches.find(x => String(x.id) === String(matchId));
+  if (!m) return;
+  currentDrilldownMatch = m;
+  document.getElementById('ddTitle').textContent = m.dvw_filename || m.dvw_url || ('Match #' + m.id);
+
+  const { data, error } = await supabaseClient
+    .from('comments').select('*').eq('match_dvw', m.dvw_url).order('created_at', { ascending: false });
+
+  const box = document.getElementById('ddComments');
+  const comments = error ? [] : (data || []);
+  box.innerHTML = comments.length === 0
+    ? `<div class="empty-msg">${tt('No comments on this match.', 'この試合にコメントはありません。')}</div>`
+    : comments.map(c => `
+      <div class="comment-row">
+        <span>${esc(c.comment_text)}</span>
+        <button class="btn btn-outline btn-sm" onclick="deleteComment(${c.id})">${tt('Delete', '削除')}</button>
+      </div>
+    `).join('');
+
+  document.getElementById('drilldownModal').classList.add('show');
+}
+
+function closeDrilldown() { document.getElementById('drilldownModal').classList.remove('show'); currentDrilldownMatch = null; }
+
+async function deleteComment(commentId) {
+  if (!confirm(tt('Delete this comment permanently?', 'このコメントを完全に削除しますか？'))) return;
+  const { error } = await supabaseClient.from('comments').delete().eq('id', commentId);
+  if (error) { alert('Error: ' + error.message); return; }
+  openDrilldown(currentDrilldownMatch.id);
+}
+
+async function resetDrawingsForCurrent() {
+  if (!currentDrilldownMatch) return;
+  if (!confirm(tt('Delete ALL drawings for this match? This cannot be undone.', 'この試合の描画データをすべて削除しますか？元に戻せません。'))) return;
+  const { error } = await supabaseClient.from('drawings').delete().eq('match_dvw', currentDrilldownMatch.dvw_url);
+  if (error) { alert('Error: ' + error.message); return; }
+  toast(tt('Drawings deleted.', '描画データを削除しました。'));
+}
+
+// ---------- Init ----------
+loadMatches();
+</script>
+</body>
+</html>

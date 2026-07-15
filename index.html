@@ -8,260 +8,86 @@
       gtag('js', new Date());
       gtag('config', 'G-5MRSVH1C6H');
     </script>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-visual">
     <meta name="robots" content="noindex, nofollow">
-    <title>SyncScout v0.8.32</title>
-    <style>
-        :root { 
-            --primary: #007bff; --primary-hover: #0056b3; 
-            --home-accent: #f06292; --away-accent: #64b5f6; 
-            --score-bg: rgba(255, 255, 255, 0.95); --line-green: #06C755; 
-            --bg-light: #f8f9fa; --text-main: #333; --text-muted: #666;
-            --header-bg: #1e1e2f; 
-        }
-        body, html { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        
-        body { display: flex; flex-direction: column; background: #eaedf1; }
-
-        /* =========================================
-           グローバルヘッダー
-           ========================================= */
-        #global-header {
-            background: var(--header-bg); color: white; display: flex; align-items: center; justify-content: space-between;
-            padding: 8px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0;
-        }
-        .brand { font-weight: 900; font-size: 1.2rem; letter-spacing: 0px; display: flex; align-items: center; color: #fff; }
-        .brand span { color: var(--primary); }
-        
-        .header-tools { display: flex; align-items: center; gap: 15px; }
-        .header-tools .cat-tabs { margin-bottom: 0; gap: 6px; display: flex;}
-        .header-tools .cat-tab { background: transparent; border: 1px solid #555; color: #aaa; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .header-tools .cat-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
-        
-        #catSelectMobile { display: none; }
-        
-        .header-tools select { width: 250px; margin-bottom: 0; padding: 8px 12px; border: none; background: #333; color: white; border-radius: 6px; font-weight: bold; outline: none; }
-        .add-match-btn { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
-        .add-match-btn:hover { background: var(--primary-hover); }
-
-        /* =========================================
-           メインワークスペース（動画 ＋ 分析パネル）
-           ========================================= */
-        #main-workspace { display: flex; flex: 1; overflow: hidden; }
-
-        #video-side { flex: 1; background: #000; position: relative; }
-        #player-box { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; }
-        #player { width: 100%; height: 100%; }
-
-        #telestratorCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15; }
-        #telestratorCanvas.drawing-mode { pointer-events: auto; z-index: 30; cursor: crosshair; }
-
-        #serve-code-overlay {
-            display: none; position: absolute; top: 20px; right: 20px; z-index: 12;
-            background: rgba(0, 0, 0, 0.72); color: #fff; border-radius: 10px;
-            font-family: 'Arial Black', sans-serif; font-size: 2.8rem; font-weight: 900;
-            padding: 8px 20px; letter-spacing: 2px; pointer-events: none;
-            border: 2px solid rgba(255,255,255,0.3); text-shadow: 0 2px 6px rgba(0,0,0,0.6);
-        }
-
-        #draw-toolbar {
-            display: none; position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.85); padding: 8px 15px; border-radius: 30px; z-index: 40;
-            gap: 12px; align-items: center; box-shadow: 0 8px 16px rgba(0,0,0,0.3); backdrop-filter: blur(5px);
-        }
-        
-        #draw-tools { display: flex; gap: 4px; margin-right: 10px; background: rgba(255,255,255,0.2); padding: 4px; border-radius: 20px; }
-        .tool-btn { background: transparent; border: none; font-size: 1.1rem; cursor: pointer; padding: 4px 10px; border-radius: 15px; transition: 0.2s; opacity: 0.6; }
-        .tool-btn.active { background: rgba(255,255,255,0.9); opacity: 1; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .tool-btn:hover { opacity: 1; }
-
-        .draw-btn { background: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .draw-btn.save { background: var(--line-green); color: white; }
-        .draw-btn.cancel { background: #d32f2f; color: white; }
-
-        #score-overlay {
-            position: absolute; top: 30px; left: 30px; display: none; flex-direction: column;
-            background: var(--score-bg); border-radius: 12px; overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2); font-family: 'Oswald', sans-serif; z-index: 10;
-            width: 285px; border: 1px solid rgba(0,0,0,0.1);
-        }
-        .score-row { display: flex; height: 63px; border-bottom: 1px solid #eee; }
-        .sticky-bar { width: 12px; height: 100%; flex-shrink: 0; }
-        .home .sticky-bar { background: var(--home-accent); }
-        .away .sticky-bar { background: var(--away-accent); }
-        .ov-team-box { flex: 1; display: flex; align-items: center; padding-left: 15px; font-weight: 700; color: var(--text-main); font-size: 1.5rem; background: #fff; }
-        .ov-sets-box { width: 52px; display: flex; align-items: center; justify-content: center; background: #fdfdfd; color: #888; font-size: 1.5rem; border-left: 1px solid #eee; }
-        .ov-points-box { width: 75px; display: flex; align-items: center; justify-content: center; color: #000; font-size: 2.5rem; font-weight: 800; background: #fff; border-left: 1px solid #eee; }
-
-        .video-nav-btn {
-            position: absolute; top: 50%; transform: translateY(-50%); width: 54px; height: 54px;
-            background: rgba(0, 0, 0, 0.5); color: white; border: none; border-radius: 50%; font-size: 1.5rem; 
-            display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 20; transition: 0.2s;
-        }
-        .nav-prev { left: 20px; }
-        .nav-next { right: 20px; }
-
-        #control-side { flex: 0 0 calc(22.222vw - 20px); width: calc(22.222vw - 20px); padding: 15px 20px; overflow-y: auto; background: #fff; border-left: 1px solid #ddd; box-sizing: border-box; display: flex; flex-direction: column; }
-        
-        .mode-tabs { display: flex; gap: 6px; margin-bottom: 15px; background: var(--bg-light); padding: 4px; border-radius: 8px; }
-        .mode-tab { flex: 1; padding: 10px 5px; border: none; background: transparent; font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 0.8rem; color: var(--text-muted); transition: 0.2s; text-align: center; }
-        .mode-tab.active { background: #fff; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-
-        .filter-card { background: var(--bg-light); border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
-        .filter-label { font-size: 0.7rem; color: #888; font-weight: 700; display: block; margin-bottom: 6px; letter-spacing: 0.5px; }
-        select, .search-input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ced4da; font-size: 0.9rem; margin-bottom: 10px; background: #fff; box-sizing: border-box; }
-
-        .toggle-search-btn { 
-            width: 100%; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 8px; 
-            font-size: 0.8rem; font-weight: bold; color: var(--text-main); cursor: pointer; 
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;
-        }
-        .search-container { display: none; padding-top: 10px; }
-        .search-container.show { display: block; }
-
-        .instance-btn { 
-            padding: 12px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 10px; 
-            border-left: 6px solid #ccc; background: #fff; position: relative; transition: 0.1s;
-        }
-        .instance-btn.active { background: #f0f7ff !important; border-color: var(--primary); outline: 2px solid var(--primary); }
-        .win-home { border-left-color: var(--home-accent) !important; }
-        .win-away { border-left-color: var(--away-accent) !important; }
-        
-        .card-main { display: flex; align-items: center; cursor: pointer; padding-right: 140px; min-height: 44px; }
-        .score-box { font-family: "Arial Black", sans-serif; font-size: 1.1rem; min-width: 60px; text-align: center; margin-right: 15px; background: #eee; border-radius: 6px; padding: 4px 0; }
-        
-        .top-right-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 2; }
-        .action-sm-btn { background: #f0f0f0; border: none; border-radius: 16px; padding: 6px 10px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
-        
-        .card-actions { display: none; flex-direction: column; gap: 6px; margin-top: 10px; border-top: 1px dashed #ddd; padding-top: 10px; }
-        .card-actions.show { display: flex; }
-        
-        .comments-display { font-size: 0.75rem; color: #333; max-height: 90px; overflow-y: auto; background: #f8f9fa; border-radius: 4px; padding: 4px; }
-        .comment-item { padding: 4px; border-bottom: 1px solid #eee; word-break: break-all; display: flex; justify-content: space-between; align-items: center; }
-        /* 💡 新設：コメント削除ボタンのスタイル */
-        .del-comment { color: #aaa; cursor: pointer; font-size: 0.8rem; padding: 0 4px; transition: 0.2s; }
-        .del-comment:hover { color: #d32f2f; }
-
-        .action-row { display: flex; gap: 5px; position: relative; }
-        .comment-input { flex: 1; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-size: 0.9rem; box-sizing: border-box; }
-        .tag-trigger { width: 36px; background: #eee; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1rem; color: #555; display: flex; align-items: center; justify-content: center; }
-        .action-btn { padding: 8px; font-size: 0.75rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-align: center; color: white; }
-        .add-btn { background: var(--primary); width: 60px; }
-        .copy-link-btn { background: #6c757d; flex: 1; }
-        .line-btn { background: var(--line-green); flex: 1; }
-
-        .tag-popup {
-            position: absolute; bottom: 45px; left: 0; background: #fff; border: 1px solid #ccc; 
-            border-radius: 8px; display: none; flex-wrap: wrap; gap: 5px; padding: 8px; 
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 100; width: 100%; box-sizing: border-box;
-        }
-        .tag-popup.show { display: flex; }
-        .tag-chip { background: #f0f0f0; border: 1px solid #ddd; padding: 4px 10px; border-radius: 15px; font-size: 0.75rem; cursor: pointer; font-weight: bold; color: var(--primary); }
-        .tag-chip:hover { background: var(--primary); color: white; }
-
-        .auto-suggest-box {
-            position: absolute; bottom: 100%; left: 45px; background: #fff; border: 1px solid #ccc;
-            border-radius: 6px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); display: none;
-            z-index: 150; max-height: 160px; overflow-y: auto; min-width: 140px; margin-bottom: 5px;
-        }
-        .s-item { padding: 8px 12px; font-size: 0.8rem; cursor: pointer; color: #333; font-weight: bold; border-bottom: 1px solid #eee; }
-        .s-item:last-child { border-bottom: none; }
-        .s-item:hover, .s-item.active { background: var(--primary); color: #fff; }
-
-        .stats-section-title { font-weight: 900; padding: 15px 0 5px; border-bottom: 2px solid #333; margin-top: 20px; text-transform: uppercase; }
-        .stats-container { width: 100%; overflow-x: auto; margin-bottom: 20px; background: #fff; border-radius: 8px; border: 1px solid #eee; }
-        .stats-table { width: auto; border-collapse: collapse; font-size: 0.65rem; margin: 0 auto; min-width: 400px; }
-        .stats-table th, .stats-table td { border: 1px solid #eee; padding: 5px 4px; text-align: center; }
-        .stats-table th { background: #f8f9fa; font-weight: bold; }
-        .click-num { color: var(--primary); font-weight: bold; cursor: pointer; text-decoration: underline; }
-
-        #add-match-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 300; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-        .add-match-content { background: #fff; color: #333; padding: 25px; border-radius: 12px; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .add-match-content h3 { margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; color: var(--primary); }
-        .fm-group { margin-bottom: 15px; }
-        .fm-group label { display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; color: #555; }
-        .fm-group input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 0.9rem; }
-        .add-btn-submit { width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
-        .add-btn-submit:hover { background: var(--primary-hover); }
-
-        .video-seek-btn {
-            position: absolute; bottom: 20px; background: rgba(0,0,0,0.55); color: white;
-            border: none; border-radius: 22px; font-size: 0.9rem; font-weight: bold;
-            padding: 10px 16px; cursor: pointer; z-index: 20; transition: 0.15s;
-            display: none; letter-spacing: 0.5px;
-        }
-        .video-seek-btn:active { background: rgba(255,255,255,0.25); }
-        .seek-back { left: 20px; }
-        .seek-fwd  { right: 20px; }
-        @media (pointer: coarse) {
-            .video-seek-btn { display: block; }
-            #control-side { flex: 0 0 22.222vw; width: 22.222vw; }
-        }
-
-        #shortcut-btn { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); color: #fff; border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer; z-index: 50; font-weight: bold; font-size: 0.8rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        #shortcut-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-        .modal-content { background: #222; color: #fff; padding: 25px; border-radius: 12px; min-width: 280px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 0.9rem; border: 1px solid #444; }
-        .modal-content h3 { margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; border-bottom: 1px solid #444; padding-bottom: 10px; color: var(--away-accent); }
-        .modal-content ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
-        .modal-content li { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding-bottom: 5px; }
-        .modal-content kbd { background: #444; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; color: #fff; }
-        .close-modal-btn { width: 100%; padding: 10px; background: #444; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-
-        @media (max-width: 950px) and (orientation: landscape) {
-            #main-workspace { flex-direction: row; }
-            #video-side { width: 60%; height: auto; flex: none; }
-            #control-side { width: 40%; height: auto; flex: none; padding: 10px; }
-            #score-overlay { transform: scale(0.7); transform-origin: top left; }
-            .video-nav-btn { width: 40px; height: 40px; font-size: 1rem; }
-            .action-row { flex-wrap: wrap; }
-            .comment-input { padding: 6px; font-size: 0.8rem; }
-            .header-tools select { width: 180px; font-size: 0.8rem; padding: 6px; }
-            .brand { font-size: 1rem; }
-        }
-
-        @media (max-width: 768px) and (orientation: portrait) {
-            body { flex-direction: column; }
-            #global-header { flex-direction: column; align-items: stretch; padding: 8px 10px; gap: 8px; }
-            .brand { font-size: 1rem; flex-shrink: 0; text-align: center; }
-            .header-tools { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-            .header-tools .cat-tabs { display: none; } 
-            #catSelectMobile { display: block; flex: 1; max-width: 40%; font-size: 0.85rem; padding: 10px 8px; margin: 0; border: 1px solid #555; background: #222; color: #fff; border-radius: 6px; }
-            .header-tools select#matchSelect { flex: 1.5; width: auto; max-width: none; font-size: 0.85rem; padding: 10px 8px; margin: 0; border-radius: 6px; }
-            .add-match-btn { display: none; }
-            #main-workspace { flex-direction: column; }
-            #video-side { width: 100%; height: auto; aspect-ratio: 16 / 9; flex: none; }
-            #control-side { width: 100%; flex: 1; padding: 10px; }
-            #score-overlay { top: 5px !important; left: 5px !important; width: 60px !important; border-radius: 4px !important; }
-            .ov-team-box { font-size: 0.4rem !important; padding-left: 2px !important; }
-            .ov-sets-box, .ov-points-box { font-size: 0.5rem !important; width: 15px !important; }
-            .score-row { height: 15px !important; }
-            .sticky-bar { width: 2px !important; }
-            .card-main { padding-right: 10px; flex-direction: column; align-items: flex-start; }
-            .top-right-actions { position: relative; top: 0; right: 0; margin-top: 10px; width: 100%; justify-content: flex-end; }
-            .draw-trigger-btn, #shortcut-btn { display: none !important; }
-            #draw-toolbar { top: 5px; padding: 5px 10px; gap: 8px; }
-            #draw-tools { margin-right: 5px; }
-            .tool-btn { font-size: 1rem; padding: 4px 6px; }
-            .draw-btn { font-size: 0.75rem; padding: 6px 10px; }
-        }
-    </style>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SyncScout">
+    <title>SyncScout v1.1</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body onclick="hideAllTagPopups()">
 
 <header id="global-header">
-    <div class="brand">SyncScout</div>
-    <div class="header-tools">
-        <div id="catTabs" class="cat-tabs"></div>
-        <select id="catSelectMobile" onchange="changeCategoryMobile(this.value)"></select>
-        
-        <select id="matchSelect" onchange="onMatchChange(this.value)">
-            <option value="">Select Match...</option>
-        </select>
-        <button class="add-match-btn" onclick="document.getElementById('add-match-modal').style.display='flex'">➕ Add Match</button>
+    <div class="brand">
+        <span class="brand-logo">S</span>
+        <span class="brand-text">SyncScout</span>
+        <span id="team-badge" class="team-badge"></span>
+    </div>
+
+    <!-- Category dropdown -->
+    <div class="cat-dropdown-wrap" id="catDropdownWrap">
+        <button class="cat-dropdown-btn" onclick="toggleCatDropdown()">
+            <span id="catCurrentLabel">All</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="cat-dropdown-list" id="catDropdownList"></div>
+    </div>
+
+    <!-- Shared: match select -->
+    <select id="matchSelect" class="header-match-select" onchange="onMatchChange(this.value)">
+        <option value="" data-i18n="select_match">Select Match...</option>
+    </select>
+
+    <!-- Single menu button (PC & mobile) -->
+    <button class="menu-toggle-btn" onclick="toggleAppMenu()" id="app-menu-toggle">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+
+    <!-- Unified dropdown menu -->
+    <div id="app-menu" class="app-menu">
+        <button class="app-menu-item" onclick="document.getElementById('add-match-modal').style.display='flex'; toggleAppMenu();">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            <span data-i18n="add_match">Add Match</span>
+        </button>
+        <div class="app-menu-divider"></div>
+        <button class="app-menu-item" onclick="toggleLang(); toggleAppMenu();">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            <span id="lang-menu-label">English / 日本語</span>
+        </button>
+        <button class="app-menu-item" onclick="openManageTags(); toggleAppMenu();">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41L13.42 20.6a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            <span data-i18n="manage_tags">Manage Tags</span>
+        </button>
+        <button class="app-menu-item" onclick="openHighlightSettings(); toggleAppMenu();">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span data-i18n="highlight_settings">Highlight Settings</span>
+        </button>
+        <a href="team-admin.html" class="app-menu-item" onclick="toggleAppMenu();">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            <span>Team Admin</span>
+        </a>
+        <div class="app-menu-divider" id="zoom-menu-divider"></div>
+        <div class="app-menu-zoom" id="zoom-controls">
+            <div class="zoom-slider-row">
+                <label class="zoom-label">🔍</label>
+                <input type="range" id="zoom-level" min="1" max="2" step="0.1" value="1">
+                <span id="zoom-value">1.0x</span>
+            </div>
+            <div class="zoom-slider-row" id="zoom-pan-row">
+                <label class="zoom-label">↔</label>
+                <input type="range" id="zoom-pan" min="-1" max="1" step="0.01" value="0">
+                <button id="zoom-reset-btn" onclick="resetZoom()">✕</button>
+            </div>
+        </div>
     </div>
 </header>
 
@@ -273,50 +99,138 @@
                 <div class="score-row home"><div class="sticky-bar"></div><div class="ov-team-box" id="ov-h-code">---</div><div class="ov-sets-box" id="ov-h-sets">0</div><div class="ov-points-box" id="ov-h-score">0</div></div>
                 <div class="score-row away"><div class="sticky-bar"></div><div class="ov-team-box" id="ov-a-code">---</div><div class="ov-sets-box" id="ov-a-sets">0</div><div class="ov-points-box" id="ov-a-score">0</div></div>
             </div>
-            <div id="serve-code-overlay"></div>
-            <button class="video-nav-btn nav-prev vid-ui" onclick="event.stopPropagation(); playPrev()">◀</button>
-            <button class="video-nav-btn nav-next vid-ui" onclick="event.stopPropagation(); playNext()">▶</button>
-            <button class="video-seek-btn seek-back vid-ui" onclick="event.stopPropagation(); seekBy(-3)">&#171; 3s</button>
-            <button class="video-seek-btn seek-fwd  vid-ui" onclick="event.stopPropagation(); seekBy(3)">3s &#187;</button>
+            <button class="video-nav-btn nav-prev vid-ui" onclick="event.stopPropagation(); playPrev()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </button>
+            <button class="video-nav-btn nav-next vid-ui" onclick="event.stopPropagation(); playNext()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+            </button>
+            <button class="seek-btn seek-back vid-ui" onclick="event.stopPropagation(); seekSeconds(-3)">-3s</button>
+            <button class="seek-btn seek-repeat vid-ui" onclick="event.stopPropagation(); replayCurrentPlay()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            </button>
+            <button class="seek-btn seek-fwd vid-ui" onclick="event.stopPropagation(); seekSeconds(3)">+3s</button>
+            <button class="theater-enter-btn vid-ui" id="theater-btn" onclick="event.stopPropagation(); toggleTheaterMode()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3H5a2 2 0 00-2 2v3M21 8V5a2 2 0 00-2-2h-3M3 16v3a2 2 0 002 2h3M16 21h3a2 2 0 002-2v-3"/></svg>
+            </button>
+        </div>
+        <div id="theater-remote">
+            <button class="tr-btn" onclick="playPrev()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </button>
+            <button class="tr-btn tr-text" onclick="seekSeconds(-3)">-3s</button>
+            <button class="tr-btn" onclick="replayCurrentPlay()">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            </button>
+            <button class="tr-btn tr-text" onclick="seekSeconds(3)">+3s</button>
+            <button class="tr-btn" onclick="playNext()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+            </button>
+            <div class="tr-divider"></div>
+            <button class="tr-btn tr-exit" onclick="toggleTheaterMode()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3v3a2 2 0 01-2 2H3M21 8h-3a2 2 0 01-2-2V3M3 16h3a2 2 0 012 2v3M16 21v-3a2 2 0 012-2h3"/></svg>
+            </button>
+            <button class="tr-force-landscape" id="force-landscape-btn" onclick="toggleForcedLandscape()">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="8" height="16" rx="2"/><rect x="10" y="12" width="11" height="7" rx="1.5"/><path d="M13 3c4 0 6 3 6 7"/><path d="M17 8.7L19 10.3 21.2 9"/></svg>
+            </button>
         </div>
         <canvas id="telestratorCanvas"></canvas>
         <div id="draw-toolbar">
             <div id="draw-tools">
-                <button class="tool-btn active" onclick="setDrawTool('freehand')" id="tool-freehand">〰️</button>
-                <button class="tool-btn" onclick="setDrawTool('arrow')" id="tool-arrow">↗️</button>
-                <button class="tool-btn" onclick="setDrawTool('circle')" id="tool-circle">◯</button>
-                <button class="tool-btn" onclick="setDrawTool('rect')" id="tool-rect">⬜</button>
+                <button class="tool-btn active" onclick="setDrawTool('freehand')" id="tool-freehand">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17c3-3 6-7 9-7s3 4 6 4 3-2 3-2"/></svg>
+                </button>
+                <button class="tool-btn" onclick="setDrawTool('arrow')" id="tool-arrow">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="12 5 19 5 19 12"/></svg>
+                </button>
+                <button class="tool-btn" onclick="setDrawTool('circle')" id="tool-circle">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+                </button>
+                <button class="tool-btn" onclick="setDrawTool('rect')" id="tool-rect">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                </button>
             </div>
-            
-            <button class="draw-btn" onclick="undoDrawing()">↩️ Undo</button>
-            
-            <button class="draw-btn" onclick="clearCanvas()">Clear</button>
-            <button class="draw-btn cancel" onclick="exitDrawMode()">Cancel</button>
-            <button class="draw-btn save" onclick="saveDrawing()">Save (P)</button>
+            <button class="draw-btn" onclick="undoDrawing()" data-i18n="undo">Undo</button>
+            <button class="draw-btn" onclick="clearCanvas()" data-i18n="clear">Clear</button>
+            <button class="draw-btn cancel" onclick="exitDrawMode()" data-i18n="cancel">Cancel</button>
+            <button class="draw-btn save" onclick="saveDrawing()" data-i18n="save_draw">Save (P)</button>
         </div>
     </div>
 
     <div id="control-side">
         <div class="mode-tabs">
-            <button class="mode-tab active" id="btn-rally" onclick="setMode('rally')">Rallies</button>
-            <button class="mode-tab" id="btn-player" onclick="setMode('player')">Individual</button>
-            <button class="mode-tab" id="btn-stats" onclick="setMode('stats')">Table</button>
-            <button class="mode-tab" id="btn-rotation" onclick="setMode('rotation')">Rotation</button>
+            <button class="mode-tab active" id="btn-rally" onclick="setMode('rally')" data-i18n="rallies">Rallies</button>
+            <button class="mode-tab" id="btn-player" onclick="setMode('player')" data-i18n="individual">Individual</button>
+            <button class="mode-tab" id="btn-stats" onclick="setMode('stats')" data-i18n="table">Table</button>
+            <button class="mode-tab" id="btn-rotation" onclick="setMode('rotation')" data-i18n="rotation">Rotation</button>
         </div>
 
         <div class="filter-card" id="filterArea">
-            <div id="rally-filters"><span class="filter-label">1. Server Team</span><select id="teamFilterRally" onchange="render()"><option value="">Both Teams</option></select></div>
+            <div id="rally-filters"><span class="filter-label" data-i18n="server_team">1. Server Team</span><select id="teamFilterRally" onchange="onFilterChange()"><option value="" data-i18n="both_teams">Both Teams</option></select>
+                <label style="display:flex; align-items:center; gap:5px; font-size:0.8rem; font-weight:600; margin-left:10px; white-space:nowrap;">
+                    <input type="checkbox" id="highlightOnlyFilter" onchange="toggleHighlightOnly()"> &#x1F525; <span data-i18n="highlight_only">Highlight Candidates Only</span>
+                </label>
+            </div>
             <div id="player-filters" style="display:none;">
-                <span class="filter-label">1. Select Team & Player</span>
-                <div style="display:flex; gap:8px;"><select id="teamFilterPlayer" onchange="onTeamChangePlayer()"><option value="">Team</option></select><select id="playerFilter" onchange="render()"><option value="">Player</option></select></div>
-                <div style="display:flex; gap:8px;"><div style="flex:1"><span class="filter-label">2. Skill</span><select id="skillFilter" onchange="render()"><option value="">All</option><option value="S">Serve</option><option value="R">Rec</option><option value="E">Set</option><option value="A">Attack</option><option value="B">Block</option><option value="D">Dig</option></select></div><div style="flex:1"><span class="filter-label">3. Effect</span><select id="effectFilter" onchange="render()"><option value="">All</option><option value="#">Win (#)</option><option value="=">Error (=)</option><option value="+">Pos (+)</option><option value="-">Poor (-)</option><option value="!">Neutral (!)</option></select></div></div>
+                <div class="pf-grid">
+                    <div class="pf-item">
+                        <span class="filter-label" data-i18n="filter_team">1. Team</span>
+                        <select id="teamFilterPlayer" onchange="onTeamChangePlayer()"><option value="" data-i18n="select_team">Select Team</option></select>
+                    </div>
+                    <div class="pf-item">
+                        <span class="filter-label" data-i18n="filter_player">2. Player</span>
+                        <select id="playerFilter" onchange="onFilterChange()"><option value="" data-i18n="all_players">All Players</option></select>
+                    </div>
+                    <div class="pf-item">
+                        <span class="filter-label" data-i18n="filter_skill">3. Skill</span>
+                        <select id="skillFilter" onchange="onFilterChange()"><option value="" data-i18n="all">All</option><option value="S">Serve</option><option value="R">Rec</option><option value="E">Set</option><option value="A">Attack</option><option value="B">Block</option><option value="D">Dig</option></select>
+                    </div>
+                    <div class="pf-item">
+                        <span class="filter-label" data-i18n="filter_effect">4. Effect</span>
+                        <select id="effectFilter" onchange="onFilterChange()"><option value="" data-i18n="all">All</option><option value="#">#</option><option value="=">=</option><option value="/">/</option><option value="+">+</option><option value="-">-</option><option value="!">!</option></select>
+                    </div>
+                </div>
             </div>
-            <button class="toggle-search-btn" onclick="toggleSearchArea()"><span>🔍 Search Comments / Tags</span><span id="searchArrow">▼</span></button>
+            <button class="toggle-search-btn" onclick="toggleSearchArea()">
+                <span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:6px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span data-i18n="search_comments">Search Comments / Tags</span>
+                </span>
+                <span id="searchArrow">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+            </button>
             <div class="search-container" id="searchArea">
-                <input type="text" id="searchFilter" class="search-input" oninput="render()" placeholder="Keyword (e.g. #MB, #Good)">
-                <div style="display:flex; gap:8px;"><button class="action-sm-btn" style="flex:1; background:#6c757d; color:white;" onclick="copyPlaylistLink()">Copy URL</button><button class="action-sm-btn" style="flex:1; background:var(--line-green); color:white;" onclick="sharePlaylist()">Share LINE</button></div>
+                <input type="text" id="searchFilter" class="search-input" oninput="onFilterChange()" data-i18n-placeholder="search_placeholder" placeholder="Keyword (e.g. #MB, #Good)">
+                <div class="share-row">
+                    <button class="share-btn copy" onclick="copyPlaylistLink()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                        <span data-i18n="copy_url">Copy URL</span>
+                    </button>
+                    <button class="share-btn" onclick="sharePlaylistViaLINE()" style="background:#06C755; color:#fff; border-color:#06C755;">
+                        &#x1F4AC; <span data-i18n="share_line">LINE</span>
+                    </button>
+                    <button class="share-btn" onclick="sharePlaylistViaWhatsApp()" style="background:#25D366; color:#fff; border-color:#25D366;">
+                        &#x1F4AC; <span data-i18n="share_whatsapp">WhatsApp</span>
+                    </button>
+                </div>
+                <div class="share-row" style="margin-top:4px;">
+                    <button class="share-btn copy" onclick="saveCurrentAsPlaylist()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        <span data-i18n="save_playlist">Save List</span>
+                    </button>
+                    <div style="flex:1; position:relative;">
+                        <select id="playlistSelect" class="share-btn" style="width:100%; text-align:left; cursor:pointer; appearance:auto;" onchange="loadPlaylist(this.value)">
+                            <option value="" data-i18n="playlist_select">Playlists</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem; color:var(--text-muted); margin-top:12px;"><input type="checkbox" id="autoNext" checked style="width:auto; margin:0;"><label for="autoNext" style="cursor:pointer; font-weight:bold;">Auto-Skip</label></div>
+            <label class="auto-skip-label">
+                <input type="checkbox" id="autoNext" checked>
+                <span class="checkbox-custom"></span>
+                <span data-i18n="auto_skip">Auto-Skip</span>
+            </label>
         </div>
         <div id="instanceList"></div>
     </div>
@@ -324,23 +238,50 @@
 
 <div id="add-match-modal" onclick="this.style.display='none'">
     <div class="add-match-content" onclick="event.stopPropagation()">
-        <h3>➕ Add New Match</h3>
+        <div class="modal-header">
+            <h3 data-i18n="add_new_match">Add New Match</h3>
+            <button class="modal-close" onclick="document.getElementById('add-match-modal').style.display='none'">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
         <div class="fm-group">
-            <label>Category</label>
-            <input type="text" id="am-cat" list="existing-cats" placeholder="Select or type new category" autocomplete="off">
+            <label data-i18n="category">Category</label>
+            <input type="text" id="am-cat" list="existing-cats" data-i18n-placeholder="cat_placeholder" placeholder="Select or type new category" autocomplete="off">
             <datalist id="existing-cats"></datalist>
         </div>
         <div class="fm-group"><label>YouTube URL</label><input type="text" id="am-yt" placeholder="https://youtu.be/..."></div>
-        <div class="fm-group"><label>DVW File</label><input type="file" id="am-file" accept=".dvw"></div>
-        <button class="add-btn-submit" id="am-submit-btn" onclick="submitNewMatch()">Upload & Save</button>
-        <button class="add-btn-submit" style="background:#ccc; color:#333; margin-top:8px;" onclick="document.getElementById('add-match-modal').style.display='none'">Cancel</button>
+        <div class="fm-group"><label data-i18n="dvw_file">DVW File</label>
+            <div class="file-input-row">
+                <label class="file-select-btn" for="am-file" data-i18n="choose_file">Choose File</label>
+                <span id="am-file-name" data-i18n="no_file">No file selected</span>
+            </div>
+            <input type="file" id="am-file" accept=".dvw" style="display:none" onchange="updateFileName()">
+        </div>
+        <button class="add-btn-submit" id="am-submit-btn" onclick="submitNewMatch()" data-i18n="upload_save">Upload & Save</button>
     </div>
 </div>
 
-<button id="shortcut-btn" onclick="toggleShortcuts()">⌨️ Shortcuts</button>
-<div id="shortcut-modal" onclick="toggleShortcuts()"><div class="modal-content" onclick="event.stopPropagation()"><h3>Keyboard Shortcuts</h3><ul><li><span>Next / Prev</span> <kbd>F</kbd> / <kbd>D</kbd></li><li><span>Repeat</span> <kbd>R</kbd></li><li><span>-2s / +2s</span> <kbd>←</kbd> / <kbd>→</kbd></li><li><span>Draw On/Save</span> <kbd>P</kbd></li><li><span>Undo Draw</span> <kbd>Ctrl+Z</kbd></li><li><span>Focus Note</span> <kbd>C</kbd></li><li><span>Submit</span> <kbd>Enter</kbd></li><li><span>Select Tag</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd></li></ul><button class="close-modal-btn" onclick="toggleShortcuts()">Close</button></div></div>
+<button id="shortcut-btn" onclick="toggleShortcuts()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h8M6 16h.01M18 16h.01M10 16h4"/></svg>
+</button>
+<div id="shortcut-modal" onclick="toggleShortcuts()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h3 data-i18n="shortcuts">Keyboard Shortcuts</h3>
+        <ul>
+            <li><span data-i18n="sc_next_prev">Next / Prev</span> <span class="kbd-group"><kbd>F</kbd> / <kbd>D</kbd></span></li>
+            <li><span data-i18n="sc_repeat">Repeat</span> <kbd>R</kbd></li>
+            <li><span data-i18n="sc_seek">-2s / +2s</span> <span class="kbd-group"><kbd>←</kbd> / <kbd>→</kbd></span></li>
+            <li><span data-i18n="sc_draw">Draw On/Save</span> <kbd>P</kbd></li>
+            <li><span data-i18n="sc_undo">Undo Draw</span> <span class="kbd-group"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></li>
+            <li><span data-i18n="sc_note">Focus Note</span> <kbd>C</kbd></li>
+            <li><span data-i18n="sc_submit">Submit</span> <kbd>Enter</kbd></li>
+            <li><span data-i18n="sc_tag">Select Tag</span> <span class="kbd-group"><kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd></span></li>
+        </ul>
+        <button class="close-modal-btn" onclick="toggleShortcuts()" data-i18n="close">Close</button>
+    </div>
+</div>
 
-<script src="app.js?v=0.8.32"></script>
+<script src="app.js?v=2.3.6"></script>
 
 </body>
 </html>
