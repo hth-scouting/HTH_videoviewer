@@ -1311,6 +1311,46 @@ function playIndex(i) {
 function playNext() { if (currentIndex < currentData.length - 1) playIndex(currentIndex + 1); }
 function playPrev() { if (currentIndex > 0) playIndex(currentIndex - 1); }
 function seekSeconds(s) { if (player && player.getCurrentTime) player.seekTo(player.getCurrentTime() + s, true); }
+
+// --- 動画左右のダブルタップシーク ---
+const TAP_GAP = 300;   // この間隔以内の2回目のタップをダブルタップとみなす
+let tapTimer = null, tapZoneEl = null, tapCount = 0;
+
+function initTapZones() {
+    document.querySelectorAll('#tap-zones .tap-zone').forEach(zone => {
+        zone.addEventListener('click', e => {
+            if (isDrawingMode) return;
+            e.stopPropagation();
+            if (tapZoneEl !== zone) { tapCount = 0; tapZoneEl = zone; }
+            tapCount++;
+            clearTimeout(tapTimer);
+            if (tapCount === 1) {
+                // 1回目：ダブルタップ待ち。時間切れなら再生/一時停止
+                tapTimer = setTimeout(() => { togglePlayPause(); tapCount = 0; tapZoneEl = null; }, TAP_GAP);
+            } else {
+                // 2回目以降：連続タップでその都度シーク
+                const s = parseFloat(zone.dataset.seek);
+                seekSeconds(s);
+                flashTapZone(zone, s);
+                tapTimer = setTimeout(() => { tapCount = 0; tapZoneEl = null; }, TAP_GAP);
+            }
+        });
+    });
+}
+
+function togglePlayPause() {
+    if (!player || !player.getPlayerState) return;
+    if (player.getPlayerState() === 1) player.pauseVideo(); else player.playVideo();
+}
+
+function flashTapZone(zone, s) {
+    const f = zone.querySelector('.tz-flash');
+    if (!f) return;
+    f.textContent = (s > 0 ? '+' : '') + s + 's';
+    f.classList.remove('show');
+    void f.offsetWidth;
+    f.classList.add('show');
+}
 function replayCurrentPlay() { if (currentIndex >= 0 && currentData[currentIndex]) { player.seekTo(currentData[currentIndex].startTime, true); player.playVideo(); } }
 
 function toggleTheaterMode() {
@@ -1360,6 +1400,7 @@ function setDrawTool(tool) {
 }
 
 function initTelestrator() {
+    initTapZones();
     if(!canvas) return;
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -1470,12 +1511,14 @@ function renderDrawing() {
 function enterDrawMode(playId) {
     player.pauseVideo(); isDrawingMode = true; activePlayIdForDraw = playId;
     canvas.classList.add('drawing-mode'); document.getElementById('draw-toolbar').style.display = 'flex';
+    document.getElementById('tap-zones').classList.add('disabled');
     resizeCanvas(); drawingLines = matchDrawings[playId] ? JSON.parse(JSON.stringify(matchDrawings[playId])) : [];
     renderDrawing();
 }
 
 function exitDrawMode() {
     isDrawingMode = false; canvas.classList.remove('drawing-mode'); document.getElementById('draw-toolbar').style.display = 'none';
+    document.getElementById('tap-zones').classList.remove('disabled');
     ctx.clearRect(0,0,canvas.width,canvas.height);
 }
 
