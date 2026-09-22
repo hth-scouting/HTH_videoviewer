@@ -43,6 +43,17 @@ body {
     display: flex; flex-direction: column; background: var(--bg);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: var(--text); -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums; /* scores & stats: keep digits aligned */
+}
+::selection { background: rgba(79, 110, 247, 0.18); }
+
+/* Consistent keyboard-focus ring across all interactive elements */
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible {
+    outline: 2px solid var(--primary); outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
 /* =========================================
@@ -56,6 +67,7 @@ body {
     height: calc(52px + env(safe-area-inset-top));
     z-index: 100; flex-shrink: 0; gap: 12px;
     position: relative;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 2px 8px rgba(0,0,0,0.18);
 }
 .brand { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .brand-logo {
@@ -99,6 +111,9 @@ body {
 }
 .cat-dropdown-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
 .cat-dropdown-item.active { background: var(--primary); color: #fff; }
+/* 合言葉が必要なカテゴリ（未解錠） */
+.cat-dropdown-item.cat-locked { color: rgba(255,255,255,0.45); font-style: italic; }
+.cat-dropdown-item.cat-locked:hover { color: rgba(255,255,255,0.9); font-style: normal; }
 
 /* Match select in header */
 .header-match-select {
@@ -294,6 +309,7 @@ body {
 #control-side::-webkit-scrollbar { width: 6px; }
 #control-side::-webkit-scrollbar-track { background: transparent; }
 #control-side::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#control-side::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 .mode-tabs {
     display: flex; gap: 4px; margin-bottom: 16px;
@@ -305,12 +321,24 @@ body {
     font-size: 0.78rem; color: var(--text-muted); transition: var(--transition); text-align: center;
 }
 .mode-tab:hover { color: var(--text-secondary); }
-.mode-tab.active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }
+.mode-tab:active { transform: scale(0.97); }
+.mode-tab.active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); font-weight: 700; }
 
 .filter-card {
     background: var(--bg); border: 1px solid var(--border-light);
     border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;
 }
+/* 絞り込みの開閉ボタン（縦持ちスマホでのみ表示。下のメディアクエリで有効化） */
+.filter-toggle-btn {
+    display: none; width: 100%; align-items: center; justify-content: space-between;
+    padding: 9px 12px; margin-bottom: 10px;
+    background: var(--bg); border: 1px solid var(--border-light);
+    border-radius: var(--radius-md); color: var(--text-muted);
+    font-size: 0.8rem; font-weight: 700; font-family: inherit; cursor: pointer;
+}
+.filter-toggle-btn svg { transition: transform 0.15s ease; }
+.filter-toggle-btn.open svg { transform: rotate(180deg); }
+.filter-card.collapsed { display: none; }
 .filter-label {
     font-size: 0.68rem; color: var(--text-muted); font-weight: 700;
     display: block; margin-bottom: 6px; letter-spacing: 0.4px; text-transform: uppercase;
@@ -340,8 +368,9 @@ select:focus, .search-input:focus { border-color: var(--primary); box-shadow: 0 
     padding: 9px 12px; border: none; border-radius: var(--radius-sm);
     font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: var(--transition);
 }
+.share-btn:active { transform: scale(0.97); }
 .share-btn.copy { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border); }
-.share-btn.copy:hover { background: var(--border-light); }
+.share-btn.copy:hover { background: var(--border-light); border-color: var(--text-muted); }
 .share-btn.line { background: var(--primary); color: white; }
 .share-btn.line:hover { filter: brightness(1.08); }
 
@@ -380,7 +409,11 @@ select:focus, .search-input:focus { border-color: var(--primary); box-shadow: 0 
     background: linear-gradient(to right, transparent 0%, var(--card-skill-color) 100%);
     border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
-.instance-btn:hover { box-shadow: var(--shadow-sm); border-color: var(--border); }
+.instance-btn:hover {
+    box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 6px 20px rgba(16,24,40,0.07);
+    border-color: var(--border);
+    transform: translateY(-1px);
+}
 .instance-btn.active {
     background: var(--primary-subtle) !important;
     border-color: var(--primary) !important;
@@ -472,6 +505,7 @@ select:focus, .search-input:focus { border-color: var(--primary); box-shadow: 0 
     padding: 8px 12px; font-size: 0.75rem; border: none; border-radius: var(--radius-sm);
     cursor: pointer; font-weight: 600; text-align: center; color: white; transition: var(--transition);
 }
+.action-btn:active { transform: scale(0.97); }
 .add-btn { background: var(--primary); min-width: 56px; }
 .add-btn:hover { background: var(--primary-hover); }
 .copy-link-btn { background: var(--text-secondary); flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; }
@@ -492,6 +526,7 @@ select:focus, .search-input:focus { border-color: var(--primary); box-shadow: 0 
     font-size: 0.72rem; cursor: pointer; font-weight: 600; color: var(--primary); transition: var(--transition);
 }
 .tag-chip:hover { background: var(--primary); color: white; }
+.tag-chip:active { transform: scale(0.95); }
 
 .auto-suggest-box {
     position: absolute; bottom: 100%; left: 45px;
@@ -524,6 +559,8 @@ select:focus, .search-input:focus { border-color: var(--primary); box-shadow: 0 
 }
 .stats-table th, .stats-table td { border: 1px solid var(--border-light); padding: 6px 5px; text-align: center; }
 .stats-table th { background: var(--bg); font-weight: 700; color: var(--text-secondary); font-size: 0.63rem; }
+.stats-table tbody tr { transition: background-color var(--transition-fast); }
+.stats-table tbody tr:hover td { background: var(--primary-subtle); }
 .click-num {
     color: var(--primary); font-weight: 700; cursor: pointer;
     text-decoration: none; border-bottom: 1px dashed var(--primary); padding-bottom: 1px;
@@ -623,7 +660,7 @@ select:focus, .search-input:focus { border-color: var(--primary); box-shadow: 0 
 }
 .close-modal-btn:hover { background: rgba(255,255,255,0.12); color: white; }
 
-.empty-msg { text-align: center; color: var(--text-muted); padding: 40px 20px; font-size: 0.9rem; line-height: 1.6; }
+.empty-msg { text-align: center; color: var(--text-muted); padding: 48px 20px; font-size: 0.9rem; line-height: 1.6; font-weight: 600; }
 
 /* =========================================
    Filter grid & misc
@@ -767,7 +804,17 @@ body.forced-landscape .force-landscape-btn { display: none !important; }
     .header-match-select {
         flex: 1; min-width: 0; max-width: none;
         padding: 6px 8px; font-size: 0.78rem;
+        /* 試合名は最も長くなる要素。矢印に重ならないよう右を空けて省略記号で切る */
+        text-overflow: ellipsis; padding-right: 18px;
     }
+
+    /* 狭い端末ではロゴマークだけ残し、試合名に幅を譲る */
+    @media (max-width: 430px) {
+        .brand-text { display: none; }
+    }
+
+    /* 絞り込みは既定で畳む（プレー一覧を先に見せる） */
+    .filter-toggle-btn { display: flex; }
 
     .menu-toggle-btn { width: 32px; height: 32px; }
     .menu-toggle-btn svg { width: 16px; height: 16px; }
@@ -824,3 +871,23 @@ body.forced-landscape .force-landscape-btn { display: none !important; }
     #zoom-pan-row { display: none; }
     #zoom-reset-btn { background: none; border: 1px solid #555; color: #aaa; border-radius: 4px; padding: 2px 8px; font-size: 0.72rem; cursor: pointer; flex-shrink: 0; }
 }
+
+/* =========================================
+   Share view (opened from a share link, no passcode)
+   書き込み系のUIを隠す。サーバ側でも RLS が止めている
+   (013_share_view_access.sql)が、押して失敗するボタンを見せない。
+   コメントの表示は残す——選手が読む価値がある。
+   ========================================= */
+body.share-view .action-row,
+body.share-view .del-comment,
+body.share-view .menu-item-add,
+body.share-view #menu-admin-console,
+body.share-view #shortcut-btn,
+body.share-view .app-menu-item.danger-item,
+body.share-view .app-menu-item[onclick*="add-match-modal"],
+body.share-view .app-menu-item[onclick*="openChangePasscode"],
+body.share-view .app-menu-item[onclick*="openManageTags"],
+body.share-view .app-menu-item[onclick*="openShareLinks"],
+body.share-view .share-btn[onclick*="saveCurrentAsPlaylist"],
+body.share-view .share-btn[onclick*="copyPlaylistLink"],
+body.share-view .share-btn[onclick*="sharePlaylistVia"] { display: none !important; }

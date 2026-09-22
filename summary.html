@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
+    <title>SyncScout — Match Summary</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="ss-pages.css?v=1.1">
+    <style>
+        /* Scoreline */
+        .scoreline { display: flex; align-items: center; justify-content: center; gap: 18px; }
+        .sl-team { flex: 1; text-align: center; min-width: 0; }
+        .sl-code { font-size: 26px; font-weight: 900; letter-spacing: 0.5px; }
+        .sl-name { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sl-sets { font-size: 44px; font-weight: 900; line-height: 1; display: flex; align-items: center; gap: 12px; }
+        .sl-sets .dash { color: var(--text-muted); font-size: 30px; font-weight: 700; }
+        .sl-winner { color: var(--primary); }
+        .accent-bar { height: 4px; border-radius: 2px; margin: 6px auto 0; width: 46px; }
+        .set-strip { display: flex; justify-content: center; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+        .set-chip {
+            background: var(--bg); border: 1px solid var(--border-light); border-radius: 10px;
+            padding: 6px 10px; text-align: center; min-width: 62px;
+        }
+        .set-chip .s-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        .set-chip .s-score { font-size: 14px; font-weight: 800; margin-top: 2px; }
+        .won-h { color: var(--home-accent); }
+        .won-a { color: var(--away-accent); }
+
+        /* Point flow */
+        .flow-set { margin-bottom: 16px; }
+        .flow-set:last-child { margin-bottom: 0; }
+        .flow-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+        .flow-head .f-set { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
+        .flow-head .f-score { font-size: 13px; font-weight: 800; }
+        .flow-svg-wrap { background: var(--bg); border: 1px solid var(--border-light); border-radius: 10px; padding: 6px 8px; }
+        .flow-svg-wrap svg { display: block; width: 100%; height: auto; }
+        .flow-legend { display: flex; gap: 14px; justify-content: center; margin-top: 10px; font-size: 10px; font-weight: 700; color: var(--text-secondary); }
+        .flow-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+
+        /* Points breakdown */
+        .pb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .pb-col-title { font-size: 13px; font-weight: 800; margin-bottom: 8px; text-align: center; }
+        .pb-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+        .pb-label { font-size: 11px; color: var(--text-secondary); font-weight: 600; width: 84px; flex-shrink: 0; }
+        .pb-bar-wrap { flex: 1; background: var(--bg); border-radius: 100px; height: 14px; overflow: hidden; }
+        .pb-bar { height: 100%; border-radius: 100px; min-width: 2px; }
+        .pb-val { font-size: 12px; font-weight: 800; width: 30px; text-align: right; }
+
+        /* Comparison table */
+        .cmp-row {
+            display: grid; grid-template-columns: 1fr 1.4fr 1fr; align-items: center;
+            padding: 9px 0; border-bottom: 1px solid var(--border-light); gap: 8px;
+        }
+        .cmp-row:last-child { border-bottom: none; }
+        .cmp-row { transition: background-color 0.15s ease; }
+        .cmp-row:hover { background: var(--bg); }
+        .cmp-label { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-secondary); }
+        .cmp-val { font-size: 15px; font-weight: 800; }
+        .cmp-val.left { text-align: right; }
+        .cmp-val.right { text-align: left; }
+        .cmp-val .sub { display: block; font-size: 10px; font-weight: 600; color: var(--text-muted); }
+        .cmp-better { color: var(--primary); }
+        .cmp-head { display: grid; grid-template-columns: 1fr 1.4fr 1fr; margin-bottom: 4px; gap: 8px; }
+        .cmp-head .h-team { font-size: 13px; font-weight: 900; }
+        .cmp-head .h-team.left { text-align: right; }
+        .cmp-head .h-team.right { text-align: left; }
+
+        /* Rotation */
+        .rot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .rot-col-title { font-size: 13px; font-weight: 800; margin-bottom: 8px; text-align: center; }
+        table.rot-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .rot-table th {
+            font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+            padding: 4px 2px; border-bottom: 1px solid var(--border); text-align: center;
+        }
+        .rot-table td { padding: 6px 2px; text-align: center; border-bottom: 1px solid var(--border-light); font-weight: 700; }
+        .rot-table tr:last-child td { border-bottom: none; }
+        .rot-table .rot-p { background: var(--primary-subtle); color: var(--primary); font-weight: 800; border-radius: 6px; }
+
+        /* Top scorers */
+        .ts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .ts-col-title { font-size: 13px; font-weight: 800; margin-bottom: 8px; text-align: center; }
+        .ts-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 0; border-bottom: 1px solid var(--border-light);
+        }
+        .ts-item:last-child { border-bottom: none; }
+        .ts-rank { font-size: 11px; font-weight: 800; color: var(--text-muted); width: 16px; flex-shrink: 0; }
+        .ts-name { flex: 1; font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ts-name a.jump { font-weight: 700; }
+        .ts-pts { font-size: 15px; font-weight: 900; }
+        .ts-detail { font-size: 9px; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+
+        @media (max-width: 560px) {
+            .sl-code { font-size: 19px; }
+            .sl-sets { font-size: 34px; }
+            .pb-grid, .ts-grid, .rot-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <span class="brand-logo">S</span>
+    <span class="brand-text">SyncScout</span>
+    <span class="page-label" data-i18n="page_title">Match Summary</span>
+    <span class="header-spacer"></span>
+    <a class="hd-btn" id="app-link">App</a>
+    <button class="lang-btn" id="lang-btn" onclick="toggleLang()">JA</button>
+</header>
+
+<main id="main">
+    <div class="empty-msg" id="loading-msg">Loading...</div>
+</main>
+
+<script src="dvw-parser.js?v=1.3"></script>
+<script src="ss-common.js?v=1.1"></script>
+<script>
+const i18n = {
+    en: {
+        page_title: "Match Summary",
+        app_btn: "App",
+        loading: "Analyzing match data...",
+        err_no_param: "No match specified. Open this page from the SyncScout app menu.",
+        err_fetch: "Failed to load the match file.",
+        err_no_data: "No play-by-play data found in this file.",
+        set_n: "Set {n}",
+        tap_hint: "Tap a blue number or name to watch those plays in the viewer.",
+        point_flow: "Point Flow (Lead Margin)",
+        points_breakdown: "Points Breakdown",
+        pb_attack: "Attack",
+        pb_block: "Block",
+        pb_ace: "Ace",
+        pb_opp_err: "Opp. Errors",
+        team_stats: "Team Comparison",
+        st_atk_kill: "Attack Kill %",
+        st_atk_eff: "Attack Efficiency",
+        st_atk_err: "Attack Errors",
+        st_ace: "Service Aces",
+        st_srv_err: "Serve Errors",
+        st_rec_pos: "Positive Reception %",
+        st_blk: "Block Points",
+        st_so: "Side-out %",
+        st_bp: "Break Point %",
+        rotation_summary: "Rotation Summary",
+        rot_so: "Side Out",
+        rot_bp: "Break",
+        rot_tot: "Tot",
+        rot_won: "Won",
+        top_scorers: "Top Scorers",
+        ts_detail: "A:{a} B:{b} S:{s}",
+        footer: "Auto-generated from DVW scout data",
+        lead: "{code} lead",
+    },
+    ja: {
+        page_title: "試合サマリー",
+        app_btn: "メイン画面",
+        loading: "試合データを解析中...",
+        err_no_param: "試合が指定されていません。SyncScoutアプリのメニューから開いてください。",
+        err_fetch: "試合ファイルの読み込みに失敗しました。",
+        err_no_data: "このファイルにプレーデータが見つかりませんでした。",
+        set_n: "第{n}セット",
+        tap_hint: "青い数字や選手名をタップすると、該当プレーの映像にジャンプします。",
+        point_flow: "得点推移（点差）",
+        points_breakdown: "得点内訳",
+        pb_attack: "アタック",
+        pb_block: "ブロック",
+        pb_ace: "サーブ",
+        pb_opp_err: "相手ミス",
+        team_stats: "チーム比較",
+        st_atk_kill: "アタック決定率",
+        st_atk_eff: "アタック効率",
+        st_atk_err: "アタックミス",
+        st_ace: "サービスエース",
+        st_srv_err: "サーブミス",
+        st_rec_pos: "レセプション成功率",
+        st_blk: "ブロック得点",
+        st_so: "サイドアウト率",
+        st_bp: "ブレイク率",
+        rotation_summary: "ローテーション別",
+        rot_so: "サイドアウト",
+        rot_bp: "ブレイク",
+        rot_tot: "本数",
+        rot_won: "得点",
+        top_scorers: "得点ランキング",
+        ts_detail: "A:{a} B:{b} S:{s}",
+        footer: "DVWスカウトデータから自動生成",
+        lead: "{code}リード",
+    }
+};
+// i18n runtime / escapeHtml / jump-link builders come from ss-common.js
+function toggleLang() {
+    switchLang();
+    updateLangBtn();
+    if (window.__summaryData) renderSummary(window.__summaryData);
+}
+function updateLangBtn() {
+    document.getElementById('lang-btn').textContent = currentLang === 'en' ? 'JA' : 'EN';
+    document.querySelector('.page-label').textContent = t('page_title');
+    document.title = 'SyncScout — ' + t('page_title');
+    const al = document.getElementById('app-link');
+    al.textContent = t('app_btn');
+    al.href = mainLink();
+}
+
+// --- Aggregation ---
+function aggregate(data) {
+    const { allPlays, rallies, setScores, playerMaster } = data;
+    const res = {};
+    ['*', 'a'].forEach(side => {
+        const key = side === '*' ? 'h' : 'a';
+        const opp = side === '*' ? 'a' : '*';
+        const pl = allPlays.filter(p => p.side === side);
+        const s = pl.filter(p => p.skill === 'S'), r = pl.filter(p => p.skill === 'R'), atk = pl.filter(p => p.skill === 'A'), b = pl.filter(p => p.skill === 'B');
+
+        const aceP = s.filter(p => p.effect === '#');
+        const killP = atk.filter(p => p.effect === '#');
+        const blkP = b.filter(p => p.effect === '#');
+        const srvErr = s.filter(p => p.effect === '=').length;
+        const atkErr = atk.filter(p => p.effect === '=' || p.effect === '/').length;
+        const recPerf = r.filter(p => p.effect === '#').length;
+        const recPos = r.filter(p => p.effect === '+').length;
+
+        const totalPoints = setScores.reduce((sum, ss) => sum + (key === 'h' ? ss.h : ss.a), 0);
+        const oppErrPts = Math.max(0, totalPoints - aceP.length - killP.length - blkP.length);
+
+        const bpRallies = rallies.filter(d => d.side === side);
+        const soRallies = rallies.filter(d => d.side === opp);
+        const bpWon = bpRallies.filter(d => d.wonBy === side).length;
+        const soWon = soRallies.filter(d => d.wonBy === side).length;
+
+        // Rotation stats (shared with the viewer's Rotation tab via dvw-parser.js)
+        const rotations = computeRotationStats(rallies, side);
+
+        // Player scoring
+        const scorers = {};
+        [...killP, ...blkP, ...aceP].forEach(p => {
+            const k = `${side}_${p.pNum}`;
+            if (!scorers[k]) scorers[k] = { num: p.pNum, name: p.pFullLabel || p.pName, a: 0, b: 0, s: 0 };
+            if (p.skill === 'A') scorers[k].a++;
+            else if (p.skill === 'B') scorers[k].b++;
+            else scorers[k].s++;
+        });
+        const topScorers = Object.values(scorers)
+            .map(x => ({ ...x, total: x.a + x.b + x.s }))
+            .sort((x, y) => y.total - x.total || x.num - y.num)
+            .slice(0, 5);
+
+        res[key] = {
+            aces: aceP.length, aceIds: aceP.map(p => p.id),
+            srvErr, srvTot: s.length,
+            kills: killP.length, killIds: killP.map(p => p.id),
+            atkErr, atkTot: atk.length,
+            killPct: atk.length ? Math.round(killP.length / atk.length * 100) : 0,
+            atkEff: atk.length ? Math.round((killP.length - atkErr) / atk.length * 100) : 0,
+            blkPts: blkP.length, blkIds: blkP.map(p => p.id),
+            recTot: r.length, recPerfPos: recPerf + recPos,
+            recPosPct: r.length ? Math.round((recPerf + recPos) / r.length * 100) : 0,
+            totalPoints, oppErrPts,
+            soPct: soRallies.length ? Math.round(soWon / soRallies.length * 100) : 0,
+            bpPct: bpRallies.length ? Math.round(bpWon / bpRallies.length * 100) : 0,
+            soWon, soTot: soRallies.length, bpWon, bpTot: bpRallies.length,
+            rotations, topScorers,
+        };
+    });
+    return res;
+}
+
+// --- Point flow chart (per set, bar = lead margin after each point) ---
+function flowChart(setPoints, hCode, aCode) {
+    const n = setPoints.length;
+    if (!n) return '';
+    const diffs = setPoints.map(p => p.h - p.a);
+    const maxAbs = Math.max(3, ...diffs.map(Math.abs));
+    const W = 600, H = 120, PAD = 14, mid = H / 2;
+    const scale = (mid - PAD) / maxAbs;
+    const bw = W / n;
+    const bars = setPoints.map((p, i) => {
+        const d = p.h - p.a;
+        const hgt = Math.max(Math.abs(d) * scale, 1.5);
+        const y = d > 0 ? mid - hgt : (d < 0 ? mid : mid - 0.75);
+        const color = d > 0 ? 'var(--home-accent)' : (d < 0 ? 'var(--away-accent)' : 'var(--border)');
+        return `<rect x="${(i * bw + 0.5).toFixed(2)}" y="${y.toFixed(2)}" width="${Math.max(bw - 1, 1).toFixed(2)}" height="${hgt.toFixed(2)}" fill="${color}" rx="1"><title>${p.h}-${p.a}${d !== 0 ? ` (${d > 0 ? '+' : ''}${d})` : ''}</title></rect>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" role="img">
+        <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="var(--border)" stroke-width="1"/>
+        ${bars}
+        <text x="4" y="${PAD + 2}" font-size="11" font-weight="700" fill="var(--home-accent)">+${maxAbs} ${escapeHtml(hCode)}</text>
+        <text x="4" y="${H - 6}" font-size="11" font-weight="700" fill="var(--away-accent)">+${maxAbs} ${escapeHtml(aCode)}</text>
+    </svg>`;
+}
+
+// --- Rendering ---
+function renderSummary(data) {
+    updateLangBtn();
+    const { setScores, points } = data;
+    const teams = { h: data.teams[0] || { code: '---', name: '' }, a: data.teams[1] || { code: '---', name: '' } };
+    const agg = aggregate(data);
+    const hSetsWon = setScores.filter(s => s.h > s.a).length;
+    const aSetsWon = setScores.filter(s => s.a > s.h).length;
+    const hCode = escapeHtml(teams.h.code), aCode = escapeHtml(teams.a.code);
+
+    const setChips = setScores.map((s, i) => `
+        <div class="set-chip">
+            <div class="s-label">${escapeHtml(t('set_n', { n: i + 1 }))}</div>
+            <div class="s-score"><span class="${s.h > s.a ? 'won-h' : ''}">${s.h}</span>-<span class="${s.a > s.h ? 'won-a' : ''}">${s.a}</span></div>
+        </div>`).join('');
+
+    // Point flow (one chart per set)
+    const flowSets = setScores.map((s, i) => {
+        const sp = points.filter(p => p.setNum === i + 1);
+        if (!sp.length) return '';
+        return `<div class="flow-set">
+            <div class="flow-head">
+                <span class="f-set">${escapeHtml(t('set_n', { n: i + 1 }))}</span>
+                <span class="f-score"><span class="${s.h > s.a ? 'won-h' : ''}">${s.h}</span>-<span class="${s.a > s.h ? 'won-a' : ''}">${s.a}</span></span>
+            </div>
+            <div class="flow-svg-wrap">${flowChart(sp, teams.h.code, teams.a.code)}</div>
+        </div>`;
+    }).join('');
+    const flowLegend = `<div class="flow-legend">
+        <span><span class="dot" style="background:var(--home-accent)"></span>${escapeHtml(t('lead', { code: teams.h.code }))}</span>
+        <span><span class="dot" style="background:var(--away-accent)"></span>${escapeHtml(t('lead', { code: teams.a.code }))}</span>
+    </div>`;
+
+    // Points breakdown
+    const pbMax = Math.max(1, ...['h', 'a'].flatMap(k => [agg[k].kills, agg[k].blkPts, agg[k].aces, agg[k].oppErrPts]));
+    function pbCol(key, code, accent) {
+        const a = agg[key];
+        const rows = [
+            [t('pb_attack'), a.kills, a.killIds],
+            [t('pb_block'), a.blkPts, a.blkIds],
+            [t('pb_ace'), a.aces, a.aceIds],
+            [t('pb_opp_err'), a.oppErrPts, null]
+        ].map(([label, val, ids]) => `
+            <div class="pb-row">
+                <span class="pb-label">${escapeHtml(label)}</span>
+                <div class="pb-bar-wrap"><div class="pb-bar" style="width:${Math.round(val / pbMax * 100)}%; background:${accent};"></div></div>
+                <span class="pb-val">${ids ? jumpIds(ids, val) : val}</span>
+            </div>`).join('');
+        return `<div><div class="pb-col-title">${code} — ${a.totalPoints}</div>${rows}</div>`;
+    }
+
+    // Team comparison
+    function cmpRow(label, hVal, aVal, hDisp, aDisp, higherBetter = true) {
+        const hNum = parseFloat(hVal), aNum = parseFloat(aVal);
+        let hCls = '', aCls = '';
+        if (!isNaN(hNum) && !isNaN(aNum) && hNum !== aNum) {
+            const hBetter = higherBetter ? hNum > aNum : hNum < aNum;
+            if (hBetter) hCls = 'cmp-better'; else aCls = 'cmp-better';
+        }
+        return `<div class="cmp-row">
+            <span class="cmp-val left ${hCls}">${hDisp}</span>
+            <span class="cmp-label">${escapeHtml(label)}</span>
+            <span class="cmp-val right ${aCls}">${aDisp}</span>
+        </div>`;
+    }
+    const h = agg.h, a = agg.a;
+    const cmpRows =
+        cmpRow(t('st_atk_kill'), h.killPct, a.killPct, `${h.killPct}%<span class="sub">${h.kills}/${h.atkTot}</span>`, `${a.killPct}%<span class="sub">${a.kills}/${a.atkTot}</span>`) +
+        cmpRow(t('st_atk_eff'), h.atkEff, a.atkEff, `${h.atkEff}%`, `${a.atkEff}%`) +
+        cmpRow(t('st_atk_err'), h.atkErr, a.atkErr, `${h.atkErr}`, `${a.atkErr}`, false) +
+        cmpRow(t('st_ace'), h.aces, a.aces, `${h.aces}`, `${a.aces}`) +
+        cmpRow(t('st_srv_err'), h.srvErr, a.srvErr, `${h.srvErr}`, `${a.srvErr}`, false) +
+        cmpRow(t('st_rec_pos'), h.recPosPct, a.recPosPct, `${h.recPosPct}%<span class="sub">${h.recPerfPos}/${h.recTot}</span>`, `${a.recPosPct}%<span class="sub">${a.recPerfPos}/${a.recTot}</span>`) +
+        cmpRow(t('st_blk'), h.blkPts, a.blkPts, `${h.blkPts}`, `${a.blkPts}`) +
+        cmpRow(t('st_so'), h.soPct, a.soPct, `${h.soPct}%<span class="sub">${h.soWon}/${h.soTot}</span>`, `${a.soPct}%<span class="sub">${a.soWon}/${a.soTot}</span>`) +
+        cmpRow(t('st_bp'), h.bpPct, a.bpPct, `${h.bpPct}%<span class="sub">${h.bpWon}/${h.bpTot}</span>`, `${a.bpPct}%<span class="sub">${a.bpWon}/${a.bpTot}</span>`);
+
+    // Rotation summary (colors follow the viewer's Rotation tab convention)
+    function rotCol(key, side, code) {
+        const rows = agg[key].rotations.map(r => {
+            const soColor = rotColorSO(r.soPct);
+            const bpColor = rotColorBP(r.bpPct);
+            return `<tr>
+                <td class="rot-p">P${r.rot}</td>
+                <td>${r.soTot ? jump(`rot:${side},so,${r.rot}`, r.soTot) : 0}</td>
+                <td>${r.soWon}</td>
+                <td style="color:${soColor}">${r.soPct}%</td>
+                <td>${r.bpTot ? jump(`rot:${side},bp,${r.rot}`, r.bpTot) : 0}</td>
+                <td>${r.bpWon}</td>
+                <td style="color:${bpColor}">${r.bpPct}%</td>
+            </tr>`;
+        }).join('');
+        return `<div><div class="rot-col-title">${code}</div>
+            <table class="rot-table">
+                <tr><th></th><th colspan="3">${escapeHtml(t('rot_so'))}</th><th colspan="3">${escapeHtml(t('rot_bp'))}</th></tr>
+                <tr><th></th><th>${escapeHtml(t('rot_tot'))}</th><th>${escapeHtml(t('rot_won'))}</th><th>%</th><th>${escapeHtml(t('rot_tot'))}</th><th>${escapeHtml(t('rot_won'))}</th><th>%</th></tr>
+                ${rows}
+            </table></div>`;
+    }
+
+    // Top scorers
+    function tsCol(key, code) {
+        const side = key === 'h' ? '*' : 'a';
+        const items = agg[key].topScorers.map((p, i) => `
+            <div class="ts-item">
+                <span class="ts-rank">${i + 1}</span>
+                <span class="ts-name">${profileLink(side, p.num, `#${p.num} ${escapeHtml(p.name)}`)}</span>
+                <span class="ts-detail">${escapeHtml(t('ts_detail', { a: p.a, b: p.b, s: p.s }))}</span>
+                <span class="ts-pts">${p.total}</span>
+            </div>`).join('');
+        return `<div><div class="ts-col-title">${code}</div>${items || `<div class="empty-msg" style="padding:12px;">-</div>`}</div>`;
+    }
+
+    document.getElementById('main').innerHTML = `
+        <div class="card">
+            <div class="scoreline">
+                <div class="sl-team">
+                    <div class="sl-code">${hCode}</div>
+                    <div class="sl-name">${escapeHtml(teams.h.name)}</div>
+                    <div class="accent-bar" style="background:var(--home-accent)"></div>
+                </div>
+                <div class="sl-sets">
+                    <span class="${hSetsWon > aSetsWon ? 'sl-winner' : ''}">${hSetsWon}</span>
+                    <span class="dash">-</span>
+                    <span class="${aSetsWon > hSetsWon ? 'sl-winner' : ''}">${aSetsWon}</span>
+                </div>
+                <div class="sl-team">
+                    <div class="sl-code">${aCode}</div>
+                    <div class="sl-name">${escapeHtml(teams.a.name)}</div>
+                    <div class="accent-bar" style="background:var(--away-accent)"></div>
+                </div>
+            </div>
+            <div class="set-strip">${setChips}</div>
+        </div>
+
+        <div class="tap-hint">${escapeHtml(t('tap_hint'))}</div>
+
+        <div class="card">
+            <h2>${escapeHtml(t('point_flow'))}</h2>
+            ${flowSets}
+            ${flowLegend}
+        </div>
+
+        <div class="card">
+            <h2>${escapeHtml(t('points_breakdown'))}</h2>
+            <div class="pb-grid">
+                ${pbCol('h', hCode, 'var(--home-accent)')}
+                ${pbCol('a', aCode, 'var(--away-accent)')}
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>${escapeHtml(t('team_stats'))}</h2>
+            <div class="cmp-head">
+                <span class="h-team left">${hCode}</span><span></span><span class="h-team right">${aCode}</span>
+            </div>
+            ${cmpRows}
+        </div>
+
+        <div class="card">
+            <h2>${escapeHtml(t('rotation_summary'))}</h2>
+            <div class="rot-grid">
+                ${rotCol('h', '*', hCode)}
+                ${rotCol('a', 'a', aCode)}
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>${escapeHtml(t('top_scorers'))}</h2>
+            <div class="ts-grid">
+                ${tsCol('h', hCode)}
+                ${tsCol('a', aCode)}
+            </div>
+        </div>
+
+        <div class="footer-note">${escapeHtml(t('footer'))}</div>
+    `;
+}
+
+// --- Init ---
+(async function init() {
+    updateLangBtn();
+    document.getElementById('loading-msg').textContent = t('loading');
+    let data;
+    try {
+        data = await loadMatchData();
+    } catch (key) {
+        return showError(key);
+    }
+    window.__summaryData = data;
+    renderSummary(data);
+})();
+</script>
+
+</body>
+</html>

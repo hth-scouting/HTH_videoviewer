@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
+    <title>SyncScout — Player Profile</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="ss-pages.css?v=1.1">
+    <style>
+        /* Page-specific: cards on this page have a sub-title line under h2 */
+        .card h2 { margin-bottom: 4px; }
+        .card .h-sub { font-size: 10px; color: var(--text-muted); font-weight: 600; margin-bottom: 14px; }
+
+        /* Player header */
+        .ph { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .ph-avatar {
+            width: 62px; height: 62px; border-radius: 50%; flex-shrink: 0;
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            font-size: 22px; font-weight: 900;
+        }
+        .ph-info { flex: 1; min-width: 180px; }
+        .ph-name { font-size: 19px; font-weight: 900; }
+        .ph-meta { font-size: 11px; color: var(--text-secondary); font-weight: 600; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .ph-meta .chip { background: var(--bg); border-radius: 100px; padding: 2px 10px; }
+        .ph-total { text-align: center; flex-shrink: 0; }
+        .ph-total .n { font-size: 30px; font-weight: 900; color: var(--primary); line-height: 1; }
+        .ph-total .l { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-top: 3px; }
+        .ph-select-row { margin-top: 14px; }
+        .ph-select-row select {
+            width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border);
+            background: var(--bg); font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text);
+        }
+
+        /* Radar + bars */
+        .profile-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 18px; align-items: center; }
+        .radar-wrap svg { display: block; width: 100%; height: auto; }
+        .radar-note { text-align: center; font-size: 9px; color: var(--text-muted); font-weight: 600; margin-top: 4px; }
+        .pc-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .pc-label { font-size: 10.5px; color: var(--text-secondary); font-weight: 600; width: 128px; flex-shrink: 0; }
+        .pc-bar-wrap { flex: 1; background: var(--bg); border-radius: 100px; height: 13px; overflow: hidden; }
+        .pc-bar { height: 100%; border-radius: 100px; }
+        .pc-val { font-size: 11px; font-weight: 800; width: 30px; text-align: right; }
+        .pc-group { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin: 10px 0 6px; }
+        .pc-group:first-child { margin-top: 0; }
+
+        /* Court maps */
+        .maps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .map-title { font-size: 12px; font-weight: 800; text-align: center; margin-bottom: 8px; }
+        .court-wrap svg { display: block; width: 100%; height: auto; }
+        .map-legend { display: flex; gap: 10px; justify-content: center; margin-top: 8px; font-size: 9.5px; font-weight: 700; color: var(--text-secondary); flex-wrap: wrap; }
+        .map-legend .sw { display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-right: 4px; vertical-align: 2px; }
+        .map-legend .dotk { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+        .map-note { text-align: center; font-size: 9.5px; color: var(--text-muted); font-weight: 600; margin-top: 6px; }
+        .atk-multi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .atk-mini-title { font-size: 11px; font-weight: 800; text-align: center; margin-bottom: 4px; }
+
+        /* Tables */
+        .dir-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 12px; }
+        .dir-table th { font-size: 9.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; padding: 4px 2px; border-bottom: 1px solid var(--border); text-align: center; }
+        .dir-table td { padding: 6px 2px; text-align: center; border-bottom: 1px solid var(--border-light); font-weight: 700; }
+        .dir-table tr:last-child td { border-bottom: none; }
+        .dir-table tr { transition: background-color 0.15s ease; }
+        .dir-table tr:hover td { background: var(--bg); }
+        .dir-table td.l, .dir-table th.l { text-align: left; }
+        .dir-table td.l { font-weight: 600; color: var(--text-secondary); }
+
+        .bd-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .bd-title { font-size: 11px; font-weight: 800; text-align: center; margin-bottom: 4px; }
+
+        @media (max-width: 620px) {
+            .profile-grid, .maps-grid { grid-template-columns: 1fr; }
+            .bd-grid { grid-template-columns: 1fr; }
+            .atk-multi { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <span class="brand-logo">S</span>
+    <span class="brand-text">SyncScout</span>
+    <span class="page-label" data-role="page-label">Player Profile</span>
+    <span class="header-spacer"></span>
+    <a class="hd-btn" id="app-link">App</a>
+    <a class="hd-btn" id="summary-link" style="display:none;">Summary</a>
+    <button class="hd-btn" id="lang-btn" onclick="toggleLang()">JA</button>
+</header>
+
+<main id="main">
+    <div class="empty-msg" id="loading-msg">Loading...</div>
+</main>
+
+<script src="dvw-parser.js?v=1.3"></script>
+<script src="ss-common.js?v=1.1"></script>
+<script>
+const i18n = {
+    en: {
+        page_title: "Player Profile",
+        loading: "Analyzing match data...",
+        err_no_param: "No match specified. Open this page from the match summary.",
+        err_fetch: "Failed to load the match file.",
+        err_no_data: "No play-by-play data found in this file.",
+        summary_btn: "Summary",
+        app_btn: "App",
+        tap_hint: "Tap a blue number to watch those plays in the viewer.",
+        pos_est: "{pos} (est.)",
+        sets_played: "{n} sets",
+        points_label: "Points",
+        skill_profile: "Skill Profile",
+        skill_profile_sub: "Percentile vs all players in this match (min attempts required per metric)",
+        radar_note: "Closer to the edge = higher percentile",
+        ax_attack: "Attack", ax_serve: "Serve", ax_block: "Block", ax_dig: "Dig", ax_rec: "Reception", ax_stab: "Stability",
+        g_attack: "ATTACK", g_serve: "SERVE", g_defense: "DEFENSE", g_rec: "RECEPTION",
+        m_kill: "Kill % {v}", m_eff: "Efficiency {v}", m_atkerr: "Error+Blocked % {v}",
+        m_ace: "Ace % {v}", m_srverr: "Serve Error % {v}",
+        m_blkset: "Block Pts / Set {v}", m_dig: "Dig Success % {v}",
+        m_rec: "Positive Rec % {v}",
+        court_maps: "Court Maps",
+        court_maps_sub: "Generated from DVW zone codes (attacker's view, opponent court on top)",
+        atk_map_title: "Attack Directions",
+        srv_map_title: "Serve Landing",
+        n_balls: "({n})",
+        lg_kill50: "Kill 50%+", lg_kill30: "30–49%", lg_kill0: "<30%",
+        lg_ace: "Ace", lg_eff: "Effective", lg_in: "In play", lg_err: "Error",
+        srv_err_note: "Error dots: on the net = net fault / beyond the baseline = out",
+        th_course: "Course", th_n: "N", th_kill: "Kill", th_killpct: "Kill %",
+        th_zone: "Target Zone", th_ace: "Ace", th_effpct: "Eff %",
+        zone_missing: "Zone codes are not filled in for this data, so court maps are unavailable.",
+        atk_breakdown: "Attack Breakdown",
+        atk_breakdown_sub: "Kill % by blockers faced, shot type, and tempo code",
+        bd_blockers: "vs Blockers", bd_hit: "Shot Type", bd_tempo: "Tempo",
+        blk_n: "{n} blocker(s)", blk_0: "No block",
+        hit_H: "Hard spike", hit_T: "Tip", hit_P: "Push",
+        detail_stats: "Detail Stats",
+        detail_sub: "Tap numbers to watch",
+        th_metric: "Metric", th_val: "Value", th_break: "Breakdown",
+        d_atk: "Attack", d_atk_b: "{k}/{t} kills (err {e} / blocked {b})",
+        d_srv: "Serve", d_srv_b: "{t} serves / {a} aces / {e} errors",
+        d_blk: "Block", d_blk_b: "{k} kills / {tch} touches",
+        d_dig: "Dig", d_dig_b: "{g}/{t} good",
+        d_rec: "Reception", d_rec_b: "{g}/{t} positive (err {e})",
+        footer: "Auto-generated from DVW scout data",
+        na: "–",
+    },
+    ja: {
+        page_title: "選手プロファイル",
+        loading: "試合データを解析中...",
+        err_no_param: "試合が指定されていません。試合サマリーから開いてください。",
+        err_fetch: "試合ファイルの読み込みに失敗しました。",
+        err_no_data: "このファイルにプレーデータが見つかりませんでした。",
+        summary_btn: "サマリー",
+        app_btn: "メイン画面",
+        tap_hint: "青い数字をタップすると、該当プレーの映像にジャンプします。",
+        pos_est: "{pos}（推定）",
+        sets_played: "出場 {n}セット",
+        points_label: "得点",
+        skill_profile: "スキルプロファイル",
+        skill_profile_sub: "パーセンタイル：この試合の全選手比（指標ごとに最低試技数あり）",
+        radar_note: "外側ほど上位パーセンタイル",
+        ax_attack: "Attack", ax_serve: "Serve", ax_block: "Block", ax_dig: "Dig", ax_rec: "Reception", ax_stab: "安定性",
+        g_attack: "ATTACK", g_serve: "SERVE", g_defense: "DEFENSE", g_rec: "RECEPTION",
+        m_kill: "決定率 {v}", m_eff: "効率 {v}", m_atkerr: "ミス・被ブロック率 {v}",
+        m_ace: "エース率 {v}", m_srverr: "サーブミス率 {v}",
+        m_blkset: "ブロック得点/セット {v}", m_dig: "ディグ成功率 {v}",
+        m_rec: "レセプション成功率 {v}",
+        court_maps: "コートマップ",
+        court_maps_sub: "DVWゾーンコードから生成（アタッカー視点、上が相手コート）",
+        atk_map_title: "アタック方向",
+        srv_map_title: "サーブ着弾",
+        n_balls: "({n}本)",
+        lg_kill50: "決定率 50%+", lg_kill30: "30–49%", lg_kill0: "<30%",
+        lg_ace: "エース", lg_eff: "効果的", lg_in: "インプレー", lg_err: "ミス",
+        srv_err_note: "赤丸：ネット上＝ネットミス / コート外＝アウト",
+        th_course: "コース", th_n: "本数", th_kill: "決定", th_killpct: "決定率",
+        th_zone: "狙いゾーン", th_ace: "A", th_effpct: "効果率",
+        zone_missing: "このデータにはゾーンコードが入力されていないため、コートマップは表示できません。",
+        atk_breakdown: "アタック内訳",
+        atk_breakdown_sub: "ブロッカー枚数・打法・テンポコード別の決定率",
+        bd_blockers: "対ブロッカー", bd_hit: "打法", bd_tempo: "テンポ",
+        blk_n: "{n}枚", blk_0: "ノーブロック",
+        hit_H: "強打", hit_T: "軟打", hit_P: "プッシュ",
+        detail_stats: "詳細スタッツ",
+        detail_sub: "数字タップで該当プレーの映像へ",
+        th_metric: "指標", th_val: "値", th_break: "内訳",
+        d_atk: "アタック", d_atk_b: "{k}/{t} 決定（ミス {e}・被ブロック {b}）",
+        d_srv: "サーブ", d_srv_b: "{t}本・エース {a}・ミス {e}",
+        d_blk: "ブロック", d_blk_b: "キル {k}・ワンタッチ {tch}",
+        d_dig: "ディグ", d_dig_b: "{g}/{t} 成功",
+        d_rec: "レセプション", d_rec_b: "{g}/{t} 成功（ミス {e}）",
+        footer: "DVWスカウトデータから自動生成",
+        na: "–",
+    }
+};
+// i18n runtime / escapeHtml / jump-link builders come from ss-common.js
+function toggleLang() {
+    switchLang();
+    updateChrome();
+    if (window.__data) render();
+}
+function updateChrome() {
+    document.getElementById('lang-btn').textContent = currentLang === 'en' ? 'JA' : 'EN';
+    document.querySelector('[data-role="page-label"]').textContent = t('page_title');
+    document.title = 'SyncScout — ' + t('page_title');
+    const sl = document.getElementById('summary-link');
+    sl.textContent = t('summary_btn');
+    const al = document.getElementById('app-link');
+    al.textContent = t('app_btn');
+    al.href = mainLink();
+}
+// --- Per-player aggregation ---
+function aggPlayer(plays) {
+    const by = sk => plays.filter(p => p.skill === sk);
+    const atk = by('A'), srv = by('S'), rec = by('R'), dig = by('D'), blk = by('B'), st = by('E');
+    const eff = (arr, e) => arr.filter(p => p.effect === e);
+    const ids = arr => arr.map(p => p.id);
+    const a = {
+        plays,
+        totPlays: plays.length,
+        sets: new Set(plays.map(p => p.setNum)).size,
+        atkTot: atk.length, atk,
+        kills: eff(atk, '#').length, killIds: ids(eff(atk, '#')),
+        atkErr: eff(atk, '=').length, atkErrIds: ids(eff(atk, '=')),
+        blocked: eff(atk, '/').length, blockedIds: ids(eff(atk, '/')),
+        srvTot: srv.length, srvIds: ids(srv), srv,
+        aces: eff(srv, '#').length, aceIds: ids(eff(srv, '#')),
+        srvErr: eff(srv, '=').length, srvErrIds: ids(eff(srv, '=')),
+        recTot: rec.length, recIds: ids(rec),
+        recGood: rec.filter(p => p.effect === '#' || p.effect === '+').length,
+        recErr: eff(rec, '=').length,
+        digTot: dig.length, digIds: ids(dig),
+        digGood: dig.filter(p => p.effect === '#' || p.effect === '+').length,
+        blkKills: eff(blk, '#').length, blkKillIds: ids(eff(blk, '#')),
+        blkTouch: eff(blk, '+').length, blkTouchIds: ids(eff(blk, '+')),
+        setTot: st.length,
+        quickN: atk.filter(p => p.tempo === 'Q').length,
+    };
+    a.errAll = plays.filter(p => p.effect === '=').length + a.blocked;
+    a.points = a.kills + a.aces + a.blkKills;
+    a.killPct = a.atkTot ? a.kills / a.atkTot * 100 : 0;
+    a.effPct = a.atkTot ? (a.kills - a.atkErr - a.blocked) / a.atkTot * 100 : 0;
+    a.atkErrPct = a.atkTot ? (a.atkErr + a.blocked) / a.atkTot * 100 : 0;
+    a.acePct = a.srvTot ? a.aces / a.srvTot * 100 : 0;
+    a.srvErrPct = a.srvTot ? a.srvErr / a.srvTot * 100 : 0;
+    a.recPct = a.recTot ? a.recGood / a.recTot * 100 : 0;
+    a.digPct = a.digTot ? a.digGood / a.digTot * 100 : 0;
+    a.blkPerSet = a.sets ? a.blkKills / a.sets : 0;
+    a.stab = a.totPlays ? 100 - a.errAll / a.totPlays * 100 : 0;
+    return a;
+}
+
+function guessPos(a) {
+    if (a.setTot >= 15 && a.setTot > a.atkTot * 3) return 'S';
+    if (a.atkTot < 3 && (a.recTot >= 3 || a.digTot >= 5)) return 'L';
+    if (a.atkTot >= 3 && a.quickN / a.atkTot >= 0.4) return 'MB';
+    if (a.atkTot >= 3 && a.recTot <= 1) return 'OP';
+    if (a.atkTot >= 3) return 'OH';
+    return null;
+}
+
+// Percentile of self among eligible players (higher = better; pass lowerBetter to invert)
+function percentile(aggs, selfKey, valueFn, eligFn, lowerBetter = false) {
+    const pool = Object.entries(aggs).filter(([, a]) => eligFn(a));
+    if (!pool.some(([k]) => k === selfKey)) return null;
+    const vSelf = valueFn(aggs[selfKey]);
+    const n = pool.length;
+    if (n <= 1) return 50;
+    const below = pool.filter(([k, a]) => k !== selfKey && (lowerBetter ? valueFn(a) > vSelf : valueFn(a) < vSelf)).length;
+    const equal = pool.filter(([k, a]) => k !== selfKey && valueFn(a) === vSelf).length;
+    return Math.round((below + equal / 2) / (n - 1) * 100);
+}
+
+// --- Radar (percentile hexagon) ---
+function radarSvg(axes) {
+    const cx = 150, cy = 140, R = 100, n = axes.length;
+    const pt = (i, r) => {
+        const a = -Math.PI / 2 + i * 2 * Math.PI / n;
+        return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    };
+    const ring = f => axes.map((_, i) => pt(i, R * f).map(v => v.toFixed(1)).join(',')).join(' ');
+    let g = `<polygon points="${ring(1)}" fill="var(--bg)"/>`;
+    [0.25, 0.5, 0.75, 1].forEach(f => {
+        g += `<polygon points="${ring(f)}" fill="none" stroke="var(--border)" stroke-width="1"/>`;
+    });
+    axes.forEach((_, i) => {
+        const [x, y] = pt(i, R);
+        g += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>`;
+    });
+    const vals = axes.map((a, i) => pt(i, R * Math.max(a.v ?? 0, 2) / 100).map(v => v.toFixed(1)).join(',')).join(' ');
+    g += `<polygon points="${vals}" fill="rgba(79,110,247,0.25)" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round"/>`;
+    axes.forEach((a, i) => {
+        const [x, y] = pt(i, R * Math.max(a.v ?? 0, 2) / 100);
+        g += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--primary)"><title>${escapeHtml(a.label)}: ${a.v === null ? t('na') : a.v}</title></circle>`;
+        const [lx, ly] = pt(i, R + 22);
+        g += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="11" font-weight="800" fill="var(--text-secondary)" text-anchor="middle" dominant-baseline="middle">${escapeHtml(a.label)}</text>`;
+        g += `<text x="${lx.toFixed(1)}" y="${(ly + 12).toFixed(1)}" font-size="9" font-weight="700" fill="var(--text-muted)" text-anchor="middle" dominant-baseline="middle">${a.v === null ? t('na') : a.v}</text>`;
+    });
+    return `<svg viewBox="0 0 300 280" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+
+// --- Court geometry (attacker view: own half bottom, opponent top) ---
+const CT = { L: 30, R: 210, T: 20, B: 320, NET: 170 };
+const ZONE_OWN = { 4: [0, 0], 3: [1, 0], 2: [2, 0], 7: [0, 1], 8: [1, 1], 9: [2, 1], 5: [0, 2], 6: [1, 2], 1: [2, 2] };
+const ZONE_OPP = { 2: [0, 0], 3: [1, 0], 4: [2, 0], 9: [0, 1], 8: [1, 1], 7: [2, 1], 1: [0, 2], 6: [1, 2], 5: [2, 2] };
+function zoneCenter(z, half) {
+    const m = half === 'own' ? ZONE_OWN[z] : ZONE_OPP[z];
+    if (!m) return null;
+    const x = CT.L + 30 + m[0] * 60;
+    const y = half === 'own' ? CT.NET + 25 + m[1] * 50 : CT.NET - 25 - m[1] * 50;
+    return [x, y];
+}
+function courtBase(oppGrid) {
+    const { L, R, T, B, NET } = CT;
+    let g = `<rect x="${L}" y="${T}" width="${R - L}" height="${B - T}" fill="#fdf6ee" stroke="var(--border)" stroke-width="2" rx="2"/>`;
+    g += `<line x1="${L}" y1="${NET - 50}" x2="${R}" y2="${NET - 50}" stroke="var(--border)" stroke-width="1.5"/>`;
+    g += `<line x1="${L}" y1="${NET + 50}" x2="${R}" y2="${NET + 50}" stroke="var(--border)" stroke-width="1.5"/>`;
+    if (oppGrid) {
+        for (let i = 1; i < 3; i++) g += `<line x1="${L + 60 * i}" y1="${T}" x2="${L + 60 * i}" y2="${NET}" stroke="var(--border-light)" stroke-width="1"/>`;
+        g += `<line x1="${L}" y1="${T + 100}" x2="${R}" y2="${T + 100}" stroke="var(--border-light)" stroke-width="1"/>`;
+    }
+    g += `<line x1="${L - 8}" y1="${NET}" x2="${R + 8}" y2="${NET}" stroke="#16192a" stroke-width="3.5"/>`;
+    // opponent zone labels
+    Object.keys(ZONE_OPP).forEach(z => {
+        const [x, y] = zoneCenter(parseInt(z), 'opp');
+        g += `<text x="${x}" y="${y - 14}" font-size="9" font-weight="700" fill="var(--text-muted)" text-anchor="middle" opacity="0.5">${z}</text>`;
+    });
+    return g;
+}
+
+// --- Attack direction maps (one court per start zone, top 3 by volume) ---
+function attackMaps(agg) {
+    const zoned = agg.atk.filter(p => p.startZone && p.endZone && ZONE_OWN[p.startZone] && ZONE_OPP[p.endZone]);
+    const courses = {};
+    zoned.forEach(p => {
+        const k = `${p.startZone}>${p.endZone}`;
+        if (!courses[k]) courses[k] = { s: p.startZone, e: p.endZone, n: 0, kills: 0, ids: [] };
+        courses[k].n++;
+        if (p.effect === '#') courses[k].kills++;
+        courses[k].ids.push(p.id);
+    });
+    const list = Object.values(courses).map(c => ({ ...c, pct: Math.round(c.kills / c.n * 100) })).sort((x, y) => y.n - x.n);
+    const col = p => p >= 50 ? 'var(--success)' : (p >= 30 ? 'var(--warn)' : 'var(--danger)');
+    const colHex = p => p >= 50 ? '#2e7d32' : (p >= 30 ? '#f59e0b' : '#e53935');
+    const mkIdx = p => p >= 50 ? 0 : (p >= 30 ? 1 : 2);
+
+    // group by start zone, top 3 zones by attempts
+    const byStart = {};
+    list.forEach(c => {
+        if (!byStart[c.s]) byStart[c.s] = { z: c.s, n: 0, courses: [] };
+        byStart[c.s].n += c.n;
+        byStart[c.s].courses.push(c);
+    });
+    const topStarts = Object.values(byStart).sort((a, b) => b.n - a.n).slice(0, 3);
+
+    const svgs = topStarts.map((st, si) => {
+        let g = courtBase(true);
+        g += `<defs>${['#2e7d32', '#f59e0b', '#e53935'].map((c, i) =>
+            `<marker id="ah${si}_${i}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`).join('')}</defs>`;
+        st.courses.forEach(c => {
+            const [x1, y1] = zoneCenter(c.s, 'own');
+            const [x2, y2] = zoneCenter(c.e, 'opp');
+            const w = Math.min(1.5 + c.n * 0.35, 7);
+            const tip = `<title>Z${c.s} → Z${c.e} · ${c.n} · ${c.pct}%</title>`;
+            g += `<g>${tip}<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${colHex(c.pct)}" stroke-width="${w.toFixed(1)}" stroke-linecap="round" opacity="0.85" marker-end="url(#ah${si}_${mkIdx(c.pct)})"/>`;
+            const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+            g += `<circle cx="${mx}" cy="${my}" r="9" fill="#fff" stroke="${colHex(c.pct)}" stroke-width="1.5"/>`;
+            g += `<text x="${mx}" y="${my + 3.5}" font-size="10" font-weight="800" fill="${colHex(c.pct)}" text-anchor="middle">${c.n}</text></g>`;
+        });
+        const [x, y] = zoneCenter(st.z, 'own');
+        g += `<circle cx="${x}" cy="${y}" r="8" fill="var(--home-accent)"/><text x="${x}" y="${y + 3.5}" font-size="8" font-weight="900" fill="#fff" text-anchor="middle">Z${st.z}</text>`;
+        return { z: st.z, n: st.n, svg: `<svg viewBox="0 0 240 340" xmlns="http://www.w3.org/2000/svg">${g}</svg>` };
+    });
+
+    const rows = list.map(c => `<tr>
+        <td class="l">Z${c.s} → Z${c.e}</td>
+        <td>${jumpIds(c.ids, c.n)}</td>
+        <td>${c.kills}</td>
+        <td style="color:${col(c.pct)}">${c.pct}%</td>
+    </tr>`).join('');
+    return {
+        n: zoned.length,
+        svgs,
+        table: `<table class="dir-table"><tr><th class="l">${escapeHtml(t('th_course'))}</th><th>${escapeHtml(t('th_n'))}</th><th>${escapeHtml(t('th_kill'))}</th><th>${escapeHtml(t('th_killpct'))}</th></tr>${rows}</table>`
+    };
+}
+
+// --- Serve landing map ---
+// Error semantics: the end zone of an error serve is the direction of the fault,
+// not a landing spot — net-row zones (2/3/4) mean a net fault, others mean out.
+const NET_ROW_ZONES = [2, 3, 4];
+function serveMap(agg) {
+    const inPlay = agg.srv.filter(p => p.effect !== '=' && p.endZone && ZONE_OPP[p.endZone]);
+    const byZone = {};
+    inPlay.forEach(p => {
+        if (!byZone[p.endZone]) byZone[p.endZone] = { z: p.endZone, n: 0, aces: 0, effN: 0, ids: [] };
+        const b = byZone[p.endZone];
+        b.n++; b.ids.push(p.id);
+        if (p.effect === '#') b.aces++;
+        if (p.effect === '#' || p.effect === '+' || p.effect === '/') b.effN++;
+    });
+    const maxN = Math.max(1, ...Object.values(byZone).map(b => b.n));
+    let g = courtBase(true);
+    // heat cells (in-play serves only: error zones are fault directions, not targets)
+    Object.values(byZone).forEach(b => {
+        const m = ZONE_OPP[b.z];
+        const x = CT.L + m[0] * 60, y = CT.NET - 50 * (m[1] + 1);
+        g += `<rect x="${x}" y="${y}" width="60" height="50" fill="rgba(79,110,247,${(b.n / maxN * 0.4).toFixed(2)})"/>`;
+    });
+    // redraw net over heat
+    g += `<line x1="${CT.L - 8}" y1="${CT.NET}" x2="${CT.R + 8}" y2="${CT.NET}" stroke="#16192a" stroke-width="3.5"/>`;
+    // dots
+    const dc = { ace: '#2e7d32', eff: '#4f6ef7', in: '#8b91a0', err: '#e53935' };
+    let errNoZone = 0, errSeq = 0;
+    agg.srv.forEach((p, i) => {
+        const tp = p.effect === '#' ? 'ace' : (p.effect === '=' ? 'err' : ((p.effect === '+' || p.effect === '/') ? 'eff' : 'in'));
+        let x, y;
+        if (tp === 'err') {
+            if (p.endZone && NET_ROW_ZONES.includes(p.endZone)) {
+                // net fault: dot touching the net at that zone's column
+                x = zoneCenter(p.endZone, 'opp')[0] + ((errSeq++ % 5) - 2) * 9;
+                y = CT.NET - 6;
+            } else if (p.endZone && ZONE_OPP[p.endZone]) {
+                // out: beyond the opponent baseline at that zone's column
+                x = zoneCenter(p.endZone, 'opp')[0] + ((errSeq++ % 5) - 2) * 9;
+                y = CT.T - 9;
+            } else {
+                x = CT.L + 30 + (errNoZone++ % 3) * 60; y = CT.T - 9;
+            }
+        } else if (p.endZone && ZONE_OPP[p.endZone]) {
+            [x, y] = zoneCenter(p.endZone, 'opp');
+            x += ((i * 7) % 5 - 2) * 8; y += ((i * 11) % 5 - 2) * 7;
+        } else return;
+        const tipLabel = { ace: t('lg_ace'), eff: t('lg_eff'), in: t('lg_in'), err: t('lg_err') }[tp];
+        g += `<circle cx="${x}" cy="${y}" r="5" fill="${dc[tp]}" opacity="0.9" stroke="#fff" stroke-width="1.2"><title>${p.endZone ? `Z${p.endZone} · ` : ''}${escapeHtml(tipLabel)}</title></circle>`;
+    });
+    const list = Object.values(byZone).sort((a, b) => b.n - a.n);
+    const rows = list.map(b => `<tr>
+        <td class="l">Z${b.z}</td>
+        <td>${jumpIds(b.ids, b.n)}</td>
+        <td>${b.aces}</td>
+        <td>${Math.round(b.effN / b.n * 100)}%</td>
+    </tr>`).join('');
+    return {
+        n: agg.srvTot,
+        svg: `<svg viewBox="0 0 240 340" xmlns="http://www.w3.org/2000/svg">${g}</svg>`,
+        table: `<table class="dir-table"><tr><th class="l">${escapeHtml(t('th_zone'))}</th><th>${escapeHtml(t('th_n'))}</th><th>${escapeHtml(t('th_ace'))}</th><th>${escapeHtml(t('th_effpct'))}</th></tr>${rows}</table>`
+    };
+}
+
+// --- Attack breakdown (blockers / shot type / tempo) ---
+function breakdownTables(agg) {
+    const groupBy = (fn, labelFn) => {
+        const m = {};
+        agg.atk.forEach(p => {
+            const k = fn(p);
+            if (k === null || k === undefined) return;
+            if (!m[k]) m[k] = { n: 0, kills: 0, ids: [], label: labelFn(k) };
+            m[k].n++; if (p.effect === '#') m[k].kills++; m[k].ids.push(p.id);
+        });
+        return Object.values(m).sort((a, b) => b.n - a.n);
+    };
+    const tbl = rows => rows.length ? `<table class="dir-table"><tr><th class="l"></th><th>${escapeHtml(t('th_n'))}</th><th>${escapeHtml(t('th_killpct'))}</th></tr>` +
+        rows.map(r => `<tr><td class="l">${escapeHtml(r.label)}</td><td>${jumpIds(r.ids, r.n)}</td><td>${Math.round(r.kills / r.n * 100)}%</td></tr>`).join('') + `</table>`
+        : `<div style="text-align:center; color:var(--text-muted); font-size:11px; padding:8px;">${t('na')}</div>`;
+    const blockers = groupBy(p => p.blockers, k => k === 0 ? t('blk_0') : t('blk_n', { n: k }));
+    const hits = groupBy(p => p.hitType, k => i18n[currentLang]['hit_' + k] ? t('hit_' + k) : k);
+    const tempo = groupBy(p => p.tempo, k => k);
+    if (!blockers.length && !hits.length && !tempo.length) return null;
+    return `<div class="bd-grid">
+        <div><div class="bd-title">${escapeHtml(t('bd_blockers'))}</div>${tbl(blockers)}</div>
+        <div><div class="bd-title">${escapeHtml(t('bd_hit'))}</div>${tbl(hits)}</div>
+        <div><div class="bd-title">${escapeHtml(t('bd_tempo'))}</div>${tbl(tempo)}</div>
+    </div>`;
+}
+
+// --- Main render ---
+let selectedKey = null;
+function render() {
+    updateChrome();
+    const data = window.__data;
+    const teams = { '*': data.teams[0] || { code: '---', name: '' }, 'a': data.teams[1] || { code: '---', name: '' } };
+
+    // per-player aggregates
+    const byPlayer = {};
+    data.allPlays.forEach(p => {
+        const k = `${p.side}_${p.pNum}`;
+        if (!byPlayer[k]) byPlayer[k] = [];
+        byPlayer[k].push(p);
+    });
+    const aggs = {};
+    Object.entries(byPlayer).forEach(([k, plays]) => { aggs[k] = aggPlayer(plays); });
+
+    if (!selectedKey || !aggs[selectedKey]) {
+        // default: top scorer of home team, else overall
+        const keys = Object.keys(aggs);
+        selectedKey = keys.filter(k => k.startsWith('*_')).sort((a, b) => aggs[b].points - aggs[a].points)[0] || keys[0];
+    }
+    const agg = aggs[selectedKey];
+    const side = selectedKey.split('_')[0];
+    const num = parseInt(selectedKey.split('_')[1]);
+    const pName = agg.plays[0].pFullLabel || agg.plays[0].pName;
+    const team = teams[side];
+    const accent = side === '*' ? 'var(--home-accent)' : 'var(--away-accent)';
+
+    // player selector options
+    const optGroup = s => {
+        const list = Object.keys(aggs).filter(k => k.startsWith(s + '_'))
+            .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]));
+        return `<optgroup label="${escapeHtml(teams[s].code)}">` + list.map(k =>
+            `<option value="${escapeHtml(k)}" ${k === selectedKey ? 'selected' : ''}>#${parseInt(k.split('_')[1])} ${escapeHtml(aggs[k].plays[0].pFullLabel || aggs[k].plays[0].pName)}</option>`).join('') + `</optgroup>`;
+    };
+
+    // radar percentiles
+    const pcts = {
+        atk: percentile(aggs, selectedKey, a => a.killPct, a => a.atkTot >= 5),
+        srv: percentile(aggs, selectedKey, a => a.acePct, a => a.srvTot >= 5),
+        blk: percentile(aggs, selectedKey, a => a.blkPerSet, a => a.totPlays >= 10),
+        dig: percentile(aggs, selectedKey, a => a.digPct, a => a.digTot >= 3),
+        rec: percentile(aggs, selectedKey, a => a.recPct, a => a.recTot >= 3),
+        stab: percentile(aggs, selectedKey, a => a.stab, a => a.totPlays >= 10),
+    };
+    const radar = radarSvg([
+        { label: t('ax_attack'), v: pcts.atk },
+        { label: t('ax_serve'), v: pcts.srv },
+        { label: t('ax_block'), v: pcts.blk },
+        { label: t('ax_dig'), v: pcts.dig },
+        { label: t('ax_rec'), v: pcts.rec },
+        { label: t('ax_stab'), v: pcts.stab },
+    ]);
+
+    // percentile bars
+    const barMetrics = [
+        [t('g_attack'), [
+            ['m_kill', `${Math.round(agg.killPct)}%`, percentile(aggs, selectedKey, a => a.killPct, a => a.atkTot >= 5)],
+            ['m_eff', `${Math.round(agg.effPct)}%`, percentile(aggs, selectedKey, a => a.effPct, a => a.atkTot >= 5)],
+            ['m_atkerr', `${Math.round(agg.atkErrPct)}%`, percentile(aggs, selectedKey, a => a.atkErrPct, a => a.atkTot >= 5, true)],
+        ]],
+        [t('g_serve'), [
+            ['m_ace', `${Math.round(agg.acePct)}%`, percentile(aggs, selectedKey, a => a.acePct, a => a.srvTot >= 5)],
+            ['m_srverr', `${Math.round(agg.srvErrPct)}%`, percentile(aggs, selectedKey, a => a.srvErrPct, a => a.srvTot >= 5, true)],
+        ]],
+        [t('g_defense'), [
+            ['m_blkset', agg.blkPerSet.toFixed(1), percentile(aggs, selectedKey, a => a.blkPerSet, a => a.totPlays >= 10)],
+            ['m_dig', `${Math.round(agg.digPct)}%`, percentile(aggs, selectedKey, a => a.digPct, a => a.digTot >= 3)],
+        ]],
+        [t('g_rec'), [
+            ['m_rec', `${Math.round(agg.recPct)}%`, percentile(aggs, selectedKey, a => a.recPct, a => a.recTot >= 3)],
+        ]],
+    ];
+    const barColor = p => `hsl(${Math.round(p * 1.2)}, 68%, 42%)`;
+    let barsHtml = '';
+    barMetrics.forEach(([gName, rows]) => {
+        barsHtml += `<div class="pc-group">${escapeHtml(gName)}</div>`;
+        rows.forEach(([key, val, p]) => {
+            const label = t(key, { v: val });
+            if (p === null) {
+                barsHtml += `<div class="pc-row"><span class="pc-label">${escapeHtml(label)}</span><div class="pc-bar-wrap"></div><span class="pc-val" style="color:var(--text-muted)">${t('na')}</span></div>`;
+            } else {
+                barsHtml += `<div class="pc-row"><span class="pc-label">${escapeHtml(label)}</span><div class="pc-bar-wrap"><div class="pc-bar" style="width:${p}%; background:${barColor(p)}"></div></div><span class="pc-val" style="color:${barColor(p)}">${p}</span></div>`;
+            }
+        });
+    });
+
+    // court maps (hide when zone codes largely absent)
+    const atkZoneRate = agg.atkTot ? agg.atk.filter(p => p.startZone && p.endZone).length / agg.atkTot : 0;
+    const srvZoneRate = agg.srvTot ? agg.srv.filter(p => p.endZone).length / agg.srvTot : 0;
+    const mapSections = [];
+    if (agg.atkTot >= 3 && atkZoneRate >= 0.5) {
+        const am = attackMaps(agg);
+        mapSections.push(`
+            <div class="map-title">${escapeHtml(t('atk_map_title'))} <span style="color:var(--text-muted); font-weight:600;">${escapeHtml(t('n_balls', { n: am.n }))}</span></div>
+            <div class="atk-multi">${am.svgs.map(s => `
+                <div>
+                    <div class="atk-mini-title">Z${s.z} <span style="color:var(--text-muted); font-weight:600;">${escapeHtml(t('n_balls', { n: s.n }))}</span></div>
+                    <div class="court-wrap">${s.svg}</div>
+                </div>`).join('')}
+            </div>
+            <div class="map-legend">
+                <span><span class="sw" style="background:#2e7d32"></span>${escapeHtml(t('lg_kill50'))}</span>
+                <span><span class="sw" style="background:#f59e0b"></span>${escapeHtml(t('lg_kill30'))}</span>
+                <span><span class="sw" style="background:#e53935"></span>${escapeHtml(t('lg_kill0'))}</span>
+            </div>
+            ${am.table}`);
+    }
+    if (agg.srvTot >= 3 && srvZoneRate >= 0.5) {
+        const sm = serveMap(agg);
+        mapSections.push(`
+            <div class="maps-grid">
+                <div>
+                    <div class="map-title">${escapeHtml(t('srv_map_title'))} <span style="color:var(--text-muted); font-weight:600;">${escapeHtml(t('n_balls', { n: sm.n }))}</span></div>
+                    <div class="court-wrap">${sm.svg}</div>
+                    <div class="map-legend">
+                        <span><span class="dotk" style="background:#2e7d32"></span>${escapeHtml(t('lg_ace'))}</span>
+                        <span><span class="dotk" style="background:#4f6ef7"></span>${escapeHtml(t('lg_eff'))}</span>
+                        <span><span class="dotk" style="background:#8b91a0"></span>${escapeHtml(t('lg_in'))}</span>
+                        <span><span class="dotk" style="background:#e53935"></span>${escapeHtml(t('lg_err'))}</span>
+                    </div>
+                    <div class="map-note">${escapeHtml(t('srv_err_note'))}</div>
+                </div>
+                <div>${sm.table}</div>
+            </div>`);
+    }
+    const mapsHtml = mapSections.length
+        ? mapSections.join(`<div style="height:22px;"></div>`)
+        : `<div style="text-align:center; color:var(--text-muted); font-size:11.5px; padding:14px;">${escapeHtml(t('zone_missing'))}</div>`;
+
+    const breakdown = breakdownTables(agg);
+    const pos = guessPos(agg);
+
+    document.getElementById('main').innerHTML = `
+        <div class="card">
+            <div class="ph">
+                <div class="ph-avatar" style="background: linear-gradient(135deg, ${accent}, var(--header-bg));">${num}</div>
+                <div class="ph-info">
+                    <div class="ph-name">${escapeHtml(pName)}</div>
+                    <div class="ph-meta">
+                        <span class="chip">${escapeHtml(team.code)}</span>
+                        ${pos ? `<span class="chip">${escapeHtml(t('pos_est', { pos }))}</span>` : ''}
+                        <span class="chip">${escapeHtml(t('sets_played', { n: agg.sets }))}</span>
+                    </div>
+                </div>
+                <div class="ph-total">
+                    <div class="n">${agg.points}</div>
+                    <div class="l">${escapeHtml(t('points_label'))}</div>
+                </div>
+            </div>
+            <div class="ph-select-row">
+                <select onchange="selectPlayer(this.value)">${optGroup('*')}${optGroup('a')}</select>
+            </div>
+        </div>
+
+        <div class="tap-hint">${escapeHtml(t('tap_hint'))}</div>
+
+        <div class="card">
+            <h2>${escapeHtml(t('skill_profile'))}</h2>
+            <div class="h-sub">${escapeHtml(t('skill_profile_sub'))}</div>
+            <div class="profile-grid">
+                <div class="radar-wrap">${radar}<div class="radar-note">${escapeHtml(t('radar_note'))}</div></div>
+                <div>${barsHtml}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>${escapeHtml(t('court_maps'))}</h2>
+            <div class="h-sub">${escapeHtml(t('court_maps_sub'))}</div>
+            ${mapsHtml}
+        </div>
+
+        ${breakdown ? `<div class="card">
+            <h2>${escapeHtml(t('atk_breakdown'))}</h2>
+            <div class="h-sub">${escapeHtml(t('atk_breakdown_sub'))}</div>
+            ${breakdown}
+        </div>` : ''}
+
+        <div class="card">
+            <h2>${escapeHtml(t('detail_stats'))}</h2>
+            <div class="h-sub">${escapeHtml(t('detail_sub'))}</div>
+            <table class="dir-table">
+                <tr><th class="l">${escapeHtml(t('th_metric'))}</th><th>${escapeHtml(t('th_val'))}</th><th class="l">${escapeHtml(t('th_break'))}</th></tr>
+                <tr><td class="l">${escapeHtml(t('d_atk'))}</td><td style="font-weight:900">${Math.round(agg.killPct)}%</td>
+                    <td class="l">${t('d_atk_b', { k: jumpIds(agg.killIds, agg.kills), t: agg.atkTot, e: jumpIds(agg.atkErrIds, agg.atkErr), b: jumpIds(agg.blockedIds, agg.blocked) })}</td></tr>
+                <tr><td class="l">${escapeHtml(t('d_srv'))}</td><td style="font-weight:900">${agg.aces}A</td>
+                    <td class="l">${t('d_srv_b', { t: jumpIds(agg.srvIds, agg.srvTot), a: jumpIds(agg.aceIds, agg.aces), e: jumpIds(agg.srvErrIds, agg.srvErr) })}</td></tr>
+                <tr><td class="l">${escapeHtml(t('d_blk'))}</td><td style="font-weight:900">${agg.blkKills}</td>
+                    <td class="l">${t('d_blk_b', { k: jumpIds(agg.blkKillIds, agg.blkKills), tch: jumpIds(agg.blkTouchIds, agg.blkTouch) })}</td></tr>
+                <tr><td class="l">${escapeHtml(t('d_dig'))}</td><td style="font-weight:900">${agg.digTot ? Math.round(agg.digPct) + '%' : t('na')}</td>
+                    <td class="l">${t('d_dig_b', { g: agg.digGood, t: jumpIds(agg.digIds, agg.digTot) })}</td></tr>
+                <tr><td class="l">${escapeHtml(t('d_rec'))}</td><td style="font-weight:900">${agg.recTot ? Math.round(agg.recPct) + '%' : t('na')}</td>
+                    <td class="l">${t('d_rec_b', { g: agg.recGood, t: jumpIds(agg.recIds, agg.recTot), e: agg.recErr })}</td></tr>
+            </table>
+        </div>
+
+        <div class="footer-note">${escapeHtml(t('footer'))}</div>
+    `;
+}
+
+function selectPlayer(key) {
+    selectedKey = key;
+    const u = new URL(window.location);
+    u.searchParams.set('player', key);
+    history.replaceState(null, '', u);
+    render();
+    window.scrollTo(0, 0);
+}
+
+// --- Init ---
+(async function init() {
+    updateChrome();
+    document.getElementById('loading-msg').textContent = t('loading');
+    if (SRC_DVW || SRC_DEMO) {
+        const sl = document.getElementById('summary-link');
+        sl.href = summaryLink();
+        sl.style.display = '';
+    }
+    let data;
+    try {
+        data = await loadMatchData();
+    } catch (key) {
+        return showError(key);
+    }
+    window.__data = data;
+    const pParam = PAGE_PARAMS.get('player');
+    if (pParam) selectedKey = pParam;
+    render();
+})();
+</script>
+
+</body>
+</html>

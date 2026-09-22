@@ -1,0 +1,93 @@
+/* =====================================================================
+   ss-pages.css — shared design tokens + base components for
+   SyncScout sub-pages (summary.html / player.html).
+   Page-specific styles stay in each page's own <style> block.
+   ===================================================================== */
+
+:root {
+    --primary: #4f6ef7;
+    --primary-subtle: rgba(79, 110, 247, 0.08);
+    --home-accent: #f06292;
+    --away-accent: #64b5f6;
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --text: #1a1d26;
+    --text-secondary: #5a6072;
+    --text-muted: #8b91a0;
+    --border: #e2e5eb;
+    --border-light: #eef0f4;
+    --header-bg: #16192a;
+    --danger: #e53935;
+    --success: #2e7d32;
+    --warn: #f59e0b;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums; /* stats-heavy pages: keep digits aligned */
+}
+::selection { background: rgba(79, 110, 247, 0.18); }
+
+/* Header */
+header {
+    background: var(--header-bg); color: #fff;
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 16px; padding-top: env(safe-area-inset-top);
+    height: calc(52px + env(safe-area-inset-top));
+    position: sticky; top: 0; z-index: 10;
+}
+.brand-logo {
+    width: 28px; height: 28px; border-radius: 8px; background: var(--primary);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 15px; flex-shrink: 0;
+}
+.brand-text { font-weight: 800; font-size: 15px; letter-spacing: 0.2px; }
+.page-label {
+    font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.65);
+    border-left: 1px solid rgba(255,255,255,0.2); padding-left: 10px;
+}
+.header-spacer { flex: 1; }
+.hd-btn, .lang-btn {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; font-weight: 700; font-size: 12px; padding: 5px 12px;
+    border-radius: 100px; cursor: pointer; text-decoration: none;
+}
+
+/* Layout */
+main { max-width: 760px; margin: 0 auto; padding: 16px 14px 60px; }
+.card {
+    background: var(--surface); border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 6px 20px rgba(16, 24, 40, 0.05);
+    padding: 18px 16px; margin-bottom: 16px;
+}
+.card h2 {
+    margin: 0 0 14px; font-size: 13px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted);
+}
+.empty-msg { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; }
+
+/* Video-jump links */
+a.jump, span.jump-static { text-decoration: none; }
+a.jump {
+    color: var(--primary); font-weight: 800; cursor: pointer;
+    border-bottom: 1px dotted var(--primary);
+    border-radius: 4px; padding: 1px 3px; margin: -1px -3px;
+    transition: background-color 0.15s ease;
+}
+a.jump:hover { background: var(--primary-subtle); }
+a.jump:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.hd-btn:focus-visible, .lang-btn:focus-visible, select:focus-visible {
+    outline: 2px solid var(--primary); outline-offset: 1px;
+}
+.tap-hint {
+    text-align: center; font-size: 11px; color: var(--text-muted);
+    margin: -6px 0 14px; font-weight: 600;
+}
+.footer-note { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 8px; }
