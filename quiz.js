@@ -5,7 +5,7 @@
 // オプション / ミディアム / オフ のどれだったかを当てさせる。
 //
 // app.js のグローバル (player, allPlays, currentMatchDVW, matchMap,
-// supabaseClient, escapeHtml, jsAttr, currentLang) を使う。
+// supabaseClient, escapeHtml) を使う。表示は英語のみ。
 // app.js 側のフックは3箇所だけ:
 //   - getSafeURLParams() に quiz を足す
 //   - parseDVW() の末尾で Quiz.onMatchParsed()
@@ -16,10 +16,12 @@
 (function () {
 'use strict';
 
+// 表示は英語だけ。ビューア本体は EN/JA 両対応だが、クイズはチーム内で
+// 英語のまま使う前提なので訳を持たない。
 const CHOICES = [
-    { key: 'option', ja: 'オプション', en: 'Option', color: '#2F5BEA' },
-    { key: 'medium', ja: 'ミディアム', en: 'Medium', color: '#F5A623' },
-    { key: 'off',    ja: 'オフ',       en: 'Off',    color: '#E5484D' },
+    { key: 'option', label: 'Option', color: '#2F5BEA' },
+    { key: 'medium', label: 'Medium', color: '#F5A623' },
+    { key: 'off',    label: 'Off',    color: '#E5484D' },
 ];
 const CHOICE_OF = Object.fromEntries(CHOICES.map(c => [c.key, c]));
 
@@ -31,66 +33,63 @@ const QUIZ_EFFECTS = ['#', '+', '!'];
 const DEFAULT_STOP_OFFSET = 0.5;
 
 const STR = {
-    quiz_menu:        { en: 'Quiz', ja: 'クイズ' },
-    quiz_admin_title: { en: 'Reception quiz', ja: 'レセプション判定クイズ' },
-    tab_list:         { en: 'Quizzes', ja: 'クイズ一覧' },
-    tab_new:          { en: 'New quiz', ja: '新規作成' },
-    no_quizzes:       { en: 'No quizzes yet.', ja: 'まだクイズがありません。' },
-    load_fail:        { en: 'Could not load.', ja: '読み込めませんでした。' },
-    q_title:          { en: 'Title', ja: 'タイトル' },
-    q_title_ph:       { en: 'e.g. Reception reading #1', ja: '例: レセプション判定 第1回' },
-    stop_offset:      { en: 'Stop before attack', ja: 'アタックの何秒前で止めるか' },
-    pick_plays:       { en: 'Pick the receptions to use, and set the answer for each.', ja: '出題するレセプションを選び、1問ずつ正解を設定します。' },
-    no_receptions:    { en: 'No #/+/! receptions in this match.', ja: 'この試合に #/+/! のレセプションがありません。' },
-    load_match_first: { en: 'Open a match first.', ja: '先に試合を開いてください。' },
-    preview:          { en: 'Preview', ja: '試聴' },
-    selected_n:       { en: '{n} selected', ja: '{n}問 選択中' },
-    unanswered_n:     { en: '{n} still need an answer', ja: '正解が未設定: {n}問' },
-    create:           { en: 'Create quiz', ja: 'クイズを作成' },
-    creating:         { en: 'Creating...', ja: '作成中...' },
-    create_fail:      { en: 'Could not create the quiz.', ja: 'クイズを作成できませんでした。' },
-    created:          { en: 'Quiz created. Send this URL to the team.', ja: 'クイズを作成しました。このURLを配ってください。' },
-    copy:             { en: 'Copy', ja: 'コピー' },
-    copied:           { en: 'Copied', ja: 'コピーしました' },
-    results:          { en: 'Results', ja: '成績' },
-    del:              { en: 'Delete', ja: '削除' },
-    confirm_del:      { en: 'Delete this quiz and all its results?', ja: 'このクイズと回答記録をすべて削除しますか？' },
-    del_fail:         { en: 'Could not delete.', ja: '削除できませんでした。' },
-    no_results:       { en: 'Nobody has answered yet.', ja: 'まだ回答がありません。' },
-    per_question:     { en: 'Correct rate per question', ja: '設問ごとの正答率' },
-    attempts:         { en: 'Attempts', ja: '回答一覧' },
-    close:            { en: 'Close', ja: '閉じる' },
-    back:             { en: 'Back', ja: '戻る' },
+    quiz_admin_title: 'Reception quiz',
+    tab_list: 'Quizzes',
+    tab_new: 'New quiz',
+    no_quizzes: 'No quizzes yet.',
+    load_fail: 'Could not load.',
+    q_title: 'Title',
+    q_title_ph: 'e.g. Reception reading #1',
+    stop_offset: 'Stop before attack',
+    pick_plays: 'Pick the receptions to use, and set the answer for each.',
+    no_receptions: 'No #/+/! receptions in this match.',
+    load_match_first: 'Open a match first.',
+    preview: 'Preview',
+    selected_n: '{n} selected',
+    unanswered_n: '{n} still need an answer',
+    create: 'Create quiz',
+    creating: 'Creating...',
+    create_fail: 'Could not create the quiz.',
+    created: 'Quiz created. Send this URL to the team.',
+    copy: 'Copy',
+    copied: 'Copied',
+    results: 'Results',
+    del: 'Delete',
+    confirm_del: 'Delete this quiz and all its results?',
+    del_fail: 'Could not delete.',
+    no_results: 'Nobody has answered yet.',
+    per_question: 'Correct rate per question',
+    attempts: 'Attempts',
+    close: 'Close',
+    back: 'Back',
     // 回答する側
-    enter_jersey:     { en: 'Enter your jersey number', ja: '背番号を入力してください' },
-    start_quiz:       { en: 'Start', ja: 'スタート' },
-    jersey_required:  { en: 'Enter a number.', ja: '番号を入力してください。' },
-    quiz_gone:        { en: 'This quiz no longer exists.', ja: 'このクイズは見つかりませんでした。' },
-    loading:          { en: 'Loading...', ja: '読み込み中...' },
-    which_options:    { en: 'What could the setter use?', ja: 'セッターが使えたのは？' },
-    correct:          { en: 'Correct', ja: '正解' },
-    wrong:            { en: 'Wrong', ja: '不正解' },
-    answer_was:       { en: 'Answer: {a}', ja: '正解: {a}' },
-    replay:           { en: 'Watch again', ja: 'もう一度見る' },
-    next_q:           { en: 'Next', ja: '次へ' },
-    see_result:       { en: 'See result', ja: '結果を見る' },
-    your_score:       { en: 'Your score', ja: 'あなたの成績' },
-    saving:           { en: 'Saving...', ja: '保存中...' },
-    save_fail:        { en: 'Could not save your result.', ja: '成績を保存できませんでした。' },
-    retry:            { en: 'Try again', ja: 'もう一度挑戦' },
-    to_viewer:        { en: 'Open the viewer', ja: 'ビューアを開く' },
+    enter_jersey: 'Enter your jersey number',
+    start_quiz: 'Start',
+    jersey_required: 'Enter a number.',
+    quiz_gone: 'This quiz no longer exists.',
+    loading: 'Loading...',
+    which_options: 'What could the setter use?',
+    correct: 'Correct',
+    wrong: 'Wrong',
+    answer_was: 'Answer: {a}',
+    replay: 'Watch again',
+    next_q: 'Next',
+    see_result: 'See result',
+    your_score: 'Your score',
+    saving: 'Saving...',
+    save_fail: 'Could not save your result.',
+    retry: 'Try again',
+    to_viewer: 'Open the viewer',
 };
 
 function s(key, rep) {
-    const lang = (currentLang === 'ja') ? 'ja' : 'en';
-    let out = (STR[key] && STR[key][lang]) || key;
+    let out = STR[key] || key;
     if (rep) Object.keys(rep).forEach(k => { out = out.replace('{' + k + '}', rep[k]); });
     return out;
 }
 function choiceLabel(key) {
     const c = CHOICE_OF[key];
-    if (!c) return key;
-    return (currentLang === 'ja') ? c.ja : c.en;
+    return c ? c.label : key;
 }
 const esc = str => escapeHtml(String(str == null ? "" : str));
 
@@ -481,13 +480,9 @@ function showJerseyEntry() {
         <p class="quiz-big-muted">${esc(s('enter_jersey'))}</p>
         <input class="quiz-jersey" id="qz-jersey" type="number" inputmode="numeric" min="0" max="99" autocomplete="off">
         <button class="quiz-big-btn primary" id="qz-go">${esc(s('start_quiz'))}</button>
-        <p class="quiz-err" id="qz-jerr"></p>
-        <button class="quiz-lang" id="qz-lang">${currentLang === 'ja' ? 'EN' : '日本語'}</button>`);
+        <p class="quiz-err" id="qz-jerr"></p>`);
     const input = document.getElementById('qz-jersey');
     input.focus();
-    // クイズのURLを初めて開いた端末は英語表示で始まる。ここでしか
-    // 切り替えられないので、メニューが隠れている回答モードでも出しておく。
-    document.getElementById('qz-lang').onclick = () => { toggleLang(); showJerseyEntry(); };
     const go = () => {
         const v = parseInt(input.value, 10);
         if (isNaN(v)) { document.getElementById('qz-jerr').textContent = s('jersey_required'); return; }

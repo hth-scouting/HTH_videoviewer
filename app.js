@@ -2136,7 +2136,6 @@ const i18n = {
         hl_scope_break: "ブレイク（自サーブ時の得点）のみ",
         hl_scope_all: "すべてのラリー",
         match_summary: "試合サマリー",
-        quiz_menu: "クイズ",
         summary_select_match: "先に試合を選択してください。",
         admin_console: "管理者ページ",
         filters: "絞り込み",

@@ -107,14 +107,6 @@ body.quiz-mode #video-side { flex: 1; }
 .quiz-big-btn.primary { background: var(--primary); border-color: var(--primary); }
 .quiz-big-btn.primary:hover { background: var(--primary-hover); }
 
-.quiz-lang {
-    margin-top: 8px; padding: 6px 16px;
-    border: 1px solid rgba(255,255,255,0.25); border-radius: var(--radius-pill);
-    background: none; color: rgba(255,255,255,0.7);
-    font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit;
-}
-.quiz-lang:hover { background: rgba(255,255,255,0.1); color: #fff; }
-
 .quiz-score { color: #fff; font-size: 4.5rem; font-weight: 900; line-height: 1; }
 .quiz-score span { font-size: 1.6rem; margin-left: 4px; }
 .quiz-review { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 420px; }
