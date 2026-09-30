@@ -40,6 +40,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=17">
+    <link rel="stylesheet" href="quiz.css?v=1">
 </head>
 <body onclick="hideAllTagPopups()">
 
@@ -99,6 +100,10 @@
         <button class="app-menu-item" onclick="openHighlightSettings(); toggleAppMenu();">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             <span data-i18n="highlight_settings">Highlight Settings</span>
+        </button>
+        <button class="app-menu-item" onclick="openQuizAdmin(); toggleAppMenu();">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span data-i18n="quiz_menu">Quiz</span>
         </button>
         <button class="app-menu-item" onclick="openMatchSummary(); toggleAppMenu();">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -333,6 +338,7 @@
 
 <script src="dvw-parser.js?v=1.3"></script>
 <script src="app.js?v=3.0.3"></script>
+<script src="quiz.js?v=1"></script>
 
 </body>
 </html>

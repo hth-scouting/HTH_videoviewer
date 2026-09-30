@@ -2028,6 +2028,7 @@ const i18n = {
         hl_scope_break: "Breaks only (point scored on own serve)",
         hl_scope_all: "All rallies",
         match_summary: "Match Summary",
+        quiz_menu: "Quiz",
         summary_select_match: "Select a match first.",
         admin_console: "Admin console",
         filters: "Filters",
@@ -2135,6 +2136,7 @@ const i18n = {
         hl_scope_break: "ブレイク（自サーブ時の得点）のみ",
         hl_scope_all: "すべてのラリー",
         match_summary: "試合サマリー",
+        quiz_menu: "クイズ",
         summary_select_match: "先に試合を選択してください。",
         admin_console: "管理者ページ",
         filters: "絞り込み",
@@ -2293,7 +2295,7 @@ async function checkAuth() {
 
     if (IS_DEMO) {
         loadHighlightConfig();
-        document.querySelectorAll('.menu-item-add, .menu-item-delete, [onclick*="openManageTags"]').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.menu-item-add, .menu-item-delete, [onclick*="openManageTags"], [onclick*="openQuizAdmin"]').forEach(el => el.style.display = 'none');
         applyI18n();
         initFilterCard();
         initA2hs();
@@ -2506,7 +2508,8 @@ function getSafeURLParams() {
         t: params.get('t'),
         q: q ? decodeURIComponent(q) : null,
         ids: ids ? decodeURIComponent(ids) : null,
-        p: params.get('p')
+        p: params.get('p'),
+        quiz: params.get('quiz')   // quiz.js が読む
     };
 }
 const urlParams = getSafeURLParams();
@@ -2892,6 +2895,9 @@ async function parseDVW(text) {
     } else {
         render();
     }
+
+    // クイズモードは試合の読み込み完了を待って出題を始める (quiz.js)
+    if (window.Quiz) Quiz.onMatchParsed();
 }
 
 async function loadCloudData() {
