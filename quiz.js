@@ -18,10 +18,12 @@
 
 // 表示は英語だけ。ビューア本体は EN/JA 両対応だが、クイズはチーム内で
 // 英語のまま使う前提なので訳を持たない。
+// 並び順はそのまま画面に出る。出題画面も作成画面もここから作るので、
+// 順番を変えたいときはこの配列だけ入れ替えればよい。
 const CHOICES = [
     { key: 'option', label: 'Option', color: '#2F5BEA' },
-    { key: 'medium', label: 'Medium', color: '#F5A623' },
     { key: 'off',    label: 'Off',    color: '#E5484D' },
+    { key: 'medium', label: 'Medium', color: '#F5A623' },
 ];
 const CHOICE_OF = Object.fromEntries(CHOICES.map(c => [c.key, c]));
 
