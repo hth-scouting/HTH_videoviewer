@@ -183,6 +183,18 @@ body.quiz-mode #video-side { flex: 1; }
 .quiz-field input[type=text]:focus { border-color: var(--primary); }
 .quiz-field input[type=range] { width: 100%; }
 
+/* 出題対象チームの切り替え */
+.quiz-seg { display: flex; gap: 6px; }
+.quiz-seg button {
+    flex: 1; padding: 9px 10px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: none; color: var(--text-secondary);
+    font-size: 0.84rem; font-weight: 700; cursor: pointer; font-family: inherit;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.quiz-seg button span { font-weight: 600; opacity: 0.6; font-size: 0.74rem; }
+.quiz-seg button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+
 .quiz-url {
     width: 100%; box-sizing: border-box; padding: 10px 12px; margin: 8px 0;
     border: 1px solid var(--border); border-radius: var(--radius-sm);

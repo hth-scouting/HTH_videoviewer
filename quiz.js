@@ -43,6 +43,7 @@ const STR = {
     stop_offset: 'Stop before attack',
     pick_plays: 'Watch each clip and set the answer. Picking one moves to the next; Skip leaves it out.',
     no_receptions: 'No #/+/! receptions in this match.',
+    target_team: 'Team to quiz on',
     load_match_first: 'Open a match first.',
     preview: 'Play this clip',
     skip: 'Skip',
@@ -118,13 +119,26 @@ function questionWindow(play, plays, stopOffset) {
     return { start: Math.max(0, Math.round(start * 10) / 10), stop: Math.round(stop * 10) / 10 };
 }
 
-function playLabel(d) {
-    return `Set${d.setNum} ${d.score} #${d.pNum} ${d.pFullLabel || d.pName} (R${d.effect})`;
+// チーム名はビューア本体と同じくスコア表示から取る。app.js も
+// (buildTable など) 同じ読み方をしている。
+function teamCode(side) {
+    const el = document.getElementById(side === '*' ? 'ov-h-code' : 'ov-a-code');
+    return (el && el.innerText.trim()) || (side === '*' ? 'Home' : 'Away');
 }
 
-function receptionPlays() {
+function playLabel(d) {
+    return `${teamCode(d.side)} Set${d.setNum} ${d.score} #${d.pNum} ${d.pFullLabel || d.pName} (R${d.effect})`;
+}
+
+// 1本のクイズは片方のチームのレセプションだけを扱う。
+function receptionPlays(side) {
     const plays = allPlays || [];
-    return plays.filter(p => p.skill === 'R' && QUIZ_EFFECTS.includes(p.effect));
+    return plays.filter(p => p.skill === 'R' && QUIZ_EFFECTS.includes(p.effect) && p.side === side);
+}
+
+// 出題の既定は自チーム。見当たらなければホーム側。
+function defaultSide() {
+    return teamCode('a') === MY_TEAM_CODE && teamCode('*') !== MY_TEAM_CODE ? 'a' : '*';
 }
 
 function newToken() {
@@ -243,13 +257,12 @@ async function renderQuizList() {
 }
 
 function renderQuizNew() {
-    const plays = receptionPlays();
     const head = `
         <div class="quiz-modal-head">
             <h3>${esc(s('tab_new'))}</h3>
             <button class="quiz-x" id="qz-close">&times;</button>
         </div>`;
-    if (!currentMatchDVW || !plays.length) {
+    if (!currentMatchDVW || (!receptionPlays('*').length && !receptionPlays('a').length)) {
         modalShell(head + `<p class="quiz-muted">${esc(currentMatchDVW ? s('no_receptions') : s('load_match_first'))}</p>
             <div class="quiz-foot"><button class="quiz-btn" id="qz-back">${esc(s('back'))}</button></div>`);
         document.getElementById('qz-close').onclick = closeQuizModal;
@@ -267,6 +280,12 @@ function renderQuizNew() {
             <input type="text" id="qz-title" placeholder="${esc(s('q_title_ph'))}" autocomplete="off">
         </div>
         <div class="quiz-field">
+            <label>${esc(s('target_team'))}</label>
+            <div class="quiz-seg" id="qz-team">
+                ${['*', 'a'].map(sd => `<button data-side="${sd}">${esc(teamCode(sd))} <span>${receptionPlays(sd).length}</span></button>`).join('')}
+            </div>
+        </div>
+        <div class="quiz-field">
             <label>${esc(s('stop_offset'))}: <b id="qz-off-val">${DEFAULT_STOP_OFFSET.toFixed(1)}s</b></label>
             <input type="range" id="qz-off" min="0" max="2" step="0.1" value="${DEFAULT_STOP_OFFSET}">
         </div>
@@ -281,33 +300,29 @@ function renderQuizNew() {
     document.getElementById('qz-close').onclick = closeQuizModal;
     document.getElementById('qz-back').onclick = () => { stopClip(); renderQuizList(); };
 
-    const picked = new Map();   // playId -> answer key ('' = 未設定)
+    const picked = new Map();   // playId -> answer key
     const body = document.getElementById('qz-body');
     const offEl = document.getElementById('qz-off');
     const offVal = document.getElementById('qz-off-val');
-
-    body.innerHTML = plays.map((p, i) => `
-        <div class="quiz-pick" data-pid="${p.id}" data-i="${i}">
-            <div class="quiz-pick-head">
-                <span class="quiz-eff eff-${p.effect === '#' ? 'perfect' : (p.effect === '+' ? 'good' : 'poor')}">${esc(p.effect)}</span>
-                <span class="quiz-pick-label">${esc(playLabel(p))}</span>
-                <button class="quiz-play" data-play="${i}" title="${esc(s('preview'))}">&#9654;</button>
-            </div>
-            <div class="quiz-pick-body">
-                <div class="quiz-ans-row">
-                    ${CHOICES.map(c => `<button class="quiz-ans" data-ans="${c.key}" data-i="${i}">${esc(choiceLabel(c.key))}</button>`).join('')}
-                </div>
-                <button class="quiz-mini" data-skip="${i}">${esc(s('skip'))}</button>
-            </div>
-        </div>`).join('');
+    let plays = [];
 
     offEl.oninput = () => { offVal.textContent = parseFloat(offEl.value).toFixed(1) + 's'; };
 
     function refreshCount() {
-        const n = picked.size;
-        document.getElementById('qz-count').textContent = s('selected_n', { n });
+        document.getElementById('qz-count').textContent = s('selected_n', { n: picked.size });
     }
-    refreshCount();
+
+    // チームを切り替えると候補を入れ替える。1本のクイズは片方だけが対象なので、
+    // 選びかけを持ち越さずに捨てる。
+    function selectSide(side) {
+        stopClip();
+        picked.clear();
+        plays = receptionPlays(side);
+        document.querySelectorAll('#qz-team button').forEach(b => b.classList.toggle('on', b.dataset.side === side));
+        renderCandidates();
+        refreshCount();
+        focusRow(0, false);
+    }
 
     // 1件に寄せて、その区間を流す。答えを押すと次の候補へ送るので、
     // 「見る→決める→次」をボタン1つで回せる。
@@ -323,32 +338,49 @@ function renderQuizNew() {
         playClip(w.start, w.stop);
     }
 
-    body.querySelectorAll('[data-play]').forEach(b => b.onclick = () => focusRow(Number(b.dataset.play)));
-    body.querySelectorAll('.quiz-pick-label').forEach(el => el.onclick = () => {
-        focusRow(Number(el.closest('.quiz-pick').dataset.i));
-    });
+    function renderCandidates() {
+        body.innerHTML = plays.map((p, i) => `
+            <div class="quiz-pick" data-i="${i}">
+                <div class="quiz-pick-head">
+                    <span class="quiz-eff eff-${p.effect === '#' ? 'perfect' : (p.effect === '+' ? 'good' : 'poor')}">${esc(p.effect)}</span>
+                    <span class="quiz-pick-label">${esc(playLabel(p))}</span>
+                    <button class="quiz-play" data-play="${i}" title="${esc(s('preview'))}">&#9654;</button>
+                </div>
+                <div class="quiz-pick-body">
+                    <div class="quiz-ans-row">
+                        ${CHOICES.map(c => `<button class="quiz-ans" data-ans="${c.key}" data-i="${i}">${esc(choiceLabel(c.key))}</button>`).join('')}
+                    </div>
+                    <button class="quiz-mini" data-skip="${i}">${esc(s('skip'))}</button>
+                </div>
+            </div>`).join('');
 
-    body.querySelectorAll('[data-ans]').forEach(b => b.onclick = () => {
-        const i = Number(b.dataset.i);
-        const row = body.querySelector(`.quiz-pick[data-i="${i}"]`);
-        picked.set(plays[i].id, b.dataset.ans);
-        row.classList.add('on');
-        row.querySelectorAll('[data-ans]').forEach(x => x.classList.remove('on'));
-        b.classList.add('on');
-        refreshCount();
-        focusRow(i + 1);
-    });
-    body.querySelectorAll('[data-skip]').forEach(b => b.onclick = () => {
-        const i = Number(b.dataset.skip);
-        const row = body.querySelector(`.quiz-pick[data-i="${i}"]`);
-        picked.delete(plays[i].id);
-        row.classList.remove('on');
-        row.querySelectorAll('[data-ans]').forEach(x => x.classList.remove('on'));
-        refreshCount();
-        focusRow(i + 1);
-    });
+        body.querySelectorAll('[data-play]').forEach(b => b.onclick = () => focusRow(Number(b.dataset.play)));
+        body.querySelectorAll('.quiz-pick-label').forEach(el => el.onclick = () => {
+            focusRow(Number(el.closest('.quiz-pick').dataset.i));
+        });
+        body.querySelectorAll('[data-ans]').forEach(b => b.onclick = () => {
+            const i = Number(b.dataset.i);
+            const row = body.querySelector(`.quiz-pick[data-i="${i}"]`);
+            picked.set(plays[i].id, b.dataset.ans);
+            row.classList.add('on');
+            row.querySelectorAll('[data-ans]').forEach(x => x.classList.remove('on'));
+            b.classList.add('on');
+            refreshCount();
+            focusRow(i + 1);
+        });
+        body.querySelectorAll('[data-skip]').forEach(b => b.onclick = () => {
+            const i = Number(b.dataset.skip);
+            const row = body.querySelector(`.quiz-pick[data-i="${i}"]`);
+            picked.delete(plays[i].id);
+            row.classList.remove('on');
+            row.querySelectorAll('[data-ans]').forEach(x => x.classList.remove('on'));
+            refreshCount();
+            focusRow(i + 1);
+        });
+    }
 
-    focusRow(0, false);
+    document.querySelectorAll('#qz-team button').forEach(b => b.onclick = () => selectSide(b.dataset.side));
+    selectSide(defaultSide());
 
     document.getElementById('qz-save').onclick = async (e) => {
         if (currentMatchDVW !== matchAtOpen) { alert(s('match_changed')); return; }
