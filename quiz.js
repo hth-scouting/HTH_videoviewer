@@ -69,7 +69,7 @@ const STR = {
     jersey_required: 'Enter a number.',
     quiz_gone: 'This quiz no longer exists.',
     loading: 'Loading...',
-    which_options: 'What could the setter use?',
+    ask: 'What is this situation?',
     your_answer: 'You',
     correct_answer: 'Answer',
     replay: 'Watch again',
@@ -525,7 +525,7 @@ function progressHTML() {
 
 function runQuestion() {
     const q = quiz.questions[qIndex];
-    ui().innerHTML = progressHTML() + `<div class="quiz-wait">${esc(s('which_options'))}</div>`;
+    ui().innerHTML = progressHTML() + `<div class="quiz-wait">${esc(s('ask'))}</div>`;
     playClip(q.start, q.stop, showChoices);
 }
 
@@ -533,7 +533,7 @@ function showChoices() {
     const q = quiz.questions[qIndex];
     ui().innerHTML = progressHTML() + `
         <div class="quiz-choices">
-            <p class="quiz-ask">${esc(s('which_options'))}</p>
+            <p class="quiz-ask">${esc(s('ask'))}</p>
             <div class="quiz-choice-row">
                 ${CHOICES.map(c => `<button class="quiz-choice" data-k="${c.key}" style="--c:${c.color}">${esc(choiceLabel(c.key))}</button>`).join('')}
             </div>
