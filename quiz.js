@@ -162,6 +162,16 @@ async function copyText(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch { prompt('', text); return false; }
 }
 
+// ビューア本体の自動送りを黙らせる。app.js は再生が始まるたびに
+// onPlayerStateChange → startTracking() を回し、選択中プレーの終端を過ぎると
+// playNext() で次へ飛ばす。クイズの区間はそのプレーとは無関係な位置なので、
+// 放っておくと再生した途端に一覧側のシーンへ奪われる。
+// currentIndex を外しておけば startTracking() が走っても何もしない。
+function releaseViewerPlayback() {
+    currentIndex = -1;
+    if (checkInterval) clearInterval(checkInterval);
+}
+
 // 動画を区間再生する。stop で止まったら onStop を呼ぶ。
 // 区間を抜けたら必ず一時停止する。見張りを外すだけだと、画面を閉じた後も
 // 再生が続いて次のプレーまで流れてしまう。
@@ -173,6 +183,7 @@ function stopClip() {
 function playClip(start, stop, onStop) {
     stopClip();
     if (!player || !player.seekTo) return;
+    releaseViewerPlayback();
     player.seekTo(start, true);
     player.playVideo();
     clipTimer = setInterval(() => {
@@ -647,8 +658,7 @@ async function boot(token) {
     await waitForMatch(quiz.match_dvw);
 
     // ビューア側の自動送りを止める。クイズは区間再生で自前に進める。
-    if (checkInterval) clearInterval(checkInterval);
-    currentIndex = -1;
+    releaseViewerPlayback();
     if (player.pauseVideo) player.pauseVideo();
 
     showJerseyEntry();
