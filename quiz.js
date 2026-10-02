@@ -30,9 +30,9 @@ const CHOICE_OF = Object.fromEntries(CHOICES.map(c => [c.key, c]));
 // 出題対象のレセプション評価。-, /, = は選択肢を考えるまでもないので外す。
 const QUIZ_EFFECTS = ['#', '+', '!'];
 
-// アタック接触の何秒前で止めるか。セッターの動きとトスは見せて、
-// 打つ瞬間は見せない。
-const DEFAULT_STOP_OFFSET = 0.5;
+// アタック接触から何秒後まで見せるか。手前で切ると判断の材料が足りないので、
+// 接触を跨いで少し続ける。
+const DEFAULT_TAIL = 1.5;
 
 const STR = {
     quiz_admin_title: 'Reception quiz',
@@ -42,7 +42,7 @@ const STR = {
     load_fail: 'Could not load.',
     q_title: 'Title',
     q_title_ph: 'e.g. Reception reading #1',
-    stop_offset: 'Stop before attack',
+    tail_after: 'Keep playing past the attack',
     pick_plays: 'Watch each clip and set the answer. Picking one moves to the next; Skip leaves it out.',
     no_receptions: 'No #/+/! receptions in this match.',
     target_team: 'Team to quiz on',
@@ -62,6 +62,10 @@ const STR = {
     confirm_del: 'Delete this quiz and all its results?',
     del_fail: 'Could not delete.',
     no_results: 'Nobody has answered yet.',
+    by_player: 'By player',
+    tries: 'Tries',
+    accuracy: 'Accuracy',
+    by_player_note: 'The last three columns are how often the player got questions right when the answer was that one.',
     per_question: 'Correct rate per question',
     attempts: 'Attempts',
     close: 'Close',
@@ -95,16 +99,16 @@ function choiceLabel(key) {
 const esc = str => escapeHtml(String(str == null ? "" : str));
 
 // --- 出題区間 --------------------------------------------------------
-// サーブから見せて、次のアタックの直前で止める。ラリーをまたがないよう
+// サーブから見せて、次のアタックの少し後で止める。ラリーをまたがないよう
 // 次のサーブに当たったら打ち切る。
 //
 // レセプションからアタックまでは実データで中央値2秒・95%が3秒以内だが、
 // たまに9秒後まで開く。そのままだと切り返しの応酬まで見せてしまい、
 // 誰がどう決めたかで答えが割れるので上限をかける。DVW の時刻は秒単位で、
 // レセプションとアタックが同じ秒になることもあるため下限も要る。
-const MIN_AFTER_R = 1.2;   // パスの行方は必ず見せる
-const MAX_AFTER_R = 3.5;   // ラリーの結末は見せない
-function questionWindow(play, plays, stopOffset) {
+const MIN_AFTER_R = 3.2;   // パスの行方とその後は必ず見せる
+const MAX_AFTER_R = 5.5;   // ラリーの結末までは見せない
+function questionWindow(play, plays, tail) {
     const i = plays.findIndex(p => p.id === play.id);
     let start = play.time - 3.0;
     for (let j = i - 1; j >= 0; j--) {
@@ -115,7 +119,7 @@ function questionWindow(play, plays, stopOffset) {
         if (plays[j].skill === 'S') break;
         if (plays[j].skill === 'A') { attackTime = plays[j].time; break; }
     }
-    let stop = (attackTime === null) ? play.time + MAX_AFTER_R : attackTime - stopOffset;
+    let stop = (attackTime === null) ? play.time + MAX_AFTER_R : attackTime + tail;
     stop = Math.min(stop, play.time + MAX_AFTER_R);
     stop = Math.max(stop, play.time + MIN_AFTER_R);
     return { start: Math.max(0, Math.round(start * 10) / 10), stop: Math.round(stop * 10) / 10 };
@@ -299,8 +303,8 @@ function renderQuizNew() {
             </div>
         </div>
         <div class="quiz-field">
-            <label>${esc(s('stop_offset'))}: <b id="qz-off-val">${DEFAULT_STOP_OFFSET.toFixed(1)}s</b></label>
-            <input type="range" id="qz-off" min="0" max="2" step="0.1" value="${DEFAULT_STOP_OFFSET}">
+            <label>${esc(s('tail_after'))}: <b id="qz-off-val">${DEFAULT_TAIL.toFixed(1)}s</b></label>
+            <input type="range" id="qz-off" min="0" max="4" step="0.1" value="${DEFAULT_TAIL}">
         </div>
         <p class="quiz-muted">${esc(s('pick_plays'))}</p>
         <div id="qz-body" class="quiz-scroll"></div>
@@ -472,7 +476,27 @@ async function renderQuizResults(token) {
         return { i, label: q.label || `Q${i + 1}`, answer: q.answer, n: seen.length, ok, pct: seen.length ? Math.round(ok / seen.length * 100) : null };
     });
 
+    const pct = (ok, n) => n ? Math.round(ok / n * 100) + '%' : '&ndash;';
+
     body.innerHTML = `
+        <h4 class="quiz-sub">${esc(s('by_player'))}</h4>
+        <table class="quiz-table quiz-players">
+            <tr>
+                <th></th><th>${esc(s('tries'))}</th><th>${esc(s('accuracy'))}</th>
+                ${CHOICES.map(c => `<th>${esc(c.label)}</th>`).join('')}
+            </tr>
+            ${perPlayerStats(rows, questions).map(p => `<tr>
+                <td class="qz-n">#${esc(p.jersey)}</td>
+                <td class="qz-c">${p.attempts}</td>
+                <td class="qz-c strong">${pct(p.correct, p.total)}<span class="qz-sub2">${p.correct}/${p.total}</span></td>
+                ${CHOICES.map(c => {
+                    const b = p.byAnswer[c.key];
+                    return `<td class="qz-c">${b ? pct(b.ok, b.n) : '&ndash;'}</td>`;
+                }).join('')}
+            </tr>`).join('')}
+        </table>
+        <p class="quiz-muted quiz-note">${esc(s('by_player_note'))}</p>
+
         <h4 class="quiz-sub">${esc(s('per_question'))}</h4>
         <table class="quiz-table">
             ${perQ.map(q => `<tr>
@@ -482,6 +506,7 @@ async function renderQuizResults(token) {
                 <td class="qz-p">${q.pct === null ? '&ndash;' : q.pct + '%'}</td>
             </tr>`).join('')}
         </table>
+
         <h4 class="quiz-sub">${esc(s('attempts'))}</h4>
         <table class="quiz-table">
             ${rows.map(r => `<tr>
@@ -491,6 +516,31 @@ async function renderQuizResults(token) {
                 <td class="qz-p">${esc(r.created_at ? new Date(r.created_at).toLocaleString() : '')}</td>
             </tr>`).join('')}
         </table>`;
+}
+
+// 背番号ごとにまとめる。同じ人が何度挑戦しても1行で、全挑戦の合計で出す。
+// 選択肢ごとの列は「正解がそれだった問題を、どれだけ当てられたか」。
+// どの状況の見極めが弱いかが分かる。
+function perPlayerStats(rows, questions) {
+    const by = new Map();
+    rows.forEach(r => {
+        if (!by.has(r.jersey)) by.set(r.jersey, { jersey: r.jersey, attempts: 0, correct: 0, total: 0, byAnswer: {} });
+        const p = by.get(r.jersey);
+        p.attempts++;
+        p.correct += r.correct || 0;
+        p.total += r.total || 0;
+        (r.answers || []).forEach(a => {
+            const key = questions[a.q] && questions[a.q].answer;
+            if (!key) return;
+            const b = p.byAnswer[key] || (p.byAnswer[key] = { ok: 0, n: 0 });
+            b.n++;
+            if (a.ok) b.ok++;
+        });
+    });
+    return [...by.values()].sort((x, y) => {
+        const rate = p => p.total ? p.correct / p.total : -1;
+        return rate(y) - rate(x) || x.jersey - y.jersey;
+    });
 }
 
 // =====================================================================
