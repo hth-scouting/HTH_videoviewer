@@ -65,8 +65,12 @@ body.quiz-mode #video-side { flex: 1; }
     color: #fff; font-size: 1.35rem; font-weight: 800; cursor: pointer;
     font-family: inherit; transition: transform var(--transition-fast), background var(--transition-fast);
 }
-.quiz-choice:hover { background: var(--c); }
+.quiz-choice:hover:not(:disabled) { background: var(--c); }
 .quiz-choice:active { transform: scale(0.97); }
+/* 押したことだけ伝える。正誤の色は出さない。 */
+.quiz-choice.picked { background: var(--c); transform: scale(0.97); }
+.quiz-choice:disabled { cursor: default; }
+.quiz-choice:disabled:not(.picked) { opacity: 0.45; }
 
 .quiz-replay {
     margin-top: 14px; padding: 10px 20px;
@@ -75,10 +79,6 @@ body.quiz-mode #video-side { flex: 1; }
     font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit;
 }
 .quiz-replay:hover { background: rgba(255,255,255,0.12); }
-
-.quiz-verdict { margin: 0 0 6px; font-size: 1.8rem; font-weight: 900; }
-.quiz-verdict.ok { color: #4ade80; }
-.quiz-verdict.ng { color: #f87171; }
 
 /* 背番号入力・結果などの全面画面 */
 .quiz-screen {
@@ -109,14 +109,22 @@ body.quiz-mode #video-side { flex: 1; }
 
 .quiz-score { color: #fff; font-size: 4.5rem; font-weight: 900; line-height: 1; }
 .quiz-score span { font-size: 1.6rem; margin-left: 4px; }
-.quiz-review { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 420px; }
-.quiz-dot {
-    width: 30px; height: 30px; border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 0.78rem; font-weight: 800; color: #fff;
+/* 答え合わせ。ここで初めて正解を出す。 */
+.quiz-review {
+    width: 100%; max-width: 360px; margin: 4px 0;
+    border-collapse: collapse; font-size: 0.86rem; color: #fff;
 }
-.quiz-dot.ok { background: #2e7d32; }
-.quiz-dot.ng { background: var(--danger); }
+.quiz-review th {
+    padding: 4px 8px; font-size: 0.68rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.4px;
+    color: rgba(255,255,255,0.4); text-align: right;
+}
+.quiz-review td { padding: 5px 8px; border-top: 1px solid rgba(255,255,255,0.1); }
+.quiz-review .rv-n { text-align: left; font-weight: 800; color: rgba(255,255,255,0.45); width: 44px; }
+.quiz-review .rv-a { text-align: right; font-weight: 700; }
+.quiz-review .rv-c { text-align: right; width: 96px; color: rgba(255,255,255,0.6); }
+.quiz-review tr.ok .rv-a { color: #4ade80; }
+.quiz-review tr.ng .rv-a { color: #f87171; }
 
 /* --- 管理モーダル ---------------------------------------------------- */
 .quiz-modal {

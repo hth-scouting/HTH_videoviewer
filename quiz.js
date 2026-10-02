@@ -69,12 +69,9 @@ const STR = {
     quiz_gone: 'This quiz no longer exists.',
     loading: 'Loading...',
     which_options: 'What could the setter use?',
-    correct: 'Correct',
-    wrong: 'Wrong',
-    answer_was: 'Answer: {a}',
+    your_answer: 'You',
+    correct_answer: 'Answer',
     replay: 'Watch again',
-    next_q: 'Next',
-    see_result: 'See result',
     your_score: 'Your score',
     saving: 'Saving...',
     save_fail: 'Could not save your result.',
@@ -521,25 +518,23 @@ function showChoices() {
     document.getElementById('qz-replay').onclick = () => playClip(q.start, q.stop, showChoices);
 }
 
+// 正誤はその場では出さない。押したことだけ分かるように選んだボタンを
+// 一瞬光らせて、そのまま次の問題へ送る。答え合わせは最後にまとめて。
 function answer(key) {
     const q = quiz.questions[qIndex];
-    const ok = key === q.answer;
-    qAnswers.push({ q: qIndex, a: key, ok });
-    const last = qIndex === quiz.questions.length - 1;
-    ui().innerHTML = progressHTML() + `
-        <div class="quiz-choices">
-            <p class="quiz-verdict ${ok ? 'ok' : 'ng'}">${esc(ok ? s('correct') : s('wrong'))}</p>
-            <p class="quiz-ask">${esc(s('answer_was', { a: choiceLabel(q.answer) }))}</p>
-            <div class="quiz-choice-row">
-                <button class="quiz-replay" id="qz-replay">${esc(s('replay'))}</button>
-                <button class="quiz-big-btn primary" id="qz-next">${esc(last ? s('see_result') : s('next_q'))}</button>
-            </div>
-        </div>`;
-    document.getElementById('qz-replay').onclick = () => playClip(q.start, q.stop);
-    document.getElementById('qz-next').onclick = () => {
-        stopClip();
-        if (last) finish(); else { qIndex++; runQuestion(); }
-    };
+    qAnswers.push({ q: qIndex, a: key, ok: key === q.answer });
+    stopClip();
+
+    const btn = ui().querySelector(`.quiz-choice[data-k="${key}"]`);
+    ui().querySelectorAll('.quiz-choice').forEach(b => { b.disabled = true; });
+    if (btn) btn.classList.add('picked');
+    const replay = document.getElementById('qz-replay');
+    if (replay) replay.disabled = true;
+
+    setTimeout(() => {
+        if (qIndex === quiz.questions.length - 1) finish();
+        else { qIndex++; runQuestion(); }
+    }, 350);
 }
 
 async function finish() {
@@ -552,9 +547,14 @@ async function finish() {
         <h2 class="quiz-h2">${esc(s('your_score'))}</h2>
         <div class="quiz-score">${pct}<span>%</span></div>
         <p class="quiz-big-muted">#${esc(qJersey)} &middot; ${correct} / ${total}</p>
-        <div class="quiz-review">
-            ${qAnswers.map(a => `<span class="quiz-dot ${a.ok ? 'ok' : 'ng'}">${a.q + 1}</span>`).join('')}
-        </div>
+        <table class="quiz-review">
+            <tr><th></th><th>${esc(s('your_answer'))}</th><th>${esc(s('correct_answer'))}</th></tr>
+            ${qAnswers.map(a => `<tr class="${a.ok ? 'ok' : 'ng'}">
+                <td class="rv-n">Q${a.q + 1}</td>
+                <td class="rv-a">${esc(choiceLabel(a.a))}</td>
+                <td class="rv-c">${esc(choiceLabel(quiz.questions[a.q].answer))}</td>
+            </tr>`).join('')}
+        </table>
         <p class="quiz-err" id="qz-serr">${esc(s('saving'))}</p>
         <button class="quiz-big-btn" id="qz-retry">${esc(s('retry'))}</button>
         <a class="quiz-big-btn" href="${esc(quizExitURL())}">${esc(s('to_viewer'))}</a>`);
