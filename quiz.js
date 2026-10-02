@@ -41,12 +41,13 @@ const STR = {
     q_title: 'Title',
     q_title_ph: 'e.g. Reception reading #1',
     stop_offset: 'Stop before attack',
-    pick_plays: 'Pick the receptions to use, and set the answer for each.',
+    pick_plays: 'Watch each clip and set the answer. Picking one moves to the next; Skip leaves it out.',
     no_receptions: 'No #/+/! receptions in this match.',
     load_match_first: 'Open a match first.',
-    preview: 'Preview',
+    preview: 'Play this clip',
+    skip: 'Skip',
+    match_changed: 'The match changed while this was open. Go back and start again.',
     selected_n: '{n} selected',
-    unanswered_n: '{n} still need an answer',
     create: 'Create quiz',
     creating: 'Creating...',
     create_fail: 'Could not create the quiz.',
@@ -146,8 +147,13 @@ async function copyText(text) {
 }
 
 // 動画を区間再生する。stop で止まったら onStop を呼ぶ。
+// 区間を抜けたら必ず一時停止する。見張りを外すだけだと、画面を閉じた後も
+// 再生が続いて次のプレーまで流れてしまう。
 let clipTimer = null;
-function stopClip() { if (clipTimer) { clearInterval(clipTimer); clipTimer = null; } }
+function stopClip() {
+    if (clipTimer) { clearInterval(clipTimer); clipTimer = null; }
+    if (player && player.pauseVideo) player.pauseVideo();
+}
 function playClip(start, stop, onStop) {
     stopClip();
     if (!player || !player.seekTo) return;
@@ -155,10 +161,8 @@ function playClip(start, stop, onStop) {
     player.playVideo();
     clipTimer = setInterval(() => {
         if (!player.getCurrentTime) return;
-        const now = player.getCurrentTime();
-        if (now >= stop) {
+        if (player.getCurrentTime() >= stop) {
             stopClip();
-            player.pauseVideo();
             if (onStop) onStop();
         }
     }, 80);
@@ -168,14 +172,16 @@ function playClip(start, stop, onStop) {
 // 管理: クイズの作成・一覧・成績
 // =====================================================================
 
-function modalShell(inner, width) {
+// dock = true で画面の端に寄せる。問題を作るときは出題者も映像を見ながら
+// 答えを決めるので、動画を覆わずに脇へ出す。暗幕も敷かない。
+function modalShell(inner, width, dock) {
     const old = document.getElementById('quiz-modal');
     if (old) old.remove();
     const m = document.createElement('div');
     m.id = 'quiz-modal';
-    m.className = 'quiz-modal';
+    m.className = dock ? 'quiz-modal dock' : 'quiz-modal';
     m.innerHTML = `<div class="quiz-modal-card" style="max-width:${width || 640}px">${inner}</div>`;
-    m.addEventListener('click', e => { if (e.target === m) { stopClip(); m.remove(); } });
+    if (!dock) m.addEventListener('click', e => { if (e.target === m) { stopClip(); m.remove(); } });
     document.body.appendChild(m);
     return m;
 }
@@ -251,6 +257,10 @@ function renderQuizNew() {
         return;
     }
 
+    // この画面を開いたときの試合を覚えておく。脇に寄せている分、
+    // 裏で試合を切り替えられてしまうので、保存時に食い違いを弾く。
+    const matchAtOpen = currentMatchDVW;
+
     modalShell(head + `
         <div class="quiz-field">
             <label>${esc(s('q_title'))}</label>
@@ -266,75 +276,89 @@ function renderQuizNew() {
             <span class="quiz-count" id="qz-count"></span>
             <button class="quiz-btn" id="qz-back">${esc(s('back'))}</button>
             <button class="quiz-btn primary" id="qz-save">${esc(s('create'))}</button>
-        </div>`, 720);
+        </div>`, 400, true);
 
     document.getElementById('qz-close').onclick = closeQuizModal;
-    document.getElementById('qz-back').onclick = renderQuizList;
+    document.getElementById('qz-back').onclick = () => { stopClip(); renderQuizList(); };
 
     const picked = new Map();   // playId -> answer key ('' = 未設定)
+    const body = document.getElementById('qz-body');
+    const offEl = document.getElementById('qz-off');
+    const offVal = document.getElementById('qz-off-val');
 
-    document.getElementById('qz-body').innerHTML = plays.map(p => `
-        <div class="quiz-pick" data-pid="${p.id}">
-            <label class="quiz-pick-head">
-                <input type="checkbox" data-chk="${p.id}">
+    body.innerHTML = plays.map((p, i) => `
+        <div class="quiz-pick" data-pid="${p.id}" data-i="${i}">
+            <div class="quiz-pick-head">
                 <span class="quiz-eff eff-${p.effect === '#' ? 'perfect' : (p.effect === '+' ? 'good' : 'poor')}">${esc(p.effect)}</span>
                 <span class="quiz-pick-label">${esc(playLabel(p))}</span>
-            </label>
+                <button class="quiz-play" data-play="${i}" title="${esc(s('preview'))}">&#9654;</button>
+            </div>
             <div class="quiz-pick-body">
                 <div class="quiz-ans-row">
-                    ${CHOICES.map(c => `<button class="quiz-ans" data-ans="${c.key}" data-pid="${p.id}">${esc(choiceLabel(c.key))}</button>`).join('')}
+                    ${CHOICES.map(c => `<button class="quiz-ans" data-ans="${c.key}" data-i="${i}">${esc(choiceLabel(c.key))}</button>`).join('')}
                 </div>
-                <button class="quiz-mini" data-prev="${p.id}">${esc(s('preview'))}</button>
+                <button class="quiz-mini" data-skip="${i}">${esc(s('skip'))}</button>
             </div>
         </div>`).join('');
 
-    const offEl = document.getElementById('qz-off');
-    const offVal = document.getElementById('qz-off-val');
     offEl.oninput = () => { offVal.textContent = parseFloat(offEl.value).toFixed(1) + 's'; };
 
     function refreshCount() {
         const n = picked.size;
-        const missing = [...picked.values()].filter(v => !v).length;
-        document.getElementById('qz-count').textContent =
-            s('selected_n', { n }) + (missing ? ' / ' + s('unanswered_n', { n: missing }) : '');
+        document.getElementById('qz-count').textContent = s('selected_n', { n });
     }
     refreshCount();
 
-    const body = document.getElementById('qz-body');
-    body.querySelectorAll('[data-chk]').forEach(cb => cb.onchange = () => {
-        const id = Number(cb.dataset.chk);
-        const row = body.querySelector(`.quiz-pick[data-pid="${id}"]`);
-        if (cb.checked) { if (!picked.has(id)) picked.set(id, ''); row.classList.add('on'); }
-        else { picked.delete(id); row.classList.remove('on'); }
-        refreshCount();
+    // 1件に寄せて、その区間を流す。答えを押すと次の候補へ送るので、
+    // 「見る→決める→次」をボタン1つで回せる。
+    function focusRow(i, play) {
+        if (i < 0 || i >= plays.length) { stopClip(); return; }
+        body.querySelectorAll('.quiz-pick').forEach(r => r.classList.remove('current'));
+        const row = body.querySelector(`.quiz-pick[data-i="${i}"]`);
+        if (!row) return;
+        row.classList.add('current');
+        row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        if (play === false) return;
+        const w = questionWindow(plays[i], allPlays, parseFloat(offEl.value));
+        playClip(w.start, w.stop);
+    }
+
+    body.querySelectorAll('[data-play]').forEach(b => b.onclick = () => focusRow(Number(b.dataset.play)));
+    body.querySelectorAll('.quiz-pick-label').forEach(el => el.onclick = () => {
+        focusRow(Number(el.closest('.quiz-pick').dataset.i));
     });
+
     body.querySelectorAll('[data-ans]').forEach(b => b.onclick = () => {
-        const id = Number(b.dataset.pid);
-        const cb = body.querySelector(`[data-chk="${id}"]`);
-        if (!cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
-        picked.set(id, b.dataset.ans);
-        body.querySelectorAll(`[data-ans][data-pid="${id}"]`).forEach(x => x.classList.remove('on'));
+        const i = Number(b.dataset.i);
+        const row = body.querySelector(`.quiz-pick[data-i="${i}"]`);
+        picked.set(plays[i].id, b.dataset.ans);
+        row.classList.add('on');
+        row.querySelectorAll('[data-ans]').forEach(x => x.classList.remove('on'));
         b.classList.add('on');
         refreshCount();
+        focusRow(i + 1);
     });
-    body.querySelectorAll('[data-prev]').forEach(b => b.onclick = () => {
-        const p = plays.find(x => x.id === Number(b.dataset.prev));
-        if (!p) return;
-        const w = questionWindow(p, allPlays, parseFloat(offEl.value));
-        playClip(w.start, w.stop);
+    body.querySelectorAll('[data-skip]').forEach(b => b.onclick = () => {
+        const i = Number(b.dataset.skip);
+        const row = body.querySelector(`.quiz-pick[data-i="${i}"]`);
+        picked.delete(plays[i].id);
+        row.classList.remove('on');
+        row.querySelectorAll('[data-ans]').forEach(x => x.classList.remove('on'));
+        refreshCount();
+        focusRow(i + 1);
     });
+
+    focusRow(0, false);
 
     document.getElementById('qz-save').onclick = async (e) => {
+        if (currentMatchDVW !== matchAtOpen) { alert(s('match_changed')); return; }
         const ids = [...picked.keys()];
         if (!ids.length) return;
-        const missing = ids.filter(id => !picked.get(id));
-        if (missing.length) { alert(s('unanswered_n', { n: missing.length })); return; }
 
         const offset = parseFloat(offEl.value);
-        const questions = ids.map(id => {
-            const p = plays.find(x => x.id === id);
+        const questions = plays.filter(p => picked.has(p.id)).map(p => {
             const w = questionWindow(p, allPlays, offset);
-            return { playId: id, start: w.start, stop: w.stop, answer: picked.get(id), label: playLabel(p) };
+            return { playId: p.id, start: w.start, stop: w.stop, answer: picked.get(p.id), label: playLabel(p) };
         });
 
         const btn = e.currentTarget;
@@ -343,12 +367,13 @@ function renderQuizNew() {
         const { error } = await supabaseClient.from('quizzes').insert([{
             token,
             title: document.getElementById('qz-title').value.trim() || null,
-            match_dvw: currentMatchDVW,
-            youtube_id: (matchMap || {})[currentMatchDVW] || null,
+            match_dvw: matchAtOpen,
+            youtube_id: (matchMap || {})[matchAtOpen] || null,
             questions,
         }]);
         btn.disabled = false; btn.textContent = s('create');
         if (error) { console.error('quiz insert failed:', error); alert(s('create_fail') + '\n' + error.message); return; }
+        stopClip();
         showCreated(token);
     };
 }
